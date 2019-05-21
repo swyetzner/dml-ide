@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../resources/icons/model.png</file>
+        <file>../resources/icons/solid.png</file>
+        <file>../resources/icons/wireframe.png</file>
+        <file>../resources/shaders/bars.vert</file>
+        <file>../resources/shaders/bars.frag</file>
+        <file>../resources/shaders/lineCylinders.geom</file>
+        <file>../resources/shaders/arrows.vert</file>
+        <file>../resources/shaders/arrows.geom</file>
+        <file>../resources/shaders/arrows.frag</file>
+    </qresource>
+</RCC>
