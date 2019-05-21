@@ -69,11 +69,13 @@ void Optimizer::sortMasses_stress(vector<uint> &output_indices){
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-SpringRemover::SpringRemover(Simulation *sim, double removeRatio)
+SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRatio)
     : Optimizer(sim) {
 //---------------------------------------------------------------------------
 
     this->stepRatio = removeRatio;
+    this->stopRatio = stopRatio;
+    qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 }
 
 
@@ -154,6 +156,7 @@ void SpringRemover::optimize() {
 
 
         // Remove springs
+        qDebug() << "About to deleted";
         uint i = 0;
         while (i < sim->springs.size()) {
             if (sim->springs[i] != nullptr && springsToDelete[sim->springs[i]]) {
@@ -162,6 +165,7 @@ void SpringRemover::optimize() {
             }
             i++;
         }
+        qDebug() << "Deleted springs";
 
         sim->setAll(); // Set spring stresses and mass value updates on GPU
 

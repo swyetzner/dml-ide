@@ -38,7 +38,8 @@ class Simulator : public QOpenGLWidget, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    explicit Simulator(Simulation *sim, SimulationConfig *config, QWidget *parent = nullptr);
+    explicit Simulator(Simulation *sim, SimulationConfig *config,
+            OptimizationConfig * optconfig = nullptr, QWidget *parent = nullptr);
 
     enum Status {
         STARTED,
@@ -49,6 +50,7 @@ public:
     Simulation *sim;
     SimulationConfig *config;
     Optimizer *optimizer;
+    OptimizationConfig *optConfig;
     SpringInserter *springInserter;
 
 signals:

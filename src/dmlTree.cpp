@@ -65,14 +65,14 @@ static inline QString velocityAttribute() { return QStringLiteral("velocity"); }
 // Stop attributes
 static inline QString criterionAttribute() { return QStringLiteral("criterion"); }
 static inline QString thresholdAttribute() { return QStringLiteral("threshold"); }
-static inline QString weightlossAttribute() { return QStringLiteral("weightloss"); }
+static inline QString metricAttribute() { return QStringLiteral("metric"); }
 
 // Optimization attributes + elements
 static inline QString volAttribute() { return QStringLiteral("vol"); }
 static inline QString ruleElement() { return QStringLiteral("rule"); }
 
 // Rule attributes
-static inline QString actionAttribute() { return QStringLiteral("action"); }
+static inline QString methodAttribute() { return QStringLiteral("method"); }
 static inline QString frequencyAttribute() { return QStringLiteral("frequency"); }
 
 // Repeat attributes
@@ -369,31 +369,68 @@ void DMLTree::parseExpandElement(const QDomElement &element,
     if (element.tagName() == stopElement()) {
         auto *criterion = createAttributeItem(item, attrMap, criterionAttribute());
         auto *threshold = createAttributeItem(item, attrMap, thresholdAttribute());
-        createAttributeItem(item, attrMap, weightlossAttribute());
-
-        Stop s = Stop();
-        s.criterion = criterion ? (criterion->text(1) == "time"?
-                                       Stop::SC_TIME : Stop::SC_MOTION) :
-                                  Stop::SC_TIME;
-        s.threshold = threshold ? threshold->text(1).toDouble() : 0;
+        auto *metric = createAttributeItem(item, attrMap, metricAttribute());
 
         if (parentItem->text(0).toLower().startsWith(simulationElement())) {
+            Stop s = Stop();
+            s.criterion = criterion ? (criterion->text(1) == "time"?
+                                       Stop::SC_TIME : Stop::SC_MOTION) :
+                          Stop::SC_TIME;
+            s.threshold = threshold ? threshold->text(1).toDouble() : 0;
+
             QString simConfigId = parentItem->child(0)->text(1);
             design_ptr->simConfigMap[simConfigId]->stops.push_back(s);
+        }
+        if (parentItem->text(0).toLower().startsWith(optimizationElement())) {
+            OptimizationStop s = OptimizationStop();
+            s.metric = metric ? (metric->text(1) == "weight"?
+                    OptimizationStop::WEIGHT : OptimizationStop::ENERGY) :
+                            OptimizationStop::WEIGHT;
+            s.threshold = threshold ? threshold->text(1).toDouble() : 100;
+
+            if (design_ptr->optConfig != nullptr) {
+                design_ptr->optConfig->stopCriteria.push_back(s);
+            }
         }
     }
 
     // ---- <optimization> ----
     if (element.tagName() == optimizationElement()) {
-        createAttributeItem(item, attrMap, volAttribute());
+        auto *sim = createAttributeItem(item, attrMap, simulationElement());
+
+        OptimizationConfig *o = new OptimizationConfig();
+        o->simulationConfig = sim ? design_ptr->simConfigMap[sim->text(1)] : nullptr;
+        design_ptr->optConfig = o;
+
+        log(QString("Loaded Optimization Config: '%1'").arg(o->simulationConfig->id));
     }
 
     // ---- <rule> ----
     if (element.tagName() == ruleElement()) {
-        createAttributeItem(item, attrMap, actionAttribute());
-        createAttributeItem(item, attrMap, criterionAttribute());
-        createAttributeItem(item, attrMap, thresholdAttribute());
-        createAttributeItem(item, attrMap, frequencyAttribute());
+        auto *method = createAttributeItem(item, attrMap, methodAttribute());
+        auto *threshold = createAttributeItem(item, attrMap, thresholdAttribute());
+        auto *frequency = createAttributeItem(item, attrMap, frequencyAttribute());
+
+        OptimizationRule r = OptimizationRule();
+        r.method = method ? (method->text(1) == "remove_low_stress"?
+                 OptimizationRule::REMOVE_LOW_STRESS : OptimizationRule::NONE) :
+                   OptimizationRule::NONE;
+        if (threshold) {
+            QString t = threshold->text(1);
+            qDebug() << "Threshold" << t;
+            if (t.endsWith(QChar('%'))) {
+                r.threshold = t.remove(QChar('%')).trimmed().toDouble() / 100;
+            } else {
+                r.threshold = t.toDouble();
+            }
+        } else { r.threshold = 0; }
+        r.frequency = frequency ? frequency->text(1).toInt() : 0;
+
+        if (design_ptr->optConfig != nullptr) {
+            design_ptr->optConfig->rules.push_back(r);
+        }
+        qDebug() << "Rules" << design_ptr->optConfig->rules.front().threshold;
+
     }
 
     QDomElement sibling = element.nextSiblingElement();

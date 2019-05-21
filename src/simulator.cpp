@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 
-Simulator::Simulator(Simulation *sim, SimulationConfig *config, QWidget *parent)
+Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConfig *optConfig, QWidget *parent)
     : QOpenGLWidget(parent),
       massShaderProgram(nullptr),
       springShaderProgram(nullptr),
@@ -24,6 +24,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, QWidget *parent)
 {
     this->sim = sim;
     this->config = config;
+    this->optConfig = optConfig;
     this->optimizer = nullptr;
 
     n_masses = long(sim->masses.size());
@@ -124,10 +125,26 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, QWidget *parent)
     repeatRotation = config->repeat.rotation;
     optimizeAfter = (repeatTime > 0)? 20 : 0;
 
+    // TODO: add stop criteria
+    if (optConfig != nullptr) {
+        for (OptimizationRule r : optConfig->rules) {
+            switch(r.method) {
+                case OptimizationRule::REMOVE_LOW_STRESS:
+                    this->optimizer = new SpringRemover(sim, r.threshold);
+                    qDebug() << "Created SpringRemover" << r.threshold;
+                    break;
+
+                case OptimizationRule::NONE:
+                    optimizer = nullptr;
+                    break;
+            }
+        }
+    }
+
     originalModel = config->model;
-    optimizer = new MassDisplacer(sim, 0.2);
-    springInserter = new SpringInserter(sim, 0.001);
-    springInserter->cutoff = 3.5 * config->lattice.unit[0];
+    //optimizer = new MassDisplacer(sim, 0.2);
+    //springInserter = new SpringInserter(sim, 0.001);
+    //springInserter->cutoff = 3.5 * config->lattice.unit[0];
 
     prevEnergy = vector<double>();
     equilibrium = false;
@@ -189,42 +206,56 @@ void Simulator::run() {
         for (Spring *s: sim->springs) {
             totalLength += s->_rest;
         }
+        double totalEnergy = 0;
 
         // steps % 250
-        double totalEnergy = 0;
-        for (Spring *s : sim->springs) {
-            totalEnergy += s->_curr_force * s->_curr_force / s->_k;
-        }
-        qDebug() << "ENERGY" << totalEnergy << prevEnergy.size();
-        if (prevEnergy.size() > 9) {
-            bool close = true;
-            for (int p = 0; p < 10; p++)  {
-                int i = prevEnergy.size() - p - 1;
-                if (fabs(prevEnergy[i] - totalEnergy) > totalEnergy * 1E-6)
-                    close = false;
+        bool equilibriumMetric = false;
+        if (equilibriumMetric) {
+            for (Spring *s : sim->springs) {
+                totalEnergy += s->_curr_force * s->_curr_force / s->_k;
             }
-            if (close) {
-                equilibrium = true;
-                if (!optimized) totalEnergy_start = totalEnergy;
+            qDebug() << "ENERGY" << totalEnergy << prevEnergy.size();
+            if (prevEnergy.size() > 9) {
+                bool close = true;
+                for (int p = 0; p < 10; p++) {
+                    int i = prevEnergy.size() - p - 1;
+                    if (fabs(prevEnergy[i] - totalEnergy) > totalEnergy * 1E-6)
+                        close = false;
+                }
+                if (close) {
+                    equilibrium = true;
+                    if (!optimized) totalEnergy_start = totalEnergy;
+                }
             }
-        }
-        prevEnergy.push_back(totalEnergy);
-        if (prevEnergy.size() > 100) {
-            prevEnergy.erase(prevEnergy.begin());
+            prevEnergy.push_back(totalEnergy);
+            if (prevEnergy.size() > 100) {
+                prevEnergy.erase(prevEnergy.begin());
+            }
+            if (optimizeAfter <= n_repeats && equilibrium) {
+
+                if (optimizer != nullptr) {
+                    optimizer->optimize();
+                    equilibrium = false;
+                    optimized++;
+                }
+                //if (steps > 1 && steps % 500 == 0) {
+                //    springInserter->optimize();
+                //}
+                updateColors();
+                updateDiameters();
+            }
         }
 
-        if (optimizeAfter <= n_repeats &&
-                equilibrium) {
-            //removePercentBars(removalRate);
-            optimizer->optimize();
-            equilibrium = false;
-            optimized++;
-            //if (steps > 1 && steps % 500 == 0) {
-            //    springInserter->optimize();
-            //}
-            updateColors();
-            updateDiameters();
+        for (OptimizationRule r : optConfig->rules) {
+            if (optimizeAfter <= n_repeats && steps % r.frequency == 0) {
+
+                optimizer->optimize();
+                optimized++;
+                updateColors();
+                updateDiameters();
+            }
         }
+
         /**if (steps > 100 && (steps + 50) % 100 == 0) {
             optimizer->optimize();
             updateColors();
@@ -2042,18 +2073,41 @@ void Simulator::updateTextPanel() {
     double latticeCutoff = config->lattice.unit[0];
     QString material = config->lattice.material->id;
 
-    upperPanel.sprintf("%s\n\n"
-                       "Bars: %d\n"
-                       "Time: %.2lf s\n"
-                       "Weight remaining: %.2lf%\n"
-                       "Energy: %.2lf%, %.4lf (current), %.4lf (start)\n"
-                       "Optimization iterations: %d",
-                       simName.toUpper().toStdString().c_str(), sim->springs.size(),
-                       sim->time(), 100.0 * totalLength / totalLength_start,
-                       (100.0 * totalEnergy / ((totalEnergy_start > 0)? totalEnergy_start : totalEnergy)),
-                       totalEnergy,
-                       totalEnergy_start,
-                       optimized);
+    if (optConfig != nullptr) {
+        qDebug() << (optConfig->rules.front().method == OptimizationRule::NONE);
+        switch(optConfig->rules.front().method) {
+            case OptimizationRule::REMOVE_LOW_STRESS:
+                upperPanel.sprintf("%s --- %s\n\n"
+                                   "Bars: %d\n"
+                                   "Time: %.2lf s\n"
+                                   "Weight remaining: %.2lf%\n"
+                                   "Optimization iterations: %d\n"
+                                   "Optimization threshold: %.1lf% bars per iteration",
+                                   simName.toUpper().toStdString().c_str(),
+                                   optConfig->rules.front().methodName().replace(QChar('_'), QChar(' ')).toStdString().c_str(),
+                                   sim->springs.size(),
+                                   sim->time(), 100.0 * totalLength / totalLength_start,
+                                   optimized,
+                                   optConfig->rules.front().threshold * 100);
+                break;
+
+            case OptimizationRule::NONE:
+                upperPanel.sprintf("%s\n\n"
+                                   "Bars: %d\n"
+                                   "Time: %.2lf s\n",
+                                    //"Weight remaining: %.2lf%\n"
+                                    //"Energy: %.2lf%, %.4lf (current), %.4lf (start)\n"
+                                    //"Optimization iterations: %d",
+                                   simName.toUpper().toStdString().c_str(), sim->springs.size(),
+                                   sim->time(), 100.0 * totalLength / totalLength_start);
+                                    //(100.0 * totalEnergy / ((totalEnergy_start > 0)? totalEnergy_start : totalEnergy)),
+                                    //totalEnergy,
+                                    //totalEnergy_start,
+                                    //optimized);
+                break;
+        }
+    }
+
 
     QString lowerPanel =
             tr("Random Lattice\n"

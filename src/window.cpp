@@ -186,7 +186,7 @@ void Window::reloadSimulation() {
 
     loader->loadSimulation(simulation, &design->simConfigs[0]);
 
-    simWidget = new Simulator(simulation, &design->simConfigs[0], this);
+    simWidget = new Simulator(simulation, &design->simConfigs[0], design->optConfig, this);
     connect(simWidget, &Simulator::log, this, &Window::log);
 
     ui->verticalLayout->addWidget(simWidget);

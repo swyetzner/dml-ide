@@ -709,7 +709,6 @@ public:
         case SPACE_FILL:
             return "space";
         }
-
     }
 };
 
@@ -784,6 +783,58 @@ public:
     simulation_data *model = nullptr;
 };
 
+class OptimizationStop {
+public:
+    OptimizationStop() = default;
+    ~OptimizationStop() = default;
+
+    enum Metric { WEIGHT, ENERGY };
+
+    Metric metric;
+    double threshold;
+
+    QString metricName() {
+        switch(metric) {
+            case WEIGHT:
+                return "WEIGHT";
+            case ENERGY:
+                return "ENERGY";
+        }
+    }
+};
+
+class OptimizationRule {
+public:
+    OptimizationRule() = default;
+    ~OptimizationRule() = default;
+
+    enum Method { REMOVE_LOW_STRESS, NONE };
+
+    Method method;
+    double threshold;
+    int frequency;
+
+    QString methodName() {
+        switch (method) {
+            case REMOVE_LOW_STRESS:
+                return "REMOVE_LOW_STRESS";
+            case NONE:
+                return "NONE";
+        }
+    }
+};
+
+class OptimizationConfig
+{
+public:
+    OptimizationConfig() {}
+    ~OptimizationConfig() {}
+
+    SimulationConfig * simulationConfig;
+    vector<OptimizationRule> rules;
+    vector<OptimizationStop> stopCriteria;
+};
+
 /**
  * @brief The Design class holds the entire design model
  */
@@ -791,6 +842,9 @@ class Design
 {
 public:
     Design();
+    ~Design() {
+        delete optConfig;
+    }
 
     vector<Volume> volumes;
     map<QString, Volume *> volumeMap;
@@ -803,6 +857,8 @@ public:
 
     vector<SimulationConfig> simConfigs;
     map<QString, SimulationConfig *> simConfigMap;
+
+    OptimizationConfig * optConfig = nullptr;
 };
 
 #endif // MODEL_H

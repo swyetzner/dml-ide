@@ -46,10 +46,10 @@ public:
 class SpringRemover : public Optimizer {
 
 public:
-    SpringRemover(Simulation *sim, double removeRatio);
+    SpringRemover(Simulation *sim, double removeRatio, double stopRatio = 0);
 
     double stepRatio;
-    double stopRatio = 0;
+    double stopRatio;
 
 protected:
     void optimize() override;
