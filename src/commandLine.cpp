@@ -13,8 +13,8 @@ namespace CommandLine {
                                        {'t', "timestep"}, 1E-4);
     args::ValueFlag<double> renderTimestep(parser, "SECONDS", "Render timestep (controls video speed)",
                                           {'r', "render"}, 5E-3);
-    args::ValueFlag<std::string> modelOutputPath(parser, "PATH", "Output 3D model file (STL supported)", {"model"});
-    args::ValueFlag<std::string> videoOutputPath(parser, "PATH", "Output video of simulation", {"video"});
+    args::ValueFlag<std::string> outputModelPath(parser, "PATH", "Output 3D model file (STL supported)", {"model"});
+    args::ValueFlag<std::string> outputVideoPath(parser, "PATH", "Output video of simulation", {"video"});
 
     // Parse command line
     void parse(int argc, char **argv) {

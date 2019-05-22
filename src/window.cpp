@@ -61,6 +61,49 @@ Window::~Window() {
     delete arrays;
 }
 
+// Loads Window state from command line arguments
+void Window::loadFromCmdLine(QString fileName, double gdt, double rdt, QString modelPath, QString videoPath) {
+
+    // Read DML input
+
+    QFile file(fileName);
+    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+
+        log(tr("Cannot read file %1:\n%2.")
+                    .arg(QDir::toNativeSeparators(fileName),
+                         file.errorString()));
+        return;
+    }
+
+    QString dirName = fileName;
+    dirName.truncate(dirName.lastIndexOf("/"));
+    qDebug() << "About to read DML file";
+    if (dmlTreeWidget->read(&file, dirName))
+        log(tr("Loaded file: %1.")
+                    .arg(QDir::toNativeSeparators(file.fileName())));
+    qDebug() << "Read DML file";
+
+    inputDMLPath = new QString(fileName);
+
+    QString shortName = fileName;
+    shortName = shortName.right(shortName.length() - shortName.lastIndexOf("/") - 1);
+    setWindowTitle(shortName + " - " + windowTitle());
+
+    setUpDMLFeatures();
+
+    // Load simulation
+    on_actionSimulation_Mode_toggled(true);
+
+    // Run simulation
+    if (!videoPath.isEmpty()) {
+        on_actionRecordSim_toggled(true);
+    }
+
+    setTimestep(gdt);
+    setRenderUpdate(rdt);
+    simWidget->start();
+}
+
 
 /**
  * @brief Window::log Outputs message to console widget
@@ -93,7 +136,6 @@ void Window::open() {
 
     QString dirName = fileName;
     dirName.truncate(dirName.lastIndexOf("/"));
-
     qDebug() << "About to read DML file";
     if (dmlTreeWidget->read(&file, dirName))
         log(tr("Loaded file: %1.")

@@ -30,10 +30,12 @@ class Window : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit Window(QWidget *parent = nullptr);\
+    explicit Window(QWidget *parent = nullptr);
     ~Window();
 
     static QTextEdit * s_textEdit;
+
+    void loadFromCmdLine(QString dmlInput, double gdt, double rdt, QString modelPath, QString videoPath);
 
     enum ViewMode { MODEL_VIEW, DESIGN_VIEW, SIM_VIEW };
 
