@@ -45,7 +45,7 @@ Window::Window(QWidget *parent) :
     connect(loader, &Loader::log, this, &Window::log);
     connect(propTable, &PropertiesTable::log, this, &Window::log);
 
-    connect(&exportThread, SIGNAL(exportedGeometry(string)), this, SLOT(exportThreadFinished(string)));
+    connect(&exportThread, &ExportThread::exportedGeometry, this, &Window::exportThreadFinished);
 
     ui->timeLCD->setSegmentStyle(QLCDNumber::Flat);
 }
@@ -243,8 +243,8 @@ void Window::on_actionSave_triggered()
 }
 
 
-void Window::exportThreadFinished(string fileName) {
-    log(tr("Completed export of %1").arg(QString::fromStdString(fileName)));
+void Window::exportThreadFinished(QString fileName) {
+    log(tr("Completed export of %1").arg(fileName));
 }
 
 void Window::on_actionwireframeView_triggered()

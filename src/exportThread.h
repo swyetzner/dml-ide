@@ -21,7 +21,7 @@ public:
     void startExport(string fileName, bar_data *barModel, double resolution, double diameter, int threads);
 
 signals:
-    void exportedGeometry(string fileName);
+    void exportedGeometry(QString fileName);
 
 protected:
     void run() override;

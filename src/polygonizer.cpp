@@ -183,17 +183,14 @@ void Polygonizer::calculatePolygon() {
     for (int i = 0; i < segments.size(); i++) {
         marchingCubesAdaptive(segments[i], 2);
     }
+    qDebug() << "Marching cubes completed";
 
     for (const Segment &s : segments) {
         triangleCount += s.polygon->triangles->size();
         nodeCount += s.polygon->nodeMap.size();
     }
 
-    this->polygon.reserve(triangleCount);
-    for (const Segment &s : segments) {
-        this->polygon.insert(polygon.cend(), s.triangles.cbegin(), s.triangles.cend());
-    }
-
+    this->geometry.triangles = new vector<shared_ptr<Tri>>();
     for (const Segment &s : segments) {
         this->geometry.mergePolygons(*s.polygon);
     }

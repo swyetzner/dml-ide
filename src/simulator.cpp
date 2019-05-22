@@ -2074,7 +2074,6 @@ void Simulator::updateTextPanel() {
     QString material = config->lattice.material->id;
 
     if (optConfig != nullptr) {
-        qDebug() << (optConfig->rules.front().method == OptimizationRule::NONE);
         switch(optConfig->rules.front().method) {
             case OptimizationRule::REMOVE_LOW_STRESS:
                 upperPanel.sprintf("%s --- %s\n\n"

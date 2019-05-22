@@ -81,7 +81,7 @@ private slots:
     void on_actionSaveSim_triggered();
     void on_actionSTLExport_triggered();
 
-    void exportThreadFinished(string fileName);
+    void exportThreadFinished(QString fileName);
 
 
 private:

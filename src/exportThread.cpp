@@ -41,5 +41,5 @@ void ExportThread::run() {
     if (abort) return;
     polygonizer->writePolygonToSTL(path);
 
-    emit exportedGeometry(path);
+    emit exportedGeometry(QString::fromStdString(path));
 }
