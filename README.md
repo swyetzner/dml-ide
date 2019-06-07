@@ -13,6 +13,7 @@ DML-IDE has the following dependencies. Download and setup them up individually 
 * [Qt](https://www.qt.io/download)
 * [CUDA](https://developer.nvidia.com/cuda-toolkit)
 * [GLEW](http://glew.sourceforge.net/)
+* [GLFW](https://www.glfw.org/)
 * [glm](https://github.com/g-truc/glm)
 * [args](https://taywee.github.io/args/)
 
