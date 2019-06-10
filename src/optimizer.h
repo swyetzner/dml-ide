@@ -31,6 +31,7 @@ public:
     int n_masses_start;
     int n_springs;
     int n_springs_start;
+    int iterations;
 
     virtual void optimize() = 0;
 
@@ -95,6 +96,10 @@ public:
     bool equilibrium;
     vector<double> prevEnergy;
 
+    double localEnergy;
+
+    int order;
+    double chunkSize;
     double maxLocalization;
     map<Mass *, vector<Spring *>> massConns;
     map<Spring *, vector<Spring *>> springConns;
@@ -158,16 +163,19 @@ private:
     bool STARTED;
 
     int pickRandomMass(Simulation *sim);
+    double calcOrigDist(Mass *m1, Mass *m2);
     void shiftMassPos(Simulation *sim, int index, const Vec &dx);
     void shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
     void shiftCloneMass(Clone *clone, double dx);
     vector<DisplacedSpring> shiftOrigPos(Simulation *sim, Mass * m, const Vec &p);
     double calcTotalLength(Simulation *sim);
     double calcTotalEnergy(Simulation *sim);
+    double calcOrderLength(Simulation *sim, vector<Spring *> group);
+    double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
 
     int displaceParallelMasses(int copies, int n_copy);
-    int displaceSingleMass();
+    int displaceSingleMass(double chunkSize, int metricOrder);
     void displacePercentMass();
     void setMassState(const vector<Vec> &pos);
 };

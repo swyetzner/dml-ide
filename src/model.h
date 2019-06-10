@@ -808,7 +808,7 @@ public:
     OptimizationRule() = default;
     ~OptimizationRule() = default;
 
-    enum Method { REMOVE_LOW_STRESS, NONE };
+    enum Method { REMOVE_LOW_STRESS, MASS_DISPLACE, NONE };
 
     Method method;
     double threshold;
@@ -818,6 +818,8 @@ public:
         switch (method) {
             case REMOVE_LOW_STRESS:
                 return "REMOVE_LOW_STRESS";
+            case MASS_DISPLACE:
+                return "MASS_DISPLACE";
             case NONE:
                 return "NONE";
         }

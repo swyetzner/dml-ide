@@ -629,11 +629,6 @@ void Loader::createGridLattice(simulation_data *arrays, int dimX, int dimY, int 
 void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
     log("Creating grid lattice.");
 
-    progressDialog = new QProgressDialog();
-    progressDialog->setWindowModality(Qt::WindowModal);
-    progressDialog->setLabelText("Creating lattice points...");
-    progressDialog->setCancelButtonText("Cancel");
-
     vector<glm::vec3> grid = vector<glm::vec3>();
     glm::vec3 startCorner = arrays->bounds.minCorner;
     glm::vec3 endCorner = arrays->bounds.maxCorner;
@@ -681,10 +676,6 @@ void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
 
     vector<glm::vec3> model = vector<glm::vec3>();
 
-    progressDialog->setMinimum(0);
-    progressDialog->setMaximum(int(xLines.size() * yLines.size() * zLines.size()));
-    progressDialog->show();
-
     // Populate grid and check inside
     for (ulong z = 0; z < zLines.size(); z++) {
         for (ulong y = 0; y < yLines.size(); y++) {
@@ -695,13 +686,9 @@ void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
                     // Add to lattice
                     grid.push_back(gridPoint);
                 }
-                if (progressDialog->wasCanceled()) return;
-                progressDialog->setValue(int(z * xLines.size() * yLines.size() + y * xLines.size() + x));
             }
         }
     }
-
-    progressDialog->done(QDialog::Accepted);
 
     // Set lattice property
     arrays->lattice = grid;
@@ -781,7 +768,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
 #pragma omp parallel for
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
-            // Update progress bar
 
             glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 

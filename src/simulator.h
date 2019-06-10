@@ -52,6 +52,7 @@ public:
     Optimizer *optimizer;
     OptimizationConfig *optConfig;
     SpringInserter *springInserter;
+    MassDisplacer *massDisplacer;
 
 signals:
     void timeChange(double time);
@@ -102,6 +103,8 @@ private:
     long n_masses_start;
     long n_springs_start;
     double totalMass_start;
+    double totalLength;
+    double totalEnergy;
     double totalLength_start;
     double totalEnergy_start;
     long steps;
@@ -127,7 +130,9 @@ private:
     Vec repeatRotation;
     bool equilibrium;
     int optimized;
-    vector<double> prevEnergy;
+    int closeToPrevious;
+    double prevEnergy;
+    int prevSteps;
 
     void iterateMassStructure(double ratio);
     void removePercentBars(double ratio);
@@ -145,6 +150,16 @@ private:
     QString outputDir;
     void saveImage(const QImage &image, const QString &outputFile);
     QVector<QFutureWatcher<void> *> futures;
+
+    // --------------------------------------------------------------------
+    // DATA COLLECTING
+    // --------------------------------------------------------------------
+    QString dataDir;
+    void createDataDir();
+    QString metricFile;
+    void writeMetricHeader(const QString &outputFile);
+    void writeMetric(const QString &outputFile);
+    void writePos(const QString &outputFile);
 
     // --------------------------------------------------------------------
     // OPENGL FUNCTIONS
@@ -181,15 +196,17 @@ private:
     // --------------------------------------------------------------------
     // OPENGL PROPERTIES
     // --------------------------------------------------------------------
+    bool resizeBuffers;
+
     GLfloat *vertices;
     GLuint *indices;
-    GLfloat *pairVertices;
-    GLfloat *boundVertices;
-    GLfloat *anchorVertices;
-    GLfloat *forceVertices;
-    GLfloat *colors;
-    GLfloat *diameters;
-    GLfloat *planeVertices;
+    GLfloat *pairVertices = nullptr;
+    GLfloat *boundVertices = nullptr;
+    GLfloat *anchorVertices = nullptr;
+    GLfloat *forceVertices = nullptr;
+    GLfloat *colors = nullptr;
+    GLfloat *diameters = nullptr;
+    GLfloat *planeVertices = nullptr;
 
     QOpenGLShaderProgram *massShaderProgram;
     QOpenGLShaderProgram *springShaderProgram;

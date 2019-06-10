@@ -292,7 +292,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         qDebug() << "Loading lattice config";
 
         LatticeConfig l = LatticeConfig();
-        l.fill = fill ? (fill->text(1) == "cubic_full"?
+        l.fill = fill ? (fill->text(1) == "cubic"?
                              LatticeConfig::CUBIC_FILL :
                              LatticeConfig::SPACE_FILL) : LatticeConfig::CUBIC_FILL;
         l.unit = unit ? parseVec(unit->text(1)) : Vec(0, 0, 0);
@@ -412,9 +412,18 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *frequency = createAttributeItem(item, attrMap, frequencyAttribute());
 
         OptimizationRule r = OptimizationRule();
-        r.method = method ? (method->text(1) == "remove_low_stress"?
-                 OptimizationRule::REMOVE_LOW_STRESS : OptimizationRule::NONE) :
-                   OptimizationRule::NONE;
+        if (method) {
+            if (method->text(1) == "remove_low_stress") {
+                r.method = OptimizationRule::REMOVE_LOW_STRESS;
+            } else if (method->text(1) == "mass_displace") {
+                //  r.method = OptimizationRule::MASS_DISPLACE;
+                r.method = OptimizationRule::NONE;
+            } else {
+                r.method = OptimizationRule::NONE;
+            }
+        } else {
+            r.method = OptimizationRule::NONE;
+        }
         if (threshold) {
             QString t = threshold->text(1);
             qDebug() << "Threshold" << t;

@@ -22,8 +22,6 @@ public:
     Loader(QObject *parent = nullptr);
     ~Loader();
 
-    QProgressDialog *progressDialog;
-
     void createGridLattice(simulation_data *arrays, int dimX, int dimY, int dimZ);
     void createGridLattice(simulation_data *arrays, float cutoff);
     void createSpaceLattice(simulation_data *arrays, float cutoff, bool includeHull);
