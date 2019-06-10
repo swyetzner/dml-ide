@@ -1,3 +1,4 @@
 [submodule "lib/Titan"]
 	path = lib/Titan
 	url = https://github.com/swyetzner/Titan
+	master = master
