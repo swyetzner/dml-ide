@@ -22,7 +22,6 @@ install_all_vcpkg() {
     ./vcpkg install glew
     ./vcpkg install glfw3
     ./vcpkg install args
-    ./vcpkg install ffmpeg
 }
 
 install_ffmpeg() {
