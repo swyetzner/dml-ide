@@ -145,6 +145,7 @@ private:
     // --------------------------------------------------------------------
     int viewerWidth;
     int viewerHeight;
+    float framerate;
     int imageNumber;
     Status simStatus;
     QString outputDir;

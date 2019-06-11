@@ -89,6 +89,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
     viewerWidth = (size() * devicePixelRatio()).width();
     viewerHeight = (size() * devicePixelRatio()).height();
     imageNumber = 0;
+    framerate = 0.01; // 100 FPS
 
     dataDir = "data";
     createDataDir();
@@ -150,8 +151,9 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                 case OptimizationRule::MASS_DISPLACE: {
                     massDisplacer = new MassDisplacer(sim, r.threshold);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
-                    massDisplacer->order = 2;
-                    massDisplacer->chunkSize = 0.02;
+                    massDisplacer->order = 0;
+                    massDisplacer->chunkSize = 0;
+                    massDisplacer->relaxation = 10;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
@@ -208,7 +210,7 @@ void Simulator::run() {
             repeat();
         }
 
-        if ((steps * int(renderTimeStep / sim->masses.front()->dt)) % int(5E-2 / renderTimeStep) == 0) {
+        if (steps % int((framerate / renderTimeStep)) == 0) {
             if (simStatus == RECORDING) {
                 QString outputFile = QString(QDir::currentPath() + QDir::separator() +
                                              outputDir + QDir::separator() +
@@ -507,7 +509,9 @@ void Simulator::saveVideo() {
         }
 
         QString outputPrefix = QDir::currentPath() + QDir::separator() + outputDir + QDir::separator();
-        QString createVideoProgram = "ffmpeg -y -i " + outputPrefix +
+        QString fps = QString::number(int(1/framerate));
+        qDebug() << "Outputting video:" <<  fileName << " FPS" << fps;
+        QString createVideoProgram = "ffmpeg -framerate " + fps + " -y -i " + outputPrefix +
                 "dmlFrame_%d.png -vf \"eq=saturation=2.0, pad=ceil(iw/2)*2:ceil(ih/2)*2\" -vcodec libx264 -crf 25 -pix_fmt yuv420p ";
 
         createVideoProgram += fileName;
@@ -2235,13 +2239,15 @@ void Simulator::updateTextPanel() {
                                    "Time: %.2lf s\n"
                                     "Weight remaining: %.2lf%\n"
                                     "Energy: %.2lf%, %.4lf (current), %.4lf (start)\n"
-                                    "Optimization iterations: %d",
+                                    "Optimization iterations: %d\n"
+                                    "Relaxation interval: %d order",
                                     simName.toUpper().toStdString().c_str(), sim->springs.size(),
                                     sim->time(), 100.0 * totalLength / totalLength_start,
                                     (100.0 * totalEnergy / ((totalEnergy_start > 0)? totalEnergy_start : totalEnergy)),
                                     totalEnergy,
                                     totalEnergy_start,
-                                    optimized);
+                                    optimized,
+                                    massDisplacer->relaxation);
                 break;
 
             case OptimizationRule::NONE:
