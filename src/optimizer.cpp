@@ -406,6 +406,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double displaceRatio)
     this->movedVectors = vector<Vec>();
     this->order = 0;
     this->chunkSize = -1;
+    this->relaxation = 0;
     this->maxLocalization = 0;
     this->iterations = 0;
     test = new Simulation();
@@ -454,9 +455,6 @@ void MassDisplacer::optimize() {
        displaced = displaceSingleMass(chunkSize, order);
     }
 
-    if (iterations % 250 == 0) {
-        chunkSize /= 2;
-    }
     iterations++;
 
     /**if (!STARTED) {
@@ -660,6 +658,7 @@ void MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
 
     mt->origpos += dx;
     mt->pos += dx;
+    mt->vel = Vec(0, 0, 0);
     sim->setAll();
 }
 
@@ -735,56 +734,6 @@ int MassDisplacer::displaceSingleMass(double chunkCutoff, int metricOrder) {
                 edgeGroup.push_back(s->_right);
                 outsideGroup.push_back(s->_left);
             }
-
-            /*else if (ldist <= metricCutoff) {
-
-                if (!s->_left->constraints.fixed && s->_left->extforce.norm() < 1E-6) {
-                    Mass *l = s->_left;
-                    for (Spring *t : sim->springs) {
-                        if (t->_left == l) {
-                            l->force += -t->getForce();
-                        }
-                        if (t->_right == l) {
-                            l->force += t->getForce();
-                        }
-                    }
-                    l->extforce = l->force;
-                    qDebug() << l->force[0] << l->force[1] << l->force[2];
-                    s->_left->extduration = DBL_MAX;
-                    outsideGroup.push_back(s->_left);
-                }
-
-                if (!s->_right->constraints.fixed && s->_right->extforce.norm() < 1E-6) {
-                    s->_right->fix();
-                    edgeGroup.push_back(s->_right);
-                }
-
-            } else if (rdist <= metricCutoff) {
-                if (!s->_right->constraints.fixed && s->_right->extforce.norm() < 1E-6) {
-
-                    Mass *r = s->_right;
-                    for (Spring *t : sim->springs) {
-                        if (t->_left == r) {
-                            r->force += -t->getForce();
-                        }
-                        if (t->_right == r) {
-                            r->force += t->getForce();
-                        }
-                    }
-                    r->extforce = r->force;
-                    s->_right->extduration = DBL_MAX;
-                    outsideGroup.push_back(s->_right);
-                }
-
-                //s->_right->extforce = s->_right->maxforce;
-                //s->_right->force = s->_right->maxforce;
-
-                if (!s->_left->constraints.fixed && s->_left->extforce.norm() < 1E-6) {
-
-                    s->_left->fix();
-                    edgeGroup.push_back(s->_left);
-                }
-            }*/
         }
 
         vector<Mass *> culledEdgeGroup = vector<Mass *>();
@@ -843,7 +792,11 @@ int MassDisplacer::displaceSingleMass(double chunkCutoff, int metricOrder) {
     }
 
     // Equilibrate simulation
-    settleSim(sim, 1E-6);
+    if (relaxation == 0) {
+        settleSim(sim, 1E-6);
+    } else {
+        relaxSim(sim, relaxation);
+    }
 
     // Record start metrics
     double totalMetricSim = 0;
@@ -873,9 +826,12 @@ int MassDisplacer::displaceSingleMass(double chunkCutoff, int metricOrder) {
     shiftRandomChunk(sim, dx, chunk);
 
     // Run simulation
-    int steps = settleSim(sim, 1E-6);
-    //int steps = settleSim(sim, 1E-4, true, totalEnergySim * 10);
-    qDebug() << "Took" << steps << "to reach equilibrium";
+    // Equilibrate simulation
+    if (relaxation == 0) {
+        settleSim(sim, 1E-6);
+    } else {
+        relaxSim(sim, relaxation);
+    }
 
 
     // Calculate test metrics
@@ -1285,7 +1241,7 @@ int MassDisplacer::settleSim(Simulation *sim, double eps, bool use_cap, double c
         }
         qDebug() << "ENERGY" << totalEnergy << prevTotalEnergy << closeToPrevious;
 
-        if (prevTotalEnergy > 0 && fabs(prevTotalEnergy - totalEnergy) < totalEnergy * 1E-4) {
+        if (prevTotalEnergy > 0 && fabs(prevTotalEnergy - totalEnergy) < totalEnergy * eps) {
             closeToPrevious++;
         } else {
             closeToPrevious = 0;
@@ -1306,39 +1262,20 @@ int MassDisplacer::settleSim(Simulation *sim, double eps, bool use_cap, double c
         steps++;
     }
 
-    /**double totalEnergy;
-    int settleSteps = 0;
-    bool equil = false;
-    vector<double> prevEnergies = vector<double>();
-
-    while (!equil) {
-        totalEnergy = calcTotalEnergy(sim);
-        if (prevEnergies.size() > 4) {
-            bool close = true;
-            for (int p = 0; p < 6; p++) {
-                int i = prevEnergies.size() - p - 1;
-                if (fabs(prevEnergies[i] - totalEnergy) > totalEnergy * eps)
-                    close = false;
-            }
-            if (close) { equil = true; }
-        }
-
-        prevEnergies.push_back(totalEnergy);
-        if (prevEnergies.size() > 100) {
-            prevEnergies.erase(prevEnergies.begin());
-        }
-
-        // Step simulation
-        sim->step(sim->masses.front()->dt * 100);
-        sim->getAll();
-
-        settleSteps++;
-    }**/
-
     return steps;
 
 }
 
+// Relax simulation for steps amount of time
+//---------------------------------------------------------------------------
+void MassDisplacer::relaxSim(Simulation *sim, int steps) {
+//---------------------------------------------------------------------------
+
+        // Step simulation
+        sim->step(sim->masses.front()->dt * steps);
+        sim->getAll();
+
+}
 
 // Pick a random mass and shift in a random direction by dx
 // Record shift in clone struct

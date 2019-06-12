@@ -101,6 +101,7 @@ public:
     int order;
     double chunkSize;
     double maxLocalization;
+    int relaxation;
     map<Mass *, vector<Spring *>> massConns;
     map<Spring *, vector<Spring *>> springConns;
 
@@ -173,6 +174,7 @@ private:
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
     double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
+    void relaxSim(Simulation *sim, int steps);
 
     int displaceParallelMasses(int copies, int n_copy);
     int displaceSingleMass(double chunkSize, int metricOrder);

@@ -29,7 +29,7 @@ install_ffmpeg() {
     cd ffmepg-4.1.3
     ./configure --disable-x86asm
     make
-    make install
+    make install DESTDIR=$INSTALL_PREFIX
     cd ..
     echo "Installed ffmpeg"
 }

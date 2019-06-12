@@ -153,7 +153,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;
-                    massDisplacer->relaxation = 10;
+                    massDisplacer->relaxation = 5000;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
