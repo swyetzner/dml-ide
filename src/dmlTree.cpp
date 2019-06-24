@@ -376,7 +376,12 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             s.criterion = criterion ? (criterion->text(1) == "time"?
                                        Stop::SC_TIME : Stop::SC_MOTION) :
                           Stop::SC_TIME;
-            s.threshold = threshold ? threshold->text(1).toDouble() : 0;
+            QString t = threshold ? threshold->text(1) : "0";
+            if (t.endsWith(QChar('%'))) {
+                s.threshold = t.remove(QChar('%')).trimmed().toDouble() / 100;
+            } else {
+                s.threshold = t.toDouble();
+            }
 
             QString simConfigId = parentItem->child(0)->text(1);
             design_ptr->simConfigMap[simConfigId]->stops.push_back(s);
@@ -386,7 +391,12 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             s.metric = metric ? (metric->text(1) == "weight"?
                     OptimizationStop::WEIGHT : OptimizationStop::ENERGY) :
                             OptimizationStop::WEIGHT;
-            s.threshold = threshold ? threshold->text(1).toDouble() : 100;
+            QString t = threshold ? threshold->text(1) : "0";
+            if (t.endsWith(QChar('%'))) {
+                s.threshold = t.remove(QChar('%')).trimmed().toDouble() / 100;
+            } else {
+                s.threshold = t.toDouble();
+            }
 
             if (design_ptr->optConfig != nullptr) {
                 design_ptr->optConfig->stopCriteria.push_back(s);
@@ -416,8 +426,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             if (method->text(1) == "remove_low_stress") {
                 r.method = OptimizationRule::REMOVE_LOW_STRESS;
             } else if (method->text(1) == "mass_displace") {
-                //  r.method = OptimizationRule::MASS_DISPLACE;
-                r.method = OptimizationRule::NONE;
+                r.method = OptimizationRule::MASS_DISPLACE;
             } else {
                 r.method = OptimizationRule::NONE;
             }

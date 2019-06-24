@@ -31,7 +31,6 @@ set(SOURCES
         src/dmlTree.h
         src/loader.h
         src/model.h
-        src/modelviewer.h
         src/properties.h
         src/simulator.h
         src/gUtils.h
@@ -41,7 +40,6 @@ set(SOURCES
         src/designViewer.cpp
         src/dmlTree.cpp
         src/loader.cpp
-        src/modelviewer.cpp
         src/properties.cpp
         src/simulator.cpp
         src/gUtils.cpp

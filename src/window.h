@@ -15,7 +15,6 @@
 #include "polygonizer.h"
 #include "properties.h"
 #include "designViewer.h"
-#include "modelviewer.h"
 #include "simulatorParallel.h"
 #include "simulator.h"
 

@@ -39,7 +39,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
     totalEnergy_start = 0;
     double pi = atan(1.0)*4;
     for (Spring *s : sim->springs) {
-        totalLength_start += s->_rest * (s->_diam / 2) * (s->_diam / 2) * pi;
+        totalLength_start += s->_rest;
     }
 
     removalRate = 0.1;
@@ -149,11 +149,11 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                     break;
 
                 case OptimizationRule::MASS_DISPLACE: {
-                    massDisplacer = new MassDisplacer(sim, r.threshold);
+                    massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;
-                    massDisplacer->relaxation = 5000;
+                    massDisplacer->relaxation = 2000;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
@@ -249,10 +249,23 @@ void Simulator::run() {
                 if (!optimized) {
                     totalEnergy_start = totalEnergy;
                     writeMetricHeader(metricFile);
+                    writeCustomMetricHeader(customMetricFile);
                 }
             }
 
-            if (optimizeAfter <= n_repeats && equilibrium) {
+            bool stopReached = false;
+            for (auto s : optConfig->stopCriteria) {
+                switch (s.metric) {
+                    case OptimizationStop::ENERGY:
+                        stopReached = totalEnergy / totalEnergy_start <= s.threshold;
+                    break;
+                    case OptimizationStop::WEIGHT:
+                        stopReached = totalLength / totalLength_start <= s.threshold;
+                    break;
+                }
+            }
+
+            if (optimizeAfter <= n_repeats && equilibrium && !stopReached) {
 
                 if (optimizer != nullptr) {
                     qDebug() << "About to optimize";
@@ -261,6 +274,8 @@ void Simulator::run() {
                     closeToPrevious = 0;
 
                     writeMetric(metricFile);
+                    if (optimized == 0)
+                        writeCustomMetric(customMetricFile);
                     optimized++;
                 }
                 //if (steps > 1 && steps % 500 == 0) {
@@ -276,8 +291,22 @@ void Simulator::run() {
             prevEnergy = totalEnergy;
         } else {
             if (optConfig != nullptr) {
+
+                bool stopReached = false;
+                for (auto s : optConfig->stopCriteria) {
+                    switch (s.metric) {
+                        case OptimizationStop::ENERGY:
+                            stopReached = totalEnergy / totalEnergy_start <= s.threshold;
+                            break;
+                        case OptimizationStop::WEIGHT:
+                            qDebug() << "Stop Reached" << totalLength_start << 100 * totalLength / totalLength_start << s.threshold;
+                            stopReached = totalLength / totalLength_start <= s.threshold;
+                            break;
+                    }
+                }
+
                 for (OptimizationRule r : optConfig->rules) {
-                    if (optimizeAfter <= n_repeats && prevSteps >= r.frequency) {
+                    if (optimizeAfter <= n_repeats && prevSteps >= r.frequency && !stopReached) {
 
                         optimizer->optimize();
                         optimized++;
@@ -425,6 +454,9 @@ void Simulator::createDataDir() {
     metricFile = QString(QDir::currentPath() + QDir::separator() +
                         dataDir + QDir::separator() +
                         "optMetrics.csv");
+    customMetricFile = QString(QDir::currentPath() + QDir::separator() +
+                               dataDir + QDir::separator() +
+                               "outsideForces.csv");
 }
 
 void Simulator::writeMetricHeader(const QString &outputFile) {
@@ -438,13 +470,28 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
     }
 
     if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        file.write("Time,Iteration,Local Energy,Total Energy,Total Weight\n");
+        file.write("Time,Iteration,Displacement,Attempts,Total Energy,Total Weight\n");
     } else {
         file.write("Time,Iteration,Total Weight,Bar Number\n");
     }
 
     // Write starting line
     writeMetric(outputFile);
+}
+
+void Simulator::writeCustomMetricHeader(const QString &outputFile) {
+    QFile file(outputFile);
+    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+
+        log(tr("Cannot read file %1:\n%2.")
+                    .arg(QDir::toNativeSeparators(outputFile),
+                         file.errorString()));
+        return;
+    }
+
+    if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
+        file.write(massDisplacer->customMetricHeader.toUtf8());
+    }
 }
 
 void Simulator::writeMetric(const QString &outputFile) {
@@ -459,13 +506,29 @@ void Simulator::writeMetric(const QString &outputFile) {
     }
 
     if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        QString mLine = QString("%1,%2,%3,%4,%5\n")
+        QString mLine = QString("%1,%2,%3,%4,%5,%6\n")
                 .arg(sim->time())
                 .arg(optimized)
-                .arg(massDisplacer->localEnergy)
+                .arg(massDisplacer->dx)
+                .arg(massDisplacer->attempts)
                 .arg(totalEnergy)
                 .arg(totalLength);
         file.write(mLine.toUtf8());
+    }
+}
+
+void Simulator::writeCustomMetric(const QString &outputFile) {
+    QFile file(outputFile);
+    if (!file.open(QFile::WriteOnly | QIODevice::Append | QFile::Text)) {
+
+        log(tr("Cannot read file %1:\n%2.")
+                    .arg(QDir::toNativeSeparators(outputFile),
+                         file.errorString()));
+        return;
+    }
+
+    if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
+        file.write(massDisplacer->customMetric.toUtf8());
     }
 }
 
@@ -1604,13 +1667,15 @@ void Simulator::initShader() {
     springShaderProgram->bind();
     projMatrixLoc = springShaderProgram->uniformLocation("projMatrix");
     mvMatrixLoc = springShaderProgram->uniformLocation("mvMatrix");
-    scaleLoc = springShaderProgram->uniformLocation("scale");
+    normalMatrixLoc = springShaderProgram->uniformLocation("normalMatrix");
+    lightPosLoc = springShaderProgram->uniformLocation("lightPos");
     if (showCrossSection) {
         centerLoc = springShaderProgram->uniformLocation("center");
         cpXLoc = springShaderProgram->uniformLocation("clipPlaneX");
         cpYLoc = springShaderProgram->uniformLocation("clipPlaneY");
         cpZLoc = springShaderProgram->uniformLocation("clipPlaneZ");
     }
+    springShaderProgram->setUniformValue(lightPosLoc, 0, 0, 70);
     springShaderProgram->release();
 
     planeShaderProgram->bind();
@@ -1640,7 +1705,6 @@ void Simulator::initShader() {
     mvMatrixLoc = boundShaderProgram->uniformLocation("mvMatrix");
     boundShaderProgram->release();
 
-    qDebug() << "Initialized shaders";
 }
 
 
@@ -1743,6 +1807,8 @@ void Simulator::updateShader() {
     world.scale(m_zoom);
     scale = sim->springs[0]->_diam / 0.002;
 
+    normal = world.normalMatrix();
+
     massShaderProgram->bind();
     massShaderProgram->setUniformValue(projMatrixLoc, projection);
     massShaderProgram->setUniformValue(mvMatrixLoc, camera * world);
@@ -1751,7 +1817,8 @@ void Simulator::updateShader() {
     springShaderProgram->bind();
     springShaderProgram->setUniformValue(projMatrixLoc, projection);
     springShaderProgram->setUniformValue(mvMatrixLoc, camera * world);
-    springShaderProgram->setUniformValue(scaleLoc, scale);
+    springShaderProgram->setUniformValue(normalMatrixLoc, normal);
+    springShaderProgram->setUniformValue(lightPosLoc, 0, 0, 70);
     if (showCrossSection) {
         springShaderProgram->setUniformValue(centerLoc, center);
         springShaderProgram->setUniformValue(cpXLoc, clipPlaneX);
@@ -2207,7 +2274,7 @@ void Simulator::updateTextPanel() {
     totalEnergy = 0;
     double pi = atan(1.0)*4;
     for (Spring * s: sim->springs) {
-        totalLength += s->_rest * (s->_diam / 2) * (s->_diam / 2) * pi;
+        totalLength += s->_rest;
         totalEnergy += s->_curr_force * s->_curr_force / s->_k;
     }
 
@@ -2240,14 +2307,16 @@ void Simulator::updateTextPanel() {
                                     "Weight remaining: %.2lf%\n"
                                     "Energy: %.2lf%, %.4lf (current), %.4lf (start)\n"
                                     "Optimization iterations: %d\n"
-                                    "Relaxation interval: %d order",
+                                    "Relaxation interval: %d order\n"
+                                    "Displacement: %.4lf meters",
                                     simName.toUpper().toStdString().c_str(), sim->springs.size(),
                                     sim->time(), 100.0 * totalLength / totalLength_start,
                                     (100.0 * totalEnergy / ((totalEnergy_start > 0)? totalEnergy_start : totalEnergy)),
                                     totalEnergy,
                                     totalEnergy_start,
                                     optimized,
-                                    massDisplacer->relaxation);
+                                    massDisplacer->relaxation,
+                                    massDisplacer->dx);
                 break;
 
             case OptimizationRule::NONE:

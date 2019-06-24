@@ -81,7 +81,7 @@ protected:
 class MassDisplacer : public Optimizer {
 
 public:
-    MassDisplacer(Simulation *sim, double displaceRatio);
+    MassDisplacer(Simulation *sim, double dx, double displaceRatio);
     ~MassDisplacer() {
         delete start;
         delete test;
@@ -93,10 +93,16 @@ public:
     double stepRatio;
     vector<uint> movedMasses;
     vector<Vec> movedVectors;
+
+    double dx;
     bool equilibrium;
     vector<double> prevEnergy;
 
     double localEnergy;
+    int attempts;
+    vector<int> prevAttemptNums;
+    float maxAvgSuccessRate;
+    int lastTune;
 
     int order;
     double chunkSize;
@@ -105,10 +111,30 @@ public:
     map<Mass *, vector<Spring *>> massConns;
     map<Spring *, vector<Spring *>> springConns;
 
+    QString customMetricHeader;
+    QString customMetric;
+
     void initializeClones(int n);
     void mutateClones(double dx);
     void incorporateClones();
     void resetClones();
+
+    // Struct holding the locality for a displaced mass
+    // group -- surrounding masses within the locality
+    // springs -- springs within the locality
+    // outside -- masses that are connected within one order of the group,
+    //      but are not within it
+    struct MassGroup {
+        Mass *displaced;
+        vector<Mass *> group;
+        vector<Spring *> springs;
+        vector<Mass *> outside;
+
+        double origLength = 0;
+        double origEnergy = 0;
+        double testLength = 0;
+        double testEnergy = 0;
+    };
 
     struct DisplacedMass {
         DisplacedMass() {
@@ -164,9 +190,11 @@ private:
     bool STARTED;
 
     int pickRandomMass(Simulation *sim);
+    int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
     void shiftMassPos(Simulation *sim, int index, const Vec &dx);
     void shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
+    void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void shiftCloneMass(Clone *clone, double dx);
     vector<DisplacedSpring> shiftOrigPos(Simulation *sim, Mass * m, const Vec &p);
     double calcTotalLength(Simulation *sim);
@@ -174,11 +202,11 @@ private:
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
     double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
-    void relaxSim(Simulation *sim, int steps);
+    void relaxSim(Simulation *sim, int steps, vector<Mass *> track=vector<Mass *>());
 
     int displaceParallelMasses(int copies, int n_copy);
-    int displaceSingleMass(double chunkSize, int metricOrder);
-    void displacePercentMass();
+    int displaceSingleMass(double displacement, double chunkSize, int metricOrder);
+    int displaceManyMasses(double displacement, int metricOrder, int num);
     void setMassState(const vector<Vec> &pos);
 };
 

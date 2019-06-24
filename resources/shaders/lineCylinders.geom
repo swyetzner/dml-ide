@@ -6,13 +6,14 @@ layout (lines) in;
 layout (triangle_strip, max_vertices = 32) out;
 uniform mat4 projMatrix;
 uniform mat4 mvMatrix;
-uniform float scale;
 
 in VertexOut {
     float diam;
     vec4 color;
 } geomIn[];
 out vec4 fColor;
+out vec4 vPosition;
+out vec3 vNormal;
 
 // Takes radius of each end and a resolution
 void createCylinders(float r1, float r2, int res) {
@@ -42,11 +43,15 @@ void createCylinders(float r1, float r2, int res) {
         //gs_out.normal = cos(theta1)*a + sin(thet1)*b;
 
         vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
-        gl_Position = projMatrix * mvMatrix * q1;
+        vPosition = projMatrix * mvMatrix * q1;
+        vNormal = normalize(p1 - q1.xyz);
+        gl_Position = vPosition;
         EmitVertex();
 
         vec4 q2 = vec4(p2 + r2*cos(theta)*a + r2*sin(theta)*b, 1.0);
-        gl_Position = projMatrix * mvMatrix * q2;
+        vPosition = projMatrix * mvMatrix * q2;
+        vNormal = normalize(p2 - q2.xyz);
+        gl_Position = vPosition;
         EmitVertex();
     }
     //gl_Position = (gl_in[0].gl_Position + gl_in[1].gl_Position) * 0.5;

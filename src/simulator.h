@@ -158,8 +158,11 @@ private:
     QString dataDir;
     void createDataDir();
     QString metricFile;
+    QString customMetricFile;
     void writeMetricHeader(const QString &outputFile);
+    void writeCustomMetricHeader(const QString &outputFile);
     void writeMetric(const QString &outputFile);
+    void writeCustomMetric(const QString &outputFile);
     void writePos(const QString &outputFile);
 
     // --------------------------------------------------------------------
@@ -274,6 +277,7 @@ private:
     QMatrix4x4 projection;
     QMatrix4x4 camera;
     QMatrix4x4 world;
+    QMatrix3x3 normal;
     QMatrix4x4 ortho;
     QVector4D clipPlaneX;
     QVector4D clipPlaneY;
