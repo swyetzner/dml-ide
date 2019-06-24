@@ -721,6 +721,15 @@ public:
     double velocity;
 };
 
+class Global
+{
+public:
+    Global() = default;
+    ~Global() = default;
+
+    Vec acceleration;
+};
+
 class Stop
 {
 public:
@@ -773,6 +782,7 @@ public:
     Volume * volume;
     LatticeConfig lattice;
     Damping damping;
+    Global global;
     Repeat repeat;
     Plane * plane = nullptr;
     Loadcase * load;

@@ -2199,6 +2199,7 @@ void Simulator::initializeGL() {
     camera.setToIdentity();
     camera.translate(0, 0, -1);
     Vec up = -sim->global.normalized();
+    if (up == Vec(0, 0, 0)) { up = Vec(0, 0, 1); }
 
     vector<Vec> bounds = getBoundingBox();
     double span = (bounds[0] - bounds[1]).norm();

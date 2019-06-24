@@ -48,6 +48,7 @@ static inline QString loadElement() {return QStringLiteral("load"); }
 static inline QString stopElement() {return QStringLiteral("stop"); }
 static inline QString repeatElement() {return QStringLiteral("repeat"); }
 static inline QString planeElement() {return QStringLiteral("plane"); }
+static inline QString globalElement() { return QStringLiteral("global"); }
 
 // Lattice attributes
 static inline QString fillAttribute() { return QStringLiteral("fill"); }
@@ -61,6 +62,9 @@ static inline QString jiggleAttribute() { return QStringLiteral("jiggle"); }
 
 // Damping attributes
 static inline QString velocityAttribute() { return QStringLiteral("velocity"); }
+
+// Global attributes
+static inline QString accelerationAttribute() { return QStringLiteral("acceleration"); }
 
 // Stop attributes
 static inline QString criterionAttribute() { return QStringLiteral("criterion"); }
@@ -316,6 +320,17 @@ void DMLTree::parseExpandElement(const QDomElement &element,
 
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->damping = d;
+    }
+
+    // ---- <acceleration> ----
+    if (element.tagName() == globalElement()) {
+        auto *acceleration = createAttributeItem(item, attrMap, accelerationAttribute());
+
+        Global g = Global();
+        g.acceleration = acceleration ? parseVec(acceleration->text(1)) : Vec(0, 0, 0);
+
+        QString simConfigId = parentItem->child(0)->text(1);
+        design_ptr->simConfigMap[simConfigId]->global = g;
     }
 
     // ---- <repeat> ----

@@ -225,6 +225,10 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     }
     qDebug() << "Damping" << simConfig->damping.velocity;
 
+    // GLOBAL
+    qDebug() << "Global" << simConfig->global.acceleration[0];
+    sim->global = simConfig->global.acceleration;
+
     // DIAMETER
     for (Spring *s : sim->springs) {
         s->_diam = simConfig->lattice.barDiameter[1];
@@ -455,8 +459,6 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double
             }**/
 
     //sim->createPlane(Vec(0, 0, 1), 0);
-
-    sim->global = Vec(0, -9.81, 0);
 
     log(QString("Loaded simulation with %1 masses and %2 springs.")
         .arg(sim->masses.size())
