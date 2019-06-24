@@ -24,6 +24,7 @@ public slots:
     void displayMaterial(QString id);
     void displayLoadcase(QString id);
     void displaySimulation(QString id);
+    void displayOptimization();
 
     void updateProp(int row, int col);
 
@@ -35,7 +36,7 @@ private:
     Design *design;
     QLabel *title;
 
-    enum DisplayObject { DESIGN, VOLUME, MATERIAL, LOADCASE, SIMULATION, NONE };
+    enum DisplayObject { DESIGN, VOLUME, MATERIAL, LOADCASE, SIMULATION, OPTIMIZATION, NONE };
     DisplayObject displayObject;
     ulong objectIndex;
 

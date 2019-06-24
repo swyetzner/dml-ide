@@ -217,6 +217,52 @@ void PropertiesTable::displaySimulation(QString id) {
     connect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
 }
 
+void PropertiesTable::displayOptimization() {
+    disconnect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
+
+    this->clear();
+    int rowCount = 0;
+    displayObject = OPTIMIZATION;
+
+    OptimizationConfig *optConfig = design->optConfig;
+    this->title->setText(QString("Optimization"));
+
+    QStringList headerLabels = QStringList();
+    headerLabels.append("Property");
+    headerLabels.append("");
+    headerLabels.append("");
+
+    qDebug() << optConfig->rules.size() << optConfig->stopCriteria.size();
+    this->setRowCount(1 + 4 * int(optConfig->rules.size() + 3 * int(optConfig->stopCriteria.size())));
+    this->setColumnCount(3);
+
+    this->setHorizontalHeaderLabels(headerLabels);
+    this->horizontalHeader()->setStretchLastSection(true);
+
+    createPropertyItem(rowCount, 0, "simulation");
+    createValueItem(rowCount, 1, optConfig->simulationConfig->id);
+
+    for (OptimizationRule r : optConfig->rules) {
+        createNodeItem(++rowCount, 0, "rule");
+        createPropertyItem(++rowCount, 1, "method");
+        createValueItem(rowCount, 2, r.methodName());
+        createPropertyItem(++rowCount, 1, "threshold");
+        createValueItem(rowCount, 2, QString::number(r.threshold));
+        createPropertyItem(++rowCount, 1, "frequency");
+        createValueItem(rowCount, 2, QString::number(r.frequency));
+    }
+
+    for (OptimizationStop s : optConfig->stopCriteria) {
+        createNodeItem(++rowCount, 0, "stop");
+        createPropertyItem(++rowCount, 1, "metric");
+        createValueItem(rowCount, 2, s.metricName());
+        createPropertyItem(++rowCount, 1, "threshold");
+        createValueItem(rowCount, 2, QString::number(s.threshold));
+    }
+
+    connect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
+}
+
 void PropertiesTable::updateProp(int row, int col) {
 
     if (col > 0) {
@@ -296,6 +342,55 @@ void PropertiesTable::updateProp(int row, int col) {
                     simConfig->damping.velocity = item->text().toDouble();
                 }
                 break;
+            }
+            case OPTIMIZATION: {
+                OptimizationConfig *optConfig = design->optConfig;
+                qDebug() << "Changing" << property->text() << "property";
+                if (parentProperty != nullptr) qDebug() << "Parent:" << parentProperty->text();
+                if (property->text() == "threshold" && parentProperty != nullptr) {
+                    if (parentProperty->text() == "rule") {
+                        int index = 0;
+                        int j = parentProperty->column();
+                        for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                            if (this->item(i,j) != nullptr && this->item(i, j)->text() == "rule") {
+                                index++;
+                            }
+                        }
+                        optConfig->rules.at(index).threshold = item->text().toDouble();
+                    }
+                    if (parentProperty->text() == "stop") {
+                        int index = 0;
+                        int j = parentProperty->column();
+                        for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                            if (this->item(i,j) != nullptr && this->item(i, j)->text() == "stop") {
+                                index++;
+                            }
+                        }
+                        qDebug() << "Index" << index;
+                        optConfig->stopCriteria.at(index).threshold = item->text().toDouble();
+                    }
+                }
+                if (property->text() == "frequency") {
+                    int index = 0;
+                    int j = parentProperty->column();
+                    for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                        if (this->item(i,j) != nullptr && this->item(i, j)->text() == "rule") {
+                            index++;
+                        }
+                    }
+                    optConfig->rules.at(index).frequency = item->text().toInt();
+                }
+                if (property->text() == "metric")  {
+                    int index = 0;
+                    int j = parentProperty->column();
+                    for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                        if (this->item(i,j) != nullptr && this->item(i, j)->text() == "stop") {
+                            index++;
+                        }
+                    }
+                    optConfig->stopCriteria.at(index).metric = item->text() == "ENERGY" ? OptimizationStop::ENERGY
+                            : OptimizationStop::WEIGHT;
+                }
             }
             default: {
                 return;

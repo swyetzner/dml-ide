@@ -6,6 +6,7 @@ const QString volumeTag = "Volume";
 const QString materialTag = "Material";
 const QString loadcaseTag = "Loadcase";
 const QString simulationTag = "Simulation";
+const QString optimizationTag = "Optimization";
 
 /** Console widget pointer **/
 QTextEdit * Window::s_textEdit = nullptr;
@@ -258,6 +259,7 @@ void Window::setUpDMLFeatures() {
     connect(this, &Window::displayMaterialProp, propTable, &PropertiesTable::displayMaterial);
     connect(this, &Window::displayLoadProp, propTable, &PropertiesTable::displayLoadcase);
     connect(this, &Window::displaySimProp, propTable, &PropertiesTable::displaySimulation);
+    connect(this, &Window::displayOptProp, propTable, &PropertiesTable::displayOptimization);
     connect(propTable, &PropertiesTable::updateGraphics, designWidget, &DesignViewer::updateColors);
 
     setUpPropertyTable();
@@ -466,5 +468,7 @@ void Window::dmlItemClicked(QTreeWidgetItem *item, int column) {
     } else if (id.startsWith(simulationTag)) {
         SimulationConfig *simConfig = design->simConfigMap[item->child(0)->text(1)];
         displaySimProp(simConfig->id);
+    } else if (id.startsWith(optimizationTag)) {
+        displayOptProp();
     }
 }

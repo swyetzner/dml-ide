@@ -45,6 +45,7 @@ signals:
     void displayMaterialProp(QString id);
     void displayLoadProp(QString id);
     void displaySimProp(QString id);
+    void displayOptProp();
 
 public slots:
     void log(const QString message);
