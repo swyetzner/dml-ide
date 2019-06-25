@@ -159,6 +159,18 @@ void Window::save() {
 }
 
 void Window::exportSTL() {
+
+    ExportDialog *exportDialog = new ExportDialog(simulation->springs[0]->_diam, simulation->springs[0]->_diam * 0.5, this);
+    connect(exportDialog, &ExportDialog::dialogAccepted, this, &Window::saveSTLFile);
+    exportDialog->show();
+
+}
+
+
+void Window::saveSTLFile(double barDiam, double res) {
+
+    int NUM_THREADS = 32;
+
     QString fileName =
             QFileDialog::getSaveFileName(this, tr("Save STL File"),
                                          QDir::currentPath());
@@ -186,9 +198,10 @@ void Window::exportSTL() {
     polygonizer.calculatePolygon();
     polygonizer.writePolygonToSTL(fileName.toStdString());**/
 
-    exportThread.startExport(fileName.toStdString(), arrays_bars, 0.00075, 0.0015, 32);
+    exportThread.startExport(fileName.toStdString(), arrays_bars, res, barDiam, NUM_THREADS);
 
     qDebug() << "Exporting STL file";
+
 }
 
 double Window::getTimestep() {

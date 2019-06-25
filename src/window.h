@@ -8,6 +8,7 @@
 #include <QStyleFactory>
 #include <QTextEdit>
 #include <QTimer>
+#include "src/exportdialog.h"
 #include "src/dmlTree.h"
 #include "src/exportThread.h"
 #include "src/loader.h"
@@ -52,6 +53,7 @@ public slots:
     void open();
     void save();
     void exportSTL();
+    void saveSTLFile(double barDiam, double res);
     void modelItemToggled(QTreeWidgetItem * item, int column);
     void dmlItemClicked(QTreeWidgetItem * item, int column);
 

@@ -25,6 +25,7 @@ message(WARNING ${COMPILE_DEFINITIONS})
 
 set(SOURCES
         src/window.ui
+        src/exportdialog.ui
         src/resources.qrc
         src/window.h
         src/designViewer.h
@@ -48,6 +49,8 @@ set(SOURCES
         src/polygonizer.h
         src/polygon.cpp
         src/polygon.h
+        src/exportdialog.h
+        src/exportdialog.cpp
         src/exportThread.cpp
         src/exportThread.h
         src/optimizer.cpp
