@@ -190,26 +190,32 @@ void SpringRemover::optimize() {
                 }
 
                 if (leftCount == 0 || rightCount == 0) {
+                    qDebug() << "Deleting loose spring";
                     hangingSprings++;
                     sim->deleteSpring(sim->springs[s]);
                     s--;
                     springSize--;
+                    goto ENDLOOP;
                 }
 
                 // For 2 attached springs, determine angle between them
                 // Delete one and leave one for cleanup
                 if (leftCount == 1) {
+                    qDebug() << "Deleting hanging spring left";
                     for (int s1 = 0; s1 < springSize; s1++) {
                         if (s1 != s) {
+                            qDebug() << "Spring indices" << sim->springs[s] << sim->springs[s1] << s << s1;
                             if (sim->springs[s]->_left == sim->springs[s1]->_left) {
+                                qDebug() << "Checked masses get bars";
                                 Vec bar1 = sim->springs[s]->_right->pos - sim->springs[s]->_left->pos;
                                 Vec bar2 = sim->springs[s1]->_right->pos - sim->springs[s1]->_left->pos;
                                 if (Utils::isAcute(bar1, bar2)) {
                                     hangingSprings ++;
+                                    qDebug() << "About to GPU delete";
                                     sim->deleteSpring(sim->springs[s]);
                                     s --;
                                     springSize --;
-                                    continue;
+                                    goto ENDLOOP;
                                 }
                             }
                             if (sim->springs[s]->_right == sim->springs[s1]->_left) {
@@ -220,13 +226,14 @@ void SpringRemover::optimize() {
                                     sim->deleteSpring(sim->springs[s]);
                                     s --;
                                     springSize --;
-                                    continue;
+                                    goto ENDLOOP;
                                 }
                             }
                         }
                     }
                 }
                 if (rightCount == 1) {
+                    qDebug() << "Deleting hanging spring right";
                     for (int s1 = 0; s1 < springSize; s1++) {
                         if (s1 != s) {
                             if (sim->springs[s]->_left == sim->springs[s1]->_right) {
@@ -237,7 +244,7 @@ void SpringRemover::optimize() {
                                     sim->deleteSpring(sim->springs[s]);
                                     s --;
                                     springSize --;
-                                    continue;
+                                    goto ENDLOOP;
                                 }
                             }
                             if (sim->springs[s]->_right == sim->springs[s1]->_right) {
@@ -248,12 +255,13 @@ void SpringRemover::optimize() {
                                     sim->deleteSpring(sim->springs[s]);
                                     s --;
                                     springSize --;
-                                    continue;
+                                    goto ENDLOOP;
                                 }
                             }
                         }
                     }
                 }
+                ENDLOOP: ;
             }
 
             qDebug() << "Corrected" << hangingSprings << "hanging springs";
@@ -774,6 +782,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     // Define order group
     customMetric = QString();
     vector<Spring *> orderGroup = vector<Spring *>();
+    vector<Mass *> orderMasses = vector<Mass *>();
     vector<Mass *> outsideGroup = vector<Mass *>();
     vector<Mass *> edgeGroup = vector<Mass *>();
     vector<Vec> addedForces = vector<Vec>();
@@ -785,6 +794,8 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
             double rdist = calcOrigDist(s->_right, mt);
             if (ldist <= metricCutoff && rdist <= metricCutoff) {
                 orderGroup.push_back(s);
+                orderMasses.push_back(s->_left);
+                orderMasses.push_back(s->_right);
             } else if (ldist <= metricCutoff) {
                 // Border spring: Left mass is within the order group, right mass is not
                 edgeGroup.push_back(s->_left);
@@ -793,6 +804,9 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
                 // Border spring: Right mass is within the order group, left mass is not
                 edgeGroup.push_back(s->_right);
                 outsideGroup.push_back(s->_left);
+            } else {
+                outsideGroup.push_back(s->_left);
+                outsideGroup.push_back(s->_right);
             }
         }
 
@@ -800,44 +814,21 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         vector<Mass *> culledOutsideGroup = vector<Mass *>();
         for (Mass *m : sim->masses) {
             if (find(edgeGroup.begin(), edgeGroup.end(), m) != edgeGroup.end()) {
-
-                Vec extForceApply = Vec(0, 0, 0);
-                // Iterate over springs to find border connections
-                for (Spring *t : sim->springs) {
-                    // Check for border springs
-                    if (t->_left == m && calcOrigDist(t->_right, mt) > metricCutoff) {
-                    //if (t->_left == m) {
-                        // Left is an edge mass and right is an outside mass
-                        extForceApply += t->getForce(); // Add external forces
-                    }
-                    if (t->_right == m && calcOrigDist(t->_left, mt) > metricCutoff) {
-                    //if (t->_right == m) {
-                        // Right is an edge mass and left is an outside mass
-                        extForceApply += -t->getForce(); // Add external forces
-                    }
+                if (m->extforce == Vec(0,0,0)) {
+                    culledEdgeGroup.push_back(m);
                 }
-                //addedForces.push_back(extForceApply);
-                //m->extforce += extForceApply;
-                //m->force = m->extforce;
-                //m->extduration = DBL_MAX;
-
-                culledEdgeGroup.push_back(m);
             }
             if (find(outsideGroup.begin(), outsideGroup.end(), m) != outsideGroup.end()) {
-
-                // Fix mass that is directly outside of orderGroup
-                if (!m->constraints.fixed) {
-                    //m->fix();
-                    culledOutsideGroup.push_back(m);
-                }
+                    if (!m->constraints.fixed) {
+                        culledOutsideGroup.push_back(m);
+                    }
             }
-        }
         edgeGroup = culledEdgeGroup;
         outsideGroup = culledOutsideGroup;
+        }
         qDebug() << "Edge nodes" << edgeGroup.size();
         qDebug() << "Outside nodes" << outsideGroup.size();
     }
-    //sim->setAll();
 
     // Record start positions
     vector<Vec> startPos = vector<Vec>();
@@ -850,6 +841,50 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     for (Spring *s : sim->springs) {
         startRest.push_back(s->_rest);
     }
+    for (Spring *t : sim->springs) {
+        t->_broken = false;
+    }
+
+    for (Mass *m : edgeGroup) {
+        double metricCutoff = maxLocalization * metricOrder;
+
+        if (m->pos[0] > mt->pos[0]) {
+            Vec extForceApply = Vec(0, 0, 0);
+            // Iterate over springs to find border connections
+            for (Spring *t : sim->springs) {
+                // Check for border springs
+                if (t->_left == m && calcOrigDist(t->_right, mt) > metricCutoff) {
+                //if (t->_left == m) {
+                    // Left is an edge mass and right is an outside mass
+                    extForceApply -= t->getForce(); // Add external forces
+                }
+                if (t->_right == m && calcOrigDist(t->_left, mt) > metricCutoff) {
+                //if (t->_right == m) {
+                    // Right is an edge mass and left is an outside mass
+                    extForceApply += -t->getForce(); // Add external forces
+                }
+            }
+            //addedForces.push_back(extForceApply);
+            m->extforce += extForceApply;
+            m->force = m->extforce;
+            m->extduration = DBL_MAX;
+
+            qDebug() << QString("Pos: (%1,%2,%3), Force: (%4,%5,%6)")
+                    .arg(m->pos[0])
+                    .arg(m->pos[1])
+                    .arg(m->pos[2])
+                    .arg(m->force[0])
+                    .arg(m->force[1])
+                    .arg(m->force[2]);
+        }
+        addedForces.push_back(m->extforce);
+    }
+    for (Mass *m : outsideGroup) {
+        if (!m->constraints.fixed) {
+            m->fix();
+        }
+    }
+    sim->setAll();
 
     // Equilibrate simulation
     if (relaxation == 0) {
@@ -875,6 +910,8 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     double totalMetricTest = 0;
     double totalLengthTest = 0;
     double totalEnergyTest = 0;
+
+
 
 
     // Pick a random direction
@@ -1275,6 +1312,7 @@ double MassDisplacer::calcOrderEnergy(Simulation *sim, vector<Spring *> group) {
     int measured = 0;
 
     for (Spring *s : group) {
+        s->_broken = true;
         energy += s->_curr_force * s->_curr_force / s->_k;
         measured++;
     }
