@@ -87,8 +87,6 @@ private slots:
 
     void exportThreadFinished(QString fileName);
 
-    void on_unionButton_clicked();
-
 private:
     Design *design;
     Simulation *simulation;

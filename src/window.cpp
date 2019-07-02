@@ -494,18 +494,3 @@ void Window::dmlItemClicked(QTreeWidgetItem *item, int column) {
         displayOptProp();
     }
 }
-
-
-void Window::on_unionButton_clicked()
-{
-    if (design->volumes.size() > 1) {
-        Volume * volNew = new Volume();
-        volNew->geometry = new Polygon();
-        for (int v = 0; v < design->volumes.size() - 1; v++) {
-            Volume * vol1 = design->volumes[v];
-            Volume * vol2 = design->volumes[v+1];
-            qDebug() << vol1->id << vol2->id;
-            vol1->geometry->unionPolygons(*vol2->geometry, *volNew->geometry);
-        }
-    }
-}
