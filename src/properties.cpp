@@ -284,7 +284,7 @@ void PropertiesTable::updateProp(int row, int col) {
         switch (displayObject) {
 
             case VOLUME: {
-                Volume *volume = &design->volumes[objectIndex];
+                Volume *volume = design->volumes[objectIndex];
 
                 qDebug() << "Changing" << property->text() << "property";
                 if (property->text() == colorAttribute()) {

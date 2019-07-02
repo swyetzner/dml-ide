@@ -32,6 +32,47 @@ Polygonizer::Polygonizer(bar_data *barModel, double resolution, double barDiamet
 }
 
 
+// Constructor using a output config (contains boolean algebra with other volumes)
+//---------------------------------------------------------------------------
+Polygonizer::Polygonizer(output_data *outputConfig, double resolution, double barDiameter, int threads) {
+//---------------------------------------------------------------------------
+
+    this->barModel = outputConfig->barData;
+    this->threads = threads;
+    this->resolution = resolution;
+    this->barRadius = barDiameter / 2;
+    this->barModel->setRadii(this->barRadius);
+    this->unions = vector<Polygon *>();
+    this->unionsNot = vector<Polygon *>();
+
+    qDebug() << outputConfig->includes.size() << "Includes";
+    qDebug() << outputConfig->excludes.size() << "Excludes";
+    for (auto u : outputConfig->includes) {
+        this->unions.push_back(u->geometry);
+        boundingBox<Vec> b;
+        u->geometry->boundingPoints(b.minCorner, b.maxCorner);
+        this->barModel->bounds.combine(b);
+    }
+    for (auto v : outputConfig->excludes) {
+        this->unionsNot.push_back(v->geometry);
+        boundingBox<Vec> b;
+        v->geometry->boundingPoints(b.minCorner, b.maxCorner);
+        this->barModel->bounds.combine(b);
+    }
+    qDebug() << this->unions.size() << "Unions";
+    qDebug() << this->unionsNot.size() << "Differences";
+
+    // Add bar radius to bounds
+    barModel->bounds.minCorner -= Vec(this->barRadius*4, this->barRadius*4, this->barRadius*4);
+    barModel->bounds.maxCorner += Vec(this->barRadius*4, this->barRadius*4, this->barRadius*4);
+
+    this->xMin = barModel->bounds.minCorner[0];
+    this->xMax = barModel->bounds.maxCorner[0];
+    this->mSize = barModel->bounds.maxCorner - barModel->bounds.minCorner;
+
+}
+
+
 // Initializes first round of segments according to model bounds and resolution
 // Segments are delineated along the X axis (1, 0, 0)
 //---------------------------------------------------------------------------
@@ -272,8 +313,8 @@ void Polygonizer::marchingCubesAdaptive(Segment &s, int level) {
 
                 polygonizeAdaptive(s, grid, 0, level);
             }
-            qDebug() << "Working" << s.sidx << i << nx << j << ny;
         }
+        qDebug() << "Working segment (one per thread):" << s.sidx << "\t Slice:" << i << "/" << nx;
     }
 
     qDebug() << s.sidx << s.polygon->triangles->size();
@@ -453,7 +494,7 @@ void Polygonizer::addTriangle(Segment &s, TRIANGLE tri) {
 double Polygonizer::pointDist(Segment &s, Vec qp) {
 //---------------------------------------------------------------------------
 
-    double minDist = pointDistFromSurface(s.bars, qp);
+    double minDist = pointDistFromBars(s.bars, qp);
 
     if (this->barModel->anchorShell != nullptr) {
         double boxDist = pointDistFromBox(this->barModel->anchorShell, this->barModel->boxCutoff, qp);
@@ -464,13 +505,23 @@ double Polygonizer::pointDist(Segment &s, Vec qp) {
         minDist = (minDist < sphereDist? minDist : sphereDist);
     }
 
+    for (Polygon *u : unions) {
+        double surfaceDist = pointDistFromSurface(*u, qp);
+        //minDist = (minDist < -surfaceDist? minDist : -surfaceDist); intersection
+        minDist = (minDist < surfaceDist? minDist : surfaceDist);
+    }
+    for (Polygon *v : unionsNot) {
+        double diffSurfaceDist = pointDistFromSurface(*v, qp);
+        if (minDist < 0 && diffSurfaceDist < 0) minDist = -diffSurfaceDist;
+    }
+
     return minDist;
 }
 
 // Calculate minimum distance from surface
 // Surface defined by bars and bar diameter
 //---------------------------------------------------------------------------
-double Polygonizer::pointDistFromSurface(vector<Bar> &surface, Vec qp) {
+double Polygonizer::pointDistFromBars(vector<Bar> &surface, Vec qp) {
 //---------------------------------------------------------------------------
 
     double minDist = FLT_MAX;
@@ -523,7 +574,6 @@ double Polygonizer::pointDistFromSurface(vector<Bar> &surface, Vec qp) {
         }
     }
 
-    //qDebug() << "Min point" << minPoint[0] << minPoint[1] << minPoint[2] << "Tested point" << qp[0] << qp[1] << qp[2] << "Min Dist" << minDist << minType;
     return minDist;
 }
 
@@ -575,6 +625,38 @@ double Polygonizer::pointDistFromSphere(Vec spherePos, double sphereDiam, Vec qp
     dist -= sphereDiam/2;
 
     return dist;
+}
+
+
+// Calculate minimum distance from a convex surface
+// Surface defined by Polygon made of triangles
+// Negative values indicate inside surface
+//---------------------------------------------------------------------------
+double Polygonizer::pointDistFromSurface(Polygon &surface, Vec qp) {
+//---------------------------------------------------------------------------
+
+    double minDist = FLT_MAX;
+
+    for (auto n : surface.nodeMap) {
+        double d = (qp - n.first).norm();
+        if (d < minDist) {
+            minDist = d;
+        }
+    }
+
+    for (auto t : *surface.triangles) {
+        //minDist = std::min(minDist, Utils::distPointLine(qp, t->v1->p, t->v2->p));
+        //minDist = std::min(minDist, Utils::distPointLine(qp, t->v2->p, t->v3->p));
+        //minDist = std::min(minDist, Utils::distPointLine(qp, t->v3->p, t->v1->p));
+
+        Vec ax = t->v1->p - qp;
+        Vec n = cross((t->v2->p - t->v1->p), (t->v3->p - t->v1->p)).normalized();
+        double d = fabs(dot(ax, n));
+        minDist = std::min(minDist, d);
+
+    }
+
+    return (surface.isInside(qp))? -minDist : minDist;
 }
 
 // Linearly interpolates the position where an isosurface cuts

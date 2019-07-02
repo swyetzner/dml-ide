@@ -87,6 +87,7 @@ private slots:
 
     void exportThreadFinished(QString fileName);
 
+    void on_unionButton_clicked();
 
 private:
     Design *design;
@@ -106,6 +107,7 @@ private:
     bar_data *arrays_bars;
 
     QString *inputDMLPath;
+    QVector<QString> outputSTLPaths;
 
     // Default values
     const double defaultDt = 0.001;

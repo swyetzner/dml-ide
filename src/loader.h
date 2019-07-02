@@ -25,9 +25,12 @@ public:
     void createGridLattice(simulation_data *arrays, int dimX, int dimY, int dimZ);
     void createGridLattice(simulation_data *arrays, float cutoff);
     void createSpaceLattice(simulation_data *arrays, float cutoff, bool includeHull);
+    void createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff);
+    void createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff, bool includeHull);
 
     void loadDesignModels(Design *design);
     void loadVolumeModel(Volume *volume);
+    void loadVolumeGeometry(Volume *volume);
     void loadSimModel(SimulationConfig *simConfig);
     void loadVolumes(model_data *arrays, Design *design);
     void loadModel(model_data *arrays, Volume *volume, uint n_volume);
@@ -35,6 +38,7 @@ public:
     void loadSimulation(Simulation *sim, SimulationConfig *simConfig);
     void loadSimulation(simulation_data *arrays, Simulation *sim, uint n_volume);
     void loadSimFromLattice(simulation_data *arrays, Simulation *sim, double springCutoff);
+    void loadSimFromLattice(LatticeConfig *lattice, Simulation *sim, double springCutoff);
     void loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSection, bool markers);
     void applyLoadcase(Simulation *sim, Loadcase *load);
 

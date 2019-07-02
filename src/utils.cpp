@@ -58,6 +58,12 @@ vec3 Utils::randPoint(vec3 lowBound, vec3 highBound) {
                      Utils::randFloat(lowBound.z, highBound.z));
 }
 
+Vec Utils::randPointVec(Vec lowBound, Vec highBound) {
+    return Vec(Utils::randFloat(lowBound[0], highBound[0]),
+             Utils::randFloat(lowBound[1], highBound[1]),
+             Utils::randFloat(lowBound[2], highBound[2]));
+}
+
 // Clamps an input value from imin and imax to a range defined by omin and omax
 double Utils::clamp(double imin, double imax, double omin, double omax, double input) {
     return omin + (omax - omin) * (input - imin) / (imax - imin);
@@ -228,6 +234,26 @@ bool Utils::insideTriangle(vec3 a, vec3 b, vec3 c, vec3 &point) {
     return (u >= 0.0f) && (v >= 0.0f) && (u + v < 1.0f);
 }
 
+// True if point p projects to within triangle (v0;v1;v2)
+// http://www.blackpawn.com/texts/pointinpoly/
+bool Utils::insideTriangle(Vec &a, Vec &b, Vec &c, Vec &point) {
+    Vec ca = c - a;
+    Vec ba = b - a;
+    Vec pa = point - a;
+
+    float dotCACA = dot(ca, ca);
+    float dotCABA = dot(ca, ba);
+    float dotCAPA = dot(ca, pa);
+    float dotBABA = dot(ba, ba);
+    float dotBAPA = dot(ba, pa);
+
+    float invDenom = 1.0f / (dotCACA * dotBABA - dotCABA * dotCABA);
+    float u = (dotBABA * dotCAPA - dotCABA * dotBAPA) * invDenom;
+    float v = (dotCACA * dotBAPA - dotCABA * dotCAPA) * invDenom;
+
+    return (u >= 0.0f) && (v >= 0.0f) && (u + v < 1.0f);
+}
+
 // createCube(vec3 center, float edgeLength, vector<vec3> &vs, vector<vec3> &ns)
 //
 // Populates a model with a cube.
@@ -314,7 +340,7 @@ void Utils::createCube(vec3 center, float edgeLength, vector<vec3> &vs, vector<v
 //   -- ASCII STL
 //   -- Binary STL
 //
-void Utils::createModelFromFile(string path, vector<vec3> &vs, vector<vec3> &ns) {
+void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
 
     enum Format {
         STL_ASCII,
@@ -354,6 +380,70 @@ void Utils::createModelFromFile(string path, vector<vec3> &vs, vector<vec3> &ns)
     }
 
     file.close();
+
+    // Apply units
+    if (scale != 1) {
+        for (int i = 0; i < vs.size(); i++) {
+            vs[i] = scale * vs[i];
+        }
+    }
+}
+
+
+// createModelFromFile(string fileName, vector<Vec> &vs, vector<Vec> &ns)
+//
+// Populates a model from a file.
+// Current supported file formats:
+//   -- ASCII STL
+//   -- Binary STL
+//
+void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vector<Vec> &ns) {
+
+    enum Format {
+        STL_ASCII,
+        STL_BINARY,
+        OTHER
+    };
+
+    Format fileFormat = OTHER;
+
+    ifstream file(path, ios::in | ios::binary);
+    string header;
+
+    if (!file) {
+        return;
+    }
+
+    if (endsWith(path, ".stl")) {
+        getline(file, header);
+
+        if (startsWith(trim(header), "solid")) {
+            fileFormat = STL_ASCII;
+        } else {
+            fileFormat = STL_BINARY;
+        }
+    }
+
+    // Parse based on format
+    switch (fileFormat) {
+        case STL_ASCII:
+            parseStlASCII(file, vs, ns);
+            break;
+        case STL_BINARY:
+            parseStlBinary(file, vs, ns);
+            break;
+        default:
+            break;
+    }
+
+    file.close();
+
+    // Apply units
+    if (scale != 1) {
+        for (int i = 0; i < vs.size(); i++) {
+            vs[i] = scale * vs[i];
+        }
+    }
 }
 
 
@@ -386,6 +476,45 @@ void Utils::parseStlASCII(ifstream &text, vector<vec3> &vs, vector<vec3> &ns) {
         if (startsWith(trim(line), "vertex")) {
             istringstream iss(line);
             if (!(iss >> sdead >> v.x >> v.y >> v.z)) {
+                return;
+            }
+            vs.push_back(v);
+        }
+
+    }
+
+}
+
+
+// parseStlASCII(ifstream &text, vector<Vec> &vs, vector<Vec> &ns)
+//
+// Parses vertex positions and normals from a Qt file in STL (ASCII) format
+// See https://en.wikipedia.org/wiki/STL_(file_format)
+//
+void Utils::parseStlASCII(ifstream &text, vector<Vec> &vs, vector<Vec> &ns) {
+
+    qDebug() << "PARSING STL ASCII";
+    Vec n, v;
+    string sdead;
+
+    for (string line; getline(text, line); ) {
+
+        if (left(line, 8).compare("endsolid") == 0) {
+            return;
+        }
+
+        if (startsWith(trim(line), "facet normal")) {
+
+            istringstream iss(line);
+            if (!(iss >> sdead >> sdead >> n[0] >> n[1] >> n[2])) {
+                return;
+            }
+            ns.push_back(n); ns.push_back(n); ns.push_back(n);
+        }
+
+        if (startsWith(trim(line), "vertex")) {
+            istringstream iss(line);
+            if (!(iss >> sdead >> v[0] >> v[1] >> v[2])) {
                 return;
             }
             vs.push_back(v);
@@ -433,3 +562,39 @@ void Utils::parseStlBinary(ifstream &text, vector<vec3> &vs, vector<vec3> &ns) {
 }
 
 
+// parseStlBinary(ifstream &text, vector<Vec> &vs, vector<Vec> &ns)
+//
+// Parses vertex positions and normals from a Qt file in STL (binary) format
+// See https://en.wikipedia.org/wiki/STL_(file_format)
+//
+void Utils::parseStlBinary(ifstream &text, vector<Vec> &vs, vector<Vec> &ns) {
+
+    qDebug() << "PARSING STL BINARY";
+
+    STLHEADER header;
+    STLFACET facet;
+
+    char h[80];
+    char nt[4];
+    text.read(h, 80);
+    text.read(nt, 4);
+
+    uint num_triangles = * (long *) nt;
+    qDebug() << num_triangles;
+
+    //text.read(reinterpret_cast<char *>(&header), sizeof(header));
+
+    //uint nfacets = * reinterpret_cast<uint *>(header.nfacets);
+
+    for (uint t = 0; t < * (int *) header.nfacets; t++) {
+        text.read(reinterpret_cast<char *>(&facet), 50);
+
+        ns.push_back(Vec(facet.nx, facet.ny, facet.nz));
+        ns.push_back(Vec(facet.nx, facet.ny, facet.nz));
+        ns.push_back(Vec(facet.nx, facet.ny, facet.nz));
+
+        vs.push_back(Vec(facet.x1, facet.y1, facet.z1));
+        vs.push_back(Vec(facet.x2, facet.y2, facet.z2));
+        vs.push_back(Vec(facet.x3, facet.y3, facet.z3));
+    }
+}

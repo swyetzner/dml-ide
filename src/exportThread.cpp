@@ -19,10 +19,11 @@ ExportThread::~ExportThread() {
     wait();
 }
 
-void ExportThread::startExport(string fileName, bar_data *barModel, double resolution, double diameter, int threads) {
+void ExportThread::startExport(string fileName, output_data *output, double resolution, double diameter, int threads) {
 
     QMutexLocker locker(&mutex);
-    this->polygonizer = new Polygonizer(barModel, resolution, diameter, threads);
+    this->polygonizer = new Polygonizer(output, resolution, diameter, threads);
+    qDebug() << "Created polygonizer";
     this->fileName = fileName;
 
     if (!isRunning()) {

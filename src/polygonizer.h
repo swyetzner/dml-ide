@@ -51,6 +51,7 @@ class Polygonizer {
 public:
 
     Polygonizer(bar_data *barModel, double resolution, double barRadius, int threads);
+    Polygonizer(output_data *outputConfig, double resolution, double barRadius, int threads);
 
     void initBaseSegments();
     void calculatePolygon();
@@ -78,6 +79,8 @@ public:
 
 private:
     bar_data *barModel;
+    vector<Polygon *> unions;
+    vector<Polygon *> unionsNot;
 
     int threads; // Number of threads
     double resolution; // Minimum resolution for marching cubes
@@ -91,9 +94,10 @@ private:
 
     void addTriangle(Segment &s, TRIANGLE tri);
 
-    static double pointDistFromSurface(vector<Bar> &surface, Vec qp);
+    static double pointDistFromBars(vector<Bar> &surface, Vec qp);
     static double pointDistFromBox(boundingBox<Vec> *box, double shellWidth, Vec qp);
     static double pointDistFromSphere(Vec spherePos, double sphereDiam, Vec qp);
+    static double pointDistFromSurface(Polygon &surface, Vec qp);
     static Vec vertexInterp(double isolevel, Vec p1, Vec p2, double val1, double val2);
     static Vec findNormal(Vec v1, Vec v2, Vec v3);
 };

@@ -1,6 +1,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include "polygon.h"
 #include "utils.h"
 
 #include<QColor>
@@ -57,6 +58,8 @@ struct boundingBox {
         }
 
         center = (minCorner + maxCorner) * 0.5f;
+        qDebug() << "Bounds Min" << minCorner[0] << minCorner[1] << minCorner[2];
+        qDebug() << "Bounds Max" << maxCorner[0] << maxCorner[1] << maxCorner[2];
         qDebug() << "Center" << center[0] << center[1] << center[2];
     }
 
@@ -115,6 +118,54 @@ struct model_data {
     int indexCount() const { return indices.size(); }
     int colorCount() const { return m_colCount; }
     const QVector3D center() { return m_center; }
+
+    // Loads graphics data from Polygon
+    void createPolygonGraphicsData(const Polygon &polygon, glm::vec4 color) {
+        n_triangles = polygon.triangles->size();
+        n_vertices = 3 * n_triangles;
+        m_data.resize(n_vertices * 6);
+
+        for (ulong a = 0; a < n_triangles; a++) {
+            shared_ptr<Tri> t = polygon.triangles->at(a);
+
+            GLfloat *p = m_data.data() + m_count;
+            *p++ = t->v1->p[0];
+            *p++ = t->v1->p[1];
+            *p++ = t->v1->p[2];
+            *p++ = t->n[0];
+            *p++ = t->n[1];
+            *p++ = t->n[2];
+            m_count += 6;
+
+            *p++ = t->v2->p[0];
+            *p++ = t->v2->p[1];
+            *p++ = t->v2->p[2];
+            *p++ = t->n[0];
+            *p++ = t->n[1];
+            *p++ = t->n[2];
+            m_count += 6;
+
+            *p++ = t->v3->p[0];
+            *p++ = t->v3->p[1];
+            *p++ = t->v3->p[2];
+            *p++ = t->n[0];
+            *p++ = t->n[1];
+            *p++ = t->n[2];
+            m_count += 6;
+        }
+
+        // Fill colors for each model
+        m_colors.resize(n_vertices * 4);
+        for (ulong a = 0; a < n_vertices; a++) {
+            GLfloat *p = m_colors.data() + m_colCount;
+            *p++ = color.r;
+            *p++ = color.b;
+            *p++ = color.g;
+            *p++ = color.a;
+            m_colCount += 4;
+        }
+    }
+
 
     /**
      * @brief updateVertices Copies vertex and normal data into graphics array
@@ -357,8 +408,6 @@ struct simulation_data {
 
     int n_vertices = 0;
     int n_indices = 0;
-    int n_models = 0;
-    int *model_indices;
 
     vector<glm::vec3> vertices = std::vector<glm::vec3>();
     vector<uint> indices = vector<uint>();
@@ -410,11 +459,8 @@ struct simulation_data {
         vector<uint> i_model = vector<uint>();
 
         uint modelStart = 0;
-        uint modelEnd = 0;
+        uint modelEnd = n_vertices;
 
-        if (n_model != 0)
-            modelStart = model_indices[n_model-1];
-        modelEnd = model_indices[n_model];
         qDebug() << "Start index: " << modelStart << " End index: " << modelEnd;
 
         for (uint i = modelStart; i < modelEnd; i++) {
@@ -447,9 +493,6 @@ struct simulation_data {
         vertices.insert(vertices.begin() + modelStart, v_collapse.begin(), v_collapse.end());
 
         ulong diffVertexCount = (modelEnd - modelStart) - v_collapse.size();
-        for (ulong m = n_model; m < n_models; m++) {
-            model_indices[m] -= diffVertexCount;
-        }
 
         n_vertices -= diffVertexCount;
 
@@ -466,15 +509,11 @@ struct simulation_data {
     //
     // Returns true if point is inside model n
     //
-    bool isInside(glm::vec3 point, int n_model) {
+    bool isInside(glm::vec3 point) {
 
         uint modelStart = 0;
-        uint modelEnd = 0;
+        uint modelEnd = n_vertices;
         int intersections = 0;
-
-        if (n_model != 0)
-            modelStart = model_indices[n_model-1];
-        modelEnd = model_indices[n_model];
 
         glm::vec3 p;
         float pu, pv;
@@ -503,13 +542,10 @@ struct simulation_data {
     }
 
     // Check if a point is too close to the hull of a model
-    bool isCloseToEdge(glm::vec3 point, float cutoff, int n_model) {
+    bool isCloseToEdge(glm::vec3 point, float cutoff) {
 
         uint modelStart = 0;
-        uint modelEnd = 0;
-        if (n_model != 0)
-            modelStart = model_indices[n_model-1];
-        modelEnd = model_indices[0];
+        uint modelEnd = n_vertices;
 
         for (uint i = modelStart; i < modelEnd; i ++) {
             if (length(vertices[i] - point) <= cutoff)
@@ -521,15 +557,8 @@ struct simulation_data {
 
 
     simulation_data(model_data *arrays) {
-        this->n_models = arrays->n_models;
         this->n_vertices = arrays->n_vertices;
         this->vertices = arrays->vertices;
-
-        copyModelEndpoints(arrays->model_indices, arrays->n_models);
-
-        for (int i = 0; i < n_models; i++) {
-            //this->indexVertices(i);
-        }
 
         this->bounds = boundingBox<vec3>(vertices);
 
@@ -544,17 +573,22 @@ struct simulation_data {
         qDebug() << "CUDA vertex:" << d_vertices[25].x;**/
     }
 
+    simulation_data(Polygon *polygon) {
+        this->n_vertices = polygon->nodeMap.size();
+        qDebug() << "Set variables";
+
+        for (const auto n : polygon->nodeMap) {
+            vec3 v = vec3(n.first[0],n.first[1],n.first[2]);
+            this->vertices.push_back(v);
+        }
+        qDebug() << "Copied vertices";
+
+        this->bounds = boundingBox<vec3>(vertices);
+    }
+
     ~simulation_data() {
         std::vector<glm::vec3>().swap(vertices);
         //cudaFree(d_vertices);
-    }
-
-    void copyModelEndpoints(int *models, int n_models) {
-        this->model_indices = new int[n_models];
-        for (int i = 0; i < n_models; i++) {
-            int tmp = models[i];
-            this->model_indices[i] = tmp;
-        }
     }
 };
 
@@ -611,6 +645,7 @@ public:
     ulong index;
 
     model_data *model = nullptr;
+    Polygon *geometry = nullptr;
 
     void loadModel();
 
@@ -710,6 +745,8 @@ public:
             return "space";
         }
     }
+
+    vector<Vec> vertices;
 };
 
 class Damping
@@ -836,6 +873,23 @@ public:
     }
 };
 
+class OptimizationConstraint {
+public:
+    OptimizationConstraint() = default;
+    ~OptimizationConstraint() = default;
+
+    enum Metric { VOLUME };
+    Metric metric;
+    QString id;
+
+    QString metricName() {
+        switch (metric) {
+            case VOLUME:
+                return "VOLUME";
+        }
+    }
+};
+
 class OptimizationConfig
 {
 public:
@@ -845,6 +899,16 @@ public:
     SimulationConfig * simulationConfig;
     vector<OptimizationRule> rules;
     vector<OptimizationStop> stopCriteria;
+};
+
+// Hold output data
+struct output_data {
+    QString id;
+    bar_data * barData; // Simulation output
+    vector<Volume *> includes; // Volumes to include in final model
+    vector<Volume *> excludes; // Volumes to exclude from final model
+
+    SimulationConfig * sim;
 };
 
 /**
@@ -858,7 +922,7 @@ public:
         delete optConfig;
     }
 
-    vector<Volume> volumes;
+    vector<Volume *> volumes;
     map<QString, Volume *> volumeMap;
 
     vector<Material> materials;
@@ -871,6 +935,12 @@ public:
     map<QString, SimulationConfig *> simConfigMap;
 
     OptimizationConfig * optConfig = nullptr;
+
+    vector<output_data *> outputs;
+    map<QString, output_data *> outputMap;
 };
+
+
+
 
 #endif // MODEL_H

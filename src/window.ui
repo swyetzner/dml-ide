@@ -74,6 +74,31 @@
       <number>9</number>
      </property>
      <item>
+      <layout class="QGridLayout" name="geometryBox">
+       <item row="1" column="0">
+        <widget class="QToolButton" name="diffButton">
+         <property name="text">
+          <string>Difference</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QToolButton" name="unionButton">
+         <property name="text">
+          <string>Union</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QToolButton" name="interButton">
+         <property name="text">
+          <string>Intersection</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
       <widget class="QGroupBox" name="simSettingsBox">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">

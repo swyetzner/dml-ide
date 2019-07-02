@@ -810,6 +810,9 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
             }
         }
 
+        qDebug() << "Edge nodes" << edgeGroup.size();
+        qDebug() << "Outside nodes" << outsideGroup.size();
+
         vector<Mass *> culledEdgeGroup = vector<Mass *>();
         vector<Mass *> culledOutsideGroup = vector<Mass *>();
         for (Mass *m : sim->masses) {
@@ -823,9 +826,9 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
                         culledOutsideGroup.push_back(m);
                     }
             }
+        }
         edgeGroup = culledEdgeGroup;
         outsideGroup = culledOutsideGroup;
-        }
         qDebug() << "Edge nodes" << edgeGroup.size();
         qDebug() << "Outside nodes" << outsideGroup.size();
     }
@@ -848,7 +851,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     for (Mass *m : edgeGroup) {
         double metricCutoff = maxLocalization * metricOrder;
 
-        if (m->pos[0] > mt->pos[0]) {
+        //if (m->pos[0] > mt->pos[0]) {
             Vec extForceApply = Vec(0, 0, 0);
             // Iterate over springs to find border connections
             for (Spring *t : sim->springs) {
@@ -856,12 +859,12 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
                 if (t->_left == m && calcOrigDist(t->_right, mt) > metricCutoff) {
                 //if (t->_left == m) {
                     // Left is an edge mass and right is an outside mass
-                    extForceApply -= t->getForce(); // Add external forces
+                    extForceApply += t->_curr_force * (t->_left->pos - t->_right->pos).normalized();  // Add external forces
                 }
                 if (t->_right == m && calcOrigDist(t->_left, mt) > metricCutoff) {
                 //if (t->_right == m) {
                     // Right is an edge mass and left is an outside mass
-                    extForceApply += -t->getForce(); // Add external forces
+                    extForceApply += t->_curr_force * (t->_left->pos - t->_right->pos).normalized(); // Add external forces
                 }
             }
             //addedForces.push_back(extForceApply);
@@ -876,7 +879,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
                     .arg(m->force[0])
                     .arg(m->force[1])
                     .arg(m->force[2]);
-        }
+        //}
         addedForces.push_back(m->extforce);
     }
     for (Mass *m : outsideGroup) {

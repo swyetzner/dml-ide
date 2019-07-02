@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by sw3390 on 4/4/19.
 //
@@ -353,6 +355,249 @@ void Polygon::flipTriangleEdges(double eps) {
             }
         }
     }
+}
+
+
+// Calls Util functions to read STL in vertex vectors
+// Converts vertex vectors into Polygon
+// ------------------------------------------------------------
+void Polygon::createPolygonFromFile(string path, float scale) {
+// ------------------------------------------------------------
+
+    // Check that this is an empty Polygon
+    assert(this->triangles->empty());
+    assert(this->nodeMap.empty());
+
+    // Vertex vectors
+    vector<Vec> vs = vector<Vec>(); // Every 3 vertices constitutes a triangle
+    vector<Vec> ns = vector<Vec>(); // Normals are copied to correspond to vertices
+
+    Utils::createModelFromFile(std::move(path), scale, vs, ns);
+    assert(vs.size() == ns.size());
+
+    // Fill Polygon data structures
+    for (int i = 0; i < vs.size(); i+=3) {
+        addTriangle(vs[i], vs[i+1], vs[i+2], ns[i]);
+    }
+
+}
+
+
+// Convertes Polygon into float arrays with position and normal values
+// Arranged sequentially
+// ------------------------------------------------------------
+void Polygon::createGraphicsData(float *vs, float *ns) {
+// ------------------------------------------------------------
+
+    // Reallocate arrays
+    delete vs;
+    delete ns;
+    vs = new float[triangles->size() * 3 * 3];
+    ns = new float[triangles->size() * 3 * 3];
+
+    int vn = 0;
+    for (const auto &t : *this->triangles) {
+
+        for (int i = 0; i < 3; i++) {
+            vs[vn * 3 + i] = t->v1->p.data[i];
+        }
+        for (int j = 0; j < 3; j++) {
+            ns[vn * 3 + j] = t->n[j];
+        }
+        vn++;
+        for (int i = 0; i < 3; i++) {
+            vs[vn * 3 + i] = t->v2->p.data[i];
+        }
+        for (int j = 0; j < 3; j++) {
+            ns[vn * 3 + j] = t->n[j];
+        }
+        vn++;
+        for (int i = 0; i < 3; i++) {
+            vs[vn * 3 + i] = t->v3->p.data[i];
+        }
+        for (int j = 0; j < 3; j++) {
+            ns[vn * 3 + j] = t->n[j];
+        }
+        vn ++;
+
+    }
+
+}
+
+
+// Returns the UNION of two Polygons
+// Gang Mei and John C. Tipper "Simple and Robust Boolean Operations for Triangulated Surfaces" (2013)
+// ------------------------------------------------------------
+void Polygon::unionPolygons(Polygon &other, Polygon &polygon) {
+// ------------------------------------------------------------
+
+    Vec bmin1, bmax1, bmin2, bmax2;
+    this->boundingPoints(bmin1, bmax1);
+    other.boundingPoints(bmin2, bmax2);
+
+    // Find overlapping volumes
+    Vec imin, imax;
+    imin = Vec(std::max(bmin1[0], bmin2[0]), std::max(bmin1[1], bmin2[1]), std::max(bmin1[2], bmin2[2]));
+    imax = Vec(std::min(bmax1[0], bmax2[0]), std::min(bmax1[1], bmax2[1]), std::min(bmax1[2], bmax2[2]));
+
+    qDebug() << "Intersection box" << imin[0] << imin[1] << imin[2] << "x" << imax[0] << imax[1] << imax[2];
+
+    vector<shared_ptr<Tri>> trisInIntersection1 = vector<shared_ptr<Tri>>();
+    vector<shared_ptr<Tri>> trisInIntersection2 = vector<shared_ptr<Tri>>();
+    for (const auto &t : *this->triangles) {
+
+        if (withinBounds(imin, imax, *t)) {
+            trisInIntersection1.push_back(t);
+        }
+
+    }
+    for (const auto &t : *other.triangles) {
+
+        if (withinBounds(imin, imax, *t)) {
+            trisInIntersection2.push_back(t);
+        }
+
+    }
+    qDebug() << "There are" << trisInIntersection1.size() + trisInIntersection2.size() << "triangles in intersection range";
+
+    for (const auto &t1 : trisInIntersection1) {
+        for (const auto &t2 : trisInIntersection2) {
+
+        }
+    }
+}
+
+// Returns true if given point is inside the convex geometry
+// ------------------------------------------------------------
+bool Polygon::isInside(Vec point) {
+// ------------------------------------------------------------
+
+    int intersections = 0;
+
+    Vec p;
+    Vec dir = Vec(Utils::randUnit(), Utils::randUnit(), Utils::randUnit()).normalized();
+
+    for (auto t : *triangles) {
+
+        bool ip = intersectPlane(*t, point, dir, p);
+        if (ip && p[0] > point[0] && p[1] > point[1] && p[2] > point[2]) {
+            if (Utils::insideTriangle(t->v1->p, t->v2->p, t->v3->p, p)) {
+                intersections++;
+            }
+        }
+    }
+
+    return (intersections % 2 == 1);
+}
+
+// Returns true if given point is within some eps of the edge
+// of the convex geometry
+// ------------------------------------------------------------
+bool Polygon::isCloseToEdge(const Vec &point, double eps) {
+// ------------------------------------------------------------
+
+    for (const auto &n : nodeMap) {
+
+        if ((n.first - point).norm() <= eps) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Returns minimum and maximum corner
+// Of the geometry's bounding box
+// ------------------------------------------------------------
+void Polygon::boundingPoints(Vec &minp, Vec &maxp){
+// ------------------------------------------------------------
+
+    Vec minCorner = Vec(DBL_MAX, DBL_MAX, DBL_MAX);
+    Vec maxCorner = Vec(-DBL_MAX, -DBL_MAX, -DBL_MAX);
+
+    for (auto n : nodeMap) {
+        Vec p = n.first;
+        minCorner[0] = std::min(minCorner[0], p[0]);
+        minCorner[1] = std::min(minCorner[1], p[1]);
+        minCorner[2] = std::min(minCorner[2], p[2]);
+        maxCorner[0] = std::max(maxCorner[0], p[0]);
+        maxCorner[1] = std::max(maxCorner[1], p[1]);
+        maxCorner[2] = std::max(maxCorner[2], p[2]);
+    }
+
+    minp = minCorner;
+    maxp = maxCorner;
+}
+
+
+// Returns whether a point is within some dimensional bounds (inclusive)
+// ------------------------------------------------------------
+bool Polygon::withinBounds(const Vec &bmin, const Vec &bmax, const Vec &p) {
+// ------------------------------------------------------------
+
+    bool inside = true;
+    if (p[0] > bmax[0] && p[0] < bmin[0]) {
+        inside = false;
+    }
+    if (p[1] > bmax[1] && p[1] < bmin[1]) {
+        inside = false;
+    }
+    if (p[2] > bmax[2] && p[2] < bmin[2]) {
+        inside = false;
+    }
+    return inside;
+
+}
+
+// Returns whether a triangle is within some dimensional bounds (inclusive)
+// ------------------------------------------------------------
+bool Polygon::withinBounds(const Vec &bmin, const Vec &bmax, const Tri &t) {
+// ------------------------------------------------------------
+
+    bool inside = false;
+    if (withinBounds(bmin, bmax, t.v1->p)) {
+        inside = true;
+    }
+    if (withinBounds(bmin, bmax, t.v2->p)) {
+        inside = true;
+    }
+    if (withinBounds(bmin, bmax, t.v3->p)) {
+        inside = true;
+    }
+
+    return inside;
+
+}
+
+
+// Calculate intersecion point of a ray and a triangle plane
+// ray has origin o and direction dir
+// if there is no intersection, return false
+// see http://www.devmaster.net/wiki/Ray-triangle_intersection
+// ------------------------------------------------------------
+bool Polygon::intersectPlane(const Tri &t, Vec o, Vec dir, Vec &p) {
+// ------------------------------------------------------------
+
+    double EPSILON = 1E-5;
+    assert(fabs(fabs(dir.norm()) - 1) < EPSILON); // dir must be a unit vector
+
+    Vec a = t.v1->p;
+    Vec b = t.v2->p;
+    Vec c = t.v3->p;
+    Vec ba = b - a;
+    Vec ca = c - a;
+    Vec n = cross(ba, ca); // triangle normal unit vector
+    n = n.normalized();
+
+    double dn = dot(dir, n);
+    if (fabs(dn) < EPSILON) {
+        return false; // ray is parallel to the triangle
+    }
+
+    double dist = -dot((o - a), n) / dn;
+    p = o + dir * dist;
+
+    return true;
 }
 
 

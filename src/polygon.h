@@ -68,7 +68,23 @@ public:
     void reduceMesh(double eps, double factor);
     void flipTriangleEdges(double eps);
     int fixNormals();
+    void createPolygonFromFile(string path, float scale);
+    void createGraphicsData(float *vs, float *ns);
 
+    // CSG FUNCTIONS
+    void unionPolygons(Polygon &other, Polygon &polygon);
+    void intersectionPolygons(const Polygon &other, const Polygon &polygon);
+    void differencePolygons(const Polygon &other, const Polygon &polygon);
+
+    // GEOMETRY UTILS
+    bool isInside(Vec point);
+    bool isCloseToEdge(const Vec &point, double eps);
+    void boundingPoints(Vec &minp, Vec &maxp);
+    bool withinBounds(const Vec &bmin, const Vec &bmax, const Vec &p);
+    bool withinBounds(const Vec &bmin, const Vec &bmax, const Tri &t);
+    bool intersectPlane(const Tri &t, Vec o, Vec dir, Vec &p);
+
+    // HELPER FUNCTIONS
     int sharedNodes(const Tri &t1, const Tri &t2);
     void findTwoCommon(const Tri &t1, const Tri &t2, shared_ptr<Node> &ncom1, shared_ptr<Node> &ncom2,
                        shared_ptr<Node> &nsep1, shared_ptr<Node> &nsep2);

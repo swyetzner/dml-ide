@@ -17,7 +17,7 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     n_models = long(design->volumes.size());
     n_modelVertices = new long(n_models);
     for (uint i = 0; i < uint(n_models); i++)
-        n_modelVertices[i] = design->volumes[i].model->n_vertices;
+        n_modelVertices[i] = design->volumes[i]->model->n_vertices;
 
     // Set activate models to true
     activateModel = new bool(n_models);
@@ -32,7 +32,7 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     // Set rotation + zoom constants
     m_center = QVector3D(0, 0, 0);
     for (uint i = 0; i < uint(n_models); i++)
-        m_center += design->volumes[i].model->center();
+        m_center += design->volumes[i]->model->center();
     m_center /= n_models; // Use average model center
 
     getBoundingBox();
@@ -100,7 +100,7 @@ void DesignViewer::toggleModel(int modelIndex) {
 //
 void DesignViewer::updateColors() {
     for (uint i =0; i < n_models; i++) {
-        design->volumes[i].model->updateColors();
+        design->volumes[i]->model->updateColors();
     }
     updateBuffers();
     update();
@@ -187,7 +187,7 @@ void DesignViewer::initBuffers() {
         glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
         glBufferData(GL_ARRAY_BUFFER,
                      3 * n_modelVertices[m] * long(sizeof(GLfloat)),
-                     &design->volumes[m].model->vertices[0],
+                     &design->volumes[m]->model->vertices[0],
                      GL_STATIC_DRAW);
         vertexBuff_ids[m] = vertexBuffer;
 
@@ -196,7 +196,7 @@ void DesignViewer::initBuffers() {
         glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
         glBufferData(GL_ARRAY_BUFFER,
                      3 * n_modelVertices[m] * long(sizeof(GLfloat)),
-                     &design->volumes[m].model->normals[0],
+                     &design->volumes[m]->model->normals[0],
                      GL_STATIC_DRAW);
         normalBuff_ids[m] = normalBuffer;
 
@@ -205,7 +205,7 @@ void DesignViewer::initBuffers() {
         glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
         glBufferData(GL_ARRAY_BUFFER,
                      4 * n_modelVertices[m] * long(sizeof(GLfloat)),
-                     design->volumes[m].model->constColor(),
+                     design->volumes[m]->model->constColor(),
                      GL_STATIC_DRAW
         );
         colorBuff_ids[m] = colorBuffer;
@@ -255,7 +255,7 @@ void DesignViewer::updateBuffers() {
             glBufferData(
                 GL_ARRAY_BUFFER,
                 3 * n_modelVertices[m] * long(sizeof(GLfloat)),
-                &design->volumes[m].model->vertices[0],
+                &design->volumes[m]->model->vertices[0],
                 GL_STATIC_DRAW
             );
 
@@ -263,7 +263,7 @@ void DesignViewer::updateBuffers() {
             glBufferData(
                 GL_ARRAY_BUFFER,
                 3 * n_modelVertices[m] * long(sizeof(GLfloat)),
-                &design->volumes[m].model->normals[0],
+                &design->volumes[m]->model->normals[0],
                 GL_STATIC_DRAW
             );
 
@@ -271,7 +271,7 @@ void DesignViewer::updateBuffers() {
             glBufferData(
                 GL_ARRAY_BUFFER,
                 4 * n_modelVertices[m] * long(sizeof(GLfloat)),
-                design->volumes[m].model->constColor(),
+                design->volumes[m]->model->constColor(),
                 GL_STATIC_DRAW
             );
         }
@@ -386,20 +386,20 @@ void DesignViewer::getBoundingBox() {
     m_maxCorner = QVector3D(0, 0, 0);
 
     if (n_models > 0) {
-        float m_minPointX = design->volumes[0].model->bounds.minCorner.x;
-        float m_minPointY = design->volumes[0].model->bounds.minCorner.y;
-        float m_minPointZ = design->volumes[0].model->bounds.minCorner.z;
-        float m_maxPointX = design->volumes[0].model->bounds.maxCorner.x;
-        float m_maxPointY = design->volumes[0].model->bounds.maxCorner.y;
-        float m_maxPointZ = design->volumes[0].model->bounds.maxCorner.z;
+        float m_minPointX = design->volumes[0]->model->bounds.minCorner.x;
+        float m_minPointY = design->volumes[0]->model->bounds.minCorner.y;
+        float m_minPointZ = design->volumes[0]->model->bounds.minCorner.z;
+        float m_maxPointX = design->volumes[0]->model->bounds.maxCorner.x;
+        float m_maxPointY = design->volumes[0]->model->bounds.maxCorner.y;
+        float m_maxPointZ = design->volumes[0]->model->bounds.maxCorner.z;
 
         for (uint i = 0; i < uint(n_models); i++) {
-            m_minPointX = std::min(m_minPointX, design->volumes[i].model->bounds.minCorner.x);
-            m_minPointY = std::min(m_minPointY, design->volumes[i].model->bounds.minCorner.y);
-            m_minPointZ = std::min(m_minPointZ, design->volumes[i].model->bounds.minCorner.z);
-            m_maxPointX = std::min(m_maxPointX, design->volumes[i].model->bounds.maxCorner.x);
-            m_maxPointY = std::min(m_maxPointY, design->volumes[i].model->bounds.maxCorner.y);
-            m_maxPointZ = std::min(m_maxPointZ, design->volumes[i].model->bounds.maxCorner.z);
+            m_minPointX = std::min(m_minPointX, design->volumes[i]->model->bounds.minCorner.x);
+            m_minPointY = std::min(m_minPointY, design->volumes[i]->model->bounds.minCorner.y);
+            m_minPointZ = std::min(m_minPointZ, design->volumes[i]->model->bounds.minCorner.z);
+            m_maxPointX = std::min(m_maxPointX, design->volumes[i]->model->bounds.maxCorner.x);
+            m_maxPointY = std::min(m_maxPointY, design->volumes[i]->model->bounds.maxCorner.y);
+            m_maxPointZ = std::min(m_maxPointZ, design->volumes[i]->model->bounds.maxCorner.z);
         }
 
         m_minCorner = QVector3D(m_minPointX, m_minPointY, m_minPointZ);

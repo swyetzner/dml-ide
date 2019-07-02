@@ -18,7 +18,7 @@ public:
     explicit ExportThread(QObject *parent = nullptr);
     ~ExportThread() override;
 
-    void startExport(string fileName, bar_data *barModel, double resolution, double diameter, int threads);
+    void startExport(string fileName, output_data *output, double resolution, double diameter, int threads);
 
 signals:
     void exportedGeometry(QString fileName);

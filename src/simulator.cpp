@@ -153,7 +153,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;
-                    massDisplacer->relaxation = 2000;
+                    massDisplacer->relaxation = 1500;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
@@ -166,7 +166,6 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
         }
     }
 
-    originalModel = config->model;
     //optimizer = new MassDisplacer(sim, 0.2);
     //springInserter = new SpringInserter(sim, 0.001);
     //springInserter->cutoff = 3.5 * config->lattice.unit[0];
@@ -1410,23 +1409,6 @@ void Simulator::updateOverlays() {
         anchorCount += 3;
     }
 
-
-    //  BOUNDS
-    if (resizeBuffers) {
-        delete boundVertices;
-        boundVertices = new GLfloat[3 * originalModel->hull.size()];
-    }
-    int boundCount = 0;
-    for (int i = 0; i < originalModel->hull.size(); i++) {
-        GLfloat *p = boundVertices + boundCount;
-        Mass *m = sim->getMassByIndex(originalModel->hull[i]);
-
-        *p++ = GLfloat(m->pos[0]);
-        *p++ = GLfloat(m->pos[1]);
-        *p++ = GLfloat(m->pos[2]);
-        boundCount += 3;
-    }
-
 }
 
 //  ----- addColor()
@@ -1783,12 +1765,6 @@ void Simulator::initBuffers() {
     glBufferData(GL_ARRAY_BUFFER, 3 * anchors.size() * long(sizeof(GLfloat)), anchorVertices, GL_DYNAMIC_DRAW);
     anchorVertexBuff_id = anchorBuffer;
 
-    GLuint boundBuffer = 0;
-    glGenBuffers(1, &boundBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, boundBuffer);
-    glBufferData(GL_ARRAY_BUFFER, 3 * originalModel->hull.size() * long(sizeof(GLfloat)), boundVertices, GL_DYNAMIC_DRAW);
-    boundVertexBuff_id = boundBuffer;
-
     qDebug() << "Initialized buffers";
 }
 
@@ -1907,9 +1883,6 @@ void Simulator::updateBuffers() {
     glBindBuffer(GL_ARRAY_BUFFER, anchorVertexBuff_id);
     glBufferData(GL_ARRAY_BUFFER, 3 * anchors.size() * long(sizeof(GLfloat)), anchorVertices, GL_DYNAMIC_DRAW);
 
-    glBindBuffer(GL_ARRAY_BUFFER, boundVertexBuff_id);
-    glBufferData(GL_ARRAY_BUFFER, 3 * originalModel->hull.size() * long(sizeof(GLfloat)), boundVertices, GL_DYNAMIC_DRAW);
-
 }
 
 
@@ -1937,22 +1910,6 @@ void Simulator::drawVertexArray() {
     glDisableVertexAttribArray(3);
 
     planeShaderProgram->release();
-
-    // BOUNDS
-    boundShaderProgram->bind();
-
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, boundVertexBuff_id);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDrawArrays(GL_TRIANGLES, 0, GLsizei(originalModel->hull.size()));
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    glDisableVertexAttribArray(0);
-
-    boundShaderProgram->release();
 
     // DRAW MASSES
     massShaderProgram->bind();
@@ -2139,40 +2096,6 @@ void Simulator::initializeGL() {
     }
 
     qDebug() << "Initializing OpenGL";
-
-    // CLIP PLANES
-    center = QVector4D(0, 0, 0, 0);
-    map<uint, bool> seenMasses = map<uint, bool>();
-    qDebug() << originalModel->hull.size();
-
-    if (originalModel->hull.size() > 0) {
-        for (int i = 0; i < originalModel->hull.size(); i++) {
-
-            if (seenMasses.find(originalModel->hull[i]) == seenMasses.end()) {
-                Vec p = sim->masses[originalModel->hull[i]]->pos;
-                center += QVector4D(p[0], p[1], p[2], 0);
-                seenMasses[originalModel->hull[i]] = true;
-            }
-        }
-        center /= seenMasses.size();
-    } else {
-        vec3 c = originalModel->bounds.center;
-        center = QVector4D(c[0], c[1], c[2], 0.0);
-    }
-
-
-    qDebug() << "Center:" << center << seenMasses.size();
-
-    Vec dx = sim->masses[2]->pos - sim->masses[0]->pos;
-    Vec dy = sim->masses[7]->pos - sim->masses[4]->pos;
-    Vec dz = sim->masses[0]->pos - sim->masses[7]->pos;
-    clipPlaneX = QVector4D(dx[0], dx[1], dx[2], 0.0);
-    clipPlaneY = QVector4D(dy[0], dy[1], dy[2], 0.0);
-    clipPlaneZ = QVector4D(dz[0], dz[1], dz[2], 0.0);
-
-    qDebug() << "Clipping plane X:" << clipPlaneX;
-    qDebug() << "Clipping plane Y:" << clipPlaneY;
-    qDebug() << "Clipping plane Z:" << clipPlaneZ;
 
     //updateVertices();
     //updateIndices();

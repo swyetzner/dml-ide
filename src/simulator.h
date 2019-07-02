@@ -89,8 +89,6 @@ protected:
 
 private:
 
-    simulation_data *originalModel;
-
     // --------------------------------------------------------------------
     // SIMULATION PROPERTIES + FUNCTIONS
     // --------------------------------------------------------------------

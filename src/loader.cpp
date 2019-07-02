@@ -18,12 +18,13 @@ Loader::~Loader() {
  */
 void Loader::loadDesignModels(Design *design) {
     for (uint v = 0; v < design->volumes.size(); v++) {
-        loadVolumeModel(&design->volumes[v]);
-        design->volumes[v].model->createGraphicsData();
+        loadVolumeModel(design->volumes[v]);
+        loadVolumeGeometry(design->volumes[v]);
+        design->volumes[v]->model->createGraphicsData();
     }
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
-        loadSimModel(&design->simConfigs[s]);
+        //loadSimModel(&design->simConfigs[s]);
         design->simConfigMap[design->simConfigs[s].id] = &design->simConfigs[s];
     }
 }
@@ -51,7 +52,20 @@ void Loader::loadVolumeModel(Volume *volume) {
 
         if (volume->url.isValid()) {
 
-            Utils::createModelFromFile(volume->url.path().toStdString(), volume->model->vertices, volume->model->normals);
+            float scale = 1;
+            if (volume->units != nullptr) {
+                if (volume->units == "meters" || volume->units == "m") {
+                    scale = 1;
+                } else if (volume->units == "centimeters" || volume->units == "cm") {
+                    scale = 0.1;
+                } else if (volume->units == "millimeters" || volume->units == "mm") {
+                    scale = 0.01;
+                }
+            }
+
+            qDebug() << "Scale" << scale;
+
+            Utils::createModelFromFile(volume->url.path().toStdString(), scale, volume->model->vertices, volume->model->normals);
 
 
         } else {
@@ -71,10 +85,49 @@ void Loader::loadVolumeModel(Volume *volume) {
     log(QString("Loaded %1 vertices").arg(volume->model->n_vertices));
 }
 
+/**
+ * @brief Loader::loadVolumeGeometry
+ * Populates Polygon in a given Volume
+ */
+void Loader::loadVolumeGeometry(Volume *volume){
+
+    volume->geometry = new Polygon();
+
+    if (volume->primitive == "stl") {
+        if (volume->url.isEmpty())
+            log("Empty URL for volume " + volume->id + ". Cannot load model");
+
+        if (volume->url.isValid()) {
+
+            // SCALE
+            float scale = 1;
+            if (volume->units != nullptr) {
+                if (volume->units == "meters" || volume->units == "m") {
+                    scale = 1;
+                } else if (volume->units == "centimeters" || volume->units == "cm") {
+                    scale = 0.1;
+                } else if (volume->units == "millimeters" || volume->units == "mm") {
+                    scale = 0.01;
+                }
+            }
+
+            // LOAD FROM INPUT FILE
+            volume->geometry->createPolygonFromFile(volume->url.path().toStdString(), scale);
+
+        } else {
+            log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");
+        }
+    }
+
+    log(QString("Loaded %1 vertices").arg(volume->geometry->nodeMap.size()));
+}
+
 void Loader::loadSimModel(SimulationConfig *simConfig) {
     Volume *simVolume = simConfig->volume;
 
-    simConfig->model = new simulation_data(simVolume->model);
+    //simConfig->model = new simulation_data(simVolume->model);
+    simConfig->model = new simulation_data(simVolume->geometry);
+    qDebug() << "Loaded simulation data structure";
 }
 
 
@@ -86,7 +139,7 @@ void Loader::loadVolumes(model_data *arrays, Design *design) {
        // loadModel(arrays, &design->volumes.at(v), v);
     }
     arrays->n_models = 1;
-    loadModel(arrays, &design->volumes.at(0), 0);
+    loadModel(arrays, design->volumes.at(0), 0);
 
     qDebug() << "Total vertices: " << arrays->vertices.size();
     qDebug() << "Total normals: " << arrays->normals.size();
@@ -194,24 +247,19 @@ void Loader::readSTLFromFile(model_data *arrays, QString filePath, uint n_model)
 void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
     // Reload sim volume
-    loadSimModel(simConfig);
-
-    if (simConfig->model->lattice.size() == 0) {
-        switch (simConfig->lattice.fill) {
-            case LatticeConfig::CUBIC_FILL:
-                // TODO: change to full unit input
-                createGridLattice(simConfig->model, float(simConfig->lattice.unit[0]));
+    switch(simConfig->lattice.fill) {
+        case LatticeConfig::CUBIC_FILL:
+            createGridLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]));
             break;
-            case LatticeConfig::SPACE_FILL:
-                // TODO: add conform bool as includeHull
-                createSpaceLattice(simConfig->model, float(simConfig->lattice.unit[0]), true);
+        case LatticeConfig::SPACE_FILL:
+            // TODO: add conform bool as includeHull
+            createSpaceLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]), true);
             break;
-        }
     }
 
     double springMult = 2.9;
     if (simConfig->lattice.fill == LatticeConfig::CUBIC_FILL) springMult = 1.9;
-    loadSimFromLattice(simConfig->model, sim, simConfig->lattice.unit[0]*springMult);
+    loadSimFromLattice(&simConfig->lattice, sim, simConfig->lattice.unit[0]*springMult);
 
 
     // PLANE
@@ -233,12 +281,13 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     for (Spring *s : sim->springs) {
         s->_diam = simConfig->lattice.barDiameter[1];
     }
-
+    qDebug() << "Set spring diameters";
 
     // LOADCASE
     if (simConfig->load != nullptr) {
         applyLoadcase(sim, simConfig->load);
     }
+    qDebug() << "Applied loadcase";
 
 
     // MATERIAL
@@ -264,9 +313,6 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
             }
 
         }
-        // TIMESTEP
-        //double timestep = std::min(1/pow(10, to_string(int(maxK)).length()-2), 0.0001);
-        sim->setAllDeltaTValues(1e-4);
 
         // YIELD
         double unit = 1;
@@ -292,6 +338,12 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
         //sim->masses.front()->extforce = Vec(-100, 0, 0);
         //sim->masses.front()->extduration = 0.1;
     }
+
+    // TIMESTEP
+    //double timestep = std::min(1/pow(10, to_string(int(maxK)).length()-2), 0.0001);
+    sim->setAllDeltaTValues(1e-4);
+
+    qDebug() << "Loaded simulation configuration";
 }
 
 void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_volume) {
@@ -305,9 +357,7 @@ void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_vol
 
     // Create masses at vertices
     int modelStart = 0;
-    int modelEnd = arrays->model_indices[n_volume];
-    if (n_volume != 0)
-        modelStart = arrays->model_indices[n_volume - 1];
+    int modelEnd = arrays->n_vertices;
 
     for (uint i = modelStart; i < modelEnd; i++) {
         sim->createMass(Vec(arrays->vertices.at(i).x * 100,
@@ -465,6 +515,35 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double
         .arg(sim->springs.size()));
 }
 
+void Loader::loadSimFromLattice(LatticeConfig *lattice, Simulation *sim, double springCutoff) {
+
+    // Create masses
+    for (Vec v : lattice->vertices) {
+        sim->createMass(v);
+    }
+
+    // Create springs
+    for (int j = 0; j < sim->masses.size() - 1; j++) {
+        for (int k = j+1; k < sim->masses.size(); k++) {
+
+            Mass *massj = sim->masses[j];
+            Mass *massk = sim->masses[k];
+            double dist = (massj->pos - massk->pos).norm();
+
+            if (dist <= springCutoff) {
+
+                sim->createSpring(massj, massk);
+                sim->springs.back()->setRestLength(dist);
+            }
+        }
+    }
+
+    log(QString("Loaded simulation with %1 masses and %2 springs.")
+                .arg(sim->masses.size())
+                .arg(sim->springs.size()));
+}
+
+
 void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSection, bool markers) {
 
     vector<Vec> springPos;
@@ -578,11 +657,14 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         Volume *anchorVol = anchor.volume;
 
         for (Mass *mass : sim->masses) {
-            glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
+            /**glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
             // Check for anchor constraint
             if (anchorVol->model->isInside(massPos, 0)) {
 
+                mass->fix();
+            }**/
+            if (anchorVol->geometry->isInside(mass->pos)) {
                 mass->fix();
             }
         }
@@ -592,10 +674,11 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         Volume *forceVol = force.volume;
 
         for (Mass *mass : sim->masses) {
-            glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
+            /**glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
             // Check for force constraint
-            if (forceVol->model->isInside(massPos, 0)) {
+            if (forceVol->model->isInside(massPos, 0)) {**/
+            if (forceVol->geometry->isInside(mass->pos)) {
 
                 mass->force += force.magnitude;
                 mass->extforce += force.magnitude;
@@ -684,7 +767,7 @@ void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
             for (ulong x = 0; x < xLines.size(); x++) {
                 gridPoint = glm::vec3(xLines[x], yLines[y], zLines[z]);
 
-                if (arrays->isInside(gridPoint, 0)) {
+                if (arrays->isInside(gridPoint)) {
                     // Add to lattice
                     grid.push_back(gridPoint);
                 }
@@ -694,6 +777,74 @@ void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
 
     // Set lattice property
     arrays->lattice = grid;
+    qDebug() << "Created grid lattice" << arrays->lattice.size();
+}
+
+// Creates a lattice with a grid based on a cutoff edge length
+void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff) {
+    log("Creating grid lattice.");
+
+    vector<Vec> grid = vector<Vec>();
+
+    Vec startCorner, endCorner;
+    geometryBound->boundingPoints(startCorner, endCorner);
+
+    vector<float> xLines = vector<float>();
+    vector<float> yLines = vector<float>();
+    vector<float> zLines = vector<float>();
+
+    Vec gridPoint;
+    float endDiff;
+
+    for (float x = startCorner[0]; x <= endCorner[0]; x += cutoff) {
+        xLines.push_back(x);
+    }
+    endDiff = endCorner[0] - xLines.back();
+
+    for (int i = 0; i < xLines.size(); i++) {
+        xLines[i] += 0.5f * endDiff;
+    }
+
+
+    for (float y = startCorner[1]; y <= endCorner[1]; y += cutoff) {
+        yLines.push_back(y);
+    }
+
+    endDiff = endCorner[1] - yLines.back();
+    for (int i = 0; i < yLines.size(); i++) {
+        yLines[i] += 0.5f * endDiff;
+    }
+
+
+    for (float z = startCorner[2]; z <= endCorner[2]; z += cutoff) {
+        zLines.push_back(z);
+    }
+
+    endDiff = endCorner[2] - zLines.back();
+    for (int i = 0; i < zLines.size(); i++) {
+        zLines[i] += 0.5f * endDiff;
+    }
+
+    qDebug() << "Lattice bottom corner " << xLines[0] << "," << yLines[0] << "," << zLines[0];
+    qDebug() << "Lattice top corner " << xLines.back() << "," << yLines.back() << "," << zLines.back();
+
+    // Populate grid and check inside
+    for (ulong z = 0; z < zLines.size(); z++) {
+        for (ulong y = 0; y < yLines.size(); y++) {
+            for (ulong x = 0; x < xLines.size(); x++) {
+                gridPoint = Vec(xLines[x], yLines[y], zLines[z]);
+
+                if (geometryBound->isInside(gridPoint)) {
+                    // Add to lattice
+                    grid.push_back(gridPoint);
+                }
+            }
+        }
+    }
+
+    // Set lattice property
+    lattice.vertices = grid;
+    qDebug() << "Created grid lattice" << lattice.vertices.size();
 }
 
 // Creates a lattice with random pseudo-evenly-spacedd interal points
@@ -739,7 +890,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
         // Interpolate edges based on cutoff
 
 
-        while (arrays->isCloseToEdge(point, cutoff, 0) || !arrays->isInside(point, 0)) {
+        while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point)) {
 
             // Generate a new point if its within the cutoff of the model edge
             //   or its not inside the model
@@ -748,7 +899,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
 
     } else {
 
-        while (!arrays->isInside(point, 0)) {
+        while (!arrays->isInside(point)) {
             // Generate a new point if its within the cutoff of the model edge
             //   or its not inside the model
             point = Utils::randPoint(startCorner, endCorner);
@@ -774,14 +925,14 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
             glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 
             if (includeHull) {
-                while (arrays->isCloseToEdge(newPoint, cutoff, 0) || !arrays->isInside(newPoint, 0)) {
+                while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint)) {
                     // Generate a new point if its within the cutoff of the model edge
                     //   or its not inside the model
                     newPoint = Utils::randPoint(startCorner, endCorner);
                 }
             } else {
 
-                while (!arrays->isInside(newPoint, 0)) {
+                while (!arrays->isInside(newPoint)) {
                     // Generate a new point if its within the cutoff of the model edge
                     //   or its not inside the model
                     newPoint = Utils::randPoint(startCorner, endCorner);
@@ -847,5 +998,157 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
     // Set lattice property
     qDebug() << "Found all points";
     arrays->lattice = lattice;
+    qDebug() << "Set lattice";
+}
+
+
+// Creates a lattice with random pseudo-evenly-spacedd interal points
+void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff, bool includeHull) {
+    log("Creating space lattice.");
+
+    vector<Vec> space = vector<Vec>();
+
+    // TODO: simplify STL hull according to cutoff
+    Vec startCorner, endCorner;
+    geometryBound->boundingPoints(startCorner, endCorner);
+    qDebug() << "Start corner" << startCorner[0] << startCorner[0] << startCorner[0];
+    qDebug() << "End corner" << endCorner[1] << endCorner[1] << endCorner[1];
+
+    // Get point estimate to calculate k
+    int xLines = int((endCorner[0] - startCorner[0]) / cutoff) + 1;
+    int yLines = int((endCorner[1] - startCorner[1]) / cutoff) + 1;
+    int zLines = int((endCorner[2] - startCorner[2]) / cutoff) + 1;
+    int kNewPoints = xLines * yLines * zLines;
+    kNewPoints *= 3;
+
+    qDebug() << "Generating" << kNewPoints << "random point candidates with cutoff" << cutoff;
+
+    Vec point = Utils::randPointVec(startCorner, endCorner);
+
+    if (includeHull) {
+
+        // Add hull vertices
+        for (auto n : geometryBound->nodeMap) {
+            bool existsInLattice = false;
+
+            for (uint l = 0; l < space.size(); l++) {
+                if (n.first == space[l]) {
+                    existsInLattice = true;
+                }
+            }
+            if (!existsInLattice) {
+                space.push_back(n.first);
+            }
+        }
+        // Interpolate edges based on cutoff
+        while (geometryBound->isCloseToEdge(point, cutoff) || !geometryBound->isInside(point)) {
+
+            // Generate a new point if its within the cutoff of the model edge
+            //   or its not inside the model
+            point = Utils::randPointVec(startCorner, endCorner);
+
+        }
+
+    } else {
+
+        while (!geometryBound->isInside(point)) {
+
+            // Generate a new point if its within the cutoff of the model edge
+            //   or its not inside the model
+            point = Utils::randPointVec(startCorner, endCorner);
+        }
+    }
+
+
+    // Add point to lattice
+    space.push_back(point);
+    float maxLength = cutoff;
+    int k;
+
+    vector<Vec> candidates = vector<Vec>();
+
+    // Spawn k new points
+    int threads = 64;
+
+#pragma omp parallel for
+    for (int t = 0; t < threads; t++) {
+        for (k = 0; k < kNewPoints/threads; k++) {
+
+            Vec newPoint = Utils::randPointVec(startCorner, endCorner);
+
+            if (includeHull) {
+                while (geometryBound->isCloseToEdge(newPoint, cutoff) || !geometryBound->isInside(newPoint)) {
+                    // Generate a new point if its within the cutoff of the model edge
+                    //   or its not inside the model
+                    newPoint = Utils::randPointVec(startCorner, endCorner);
+                }
+            } else {
+
+                while (!geometryBound->isInside(newPoint)) {
+                    // Generate a new point if its within the cutoff of the model edge
+                    //   or its not inside the model
+                    newPoint = Utils::randPointVec(startCorner, endCorner);
+                }
+            }
+
+#pragma omp critical
+            candidates.push_back(newPoint);
+        }
+
+        qDebug() << "Lattice Thread" << t << "done";
+    }
+
+
+    while (maxLength >= cutoff && !candidates.empty()) {
+
+        // Find point furthest from original point
+        uint iFarthest = 0;
+        float maxDistFromPoints = 0.0f;
+        vector<float> sumDistsStore = vector<float>();
+        for (auto c: candidates) {
+            sumDistsStore.push_back(0.0f);
+        }
+
+        for (uint i = 0; i < candidates.size(); i++) {
+            bool reject = false;
+
+            float sumDists = 0.0f;
+            float distFromPoint;
+
+            if (space.size() > 0) {
+                Vec l = space.back();
+                distFromPoint = (candidates[i] - l).norm();
+
+                if (distFromPoint < cutoff) {
+                    candidates.erase(candidates.begin() + i);
+                    i--;
+                    continue;
+                }
+                sumDistsStore[i] += distFromPoint;
+            }
+
+            if (sumDistsStore[i] > maxDistFromPoints) {
+                maxDistFromPoints = sumDistsStore[i];
+                iFarthest = i;
+            }
+        }
+
+        if (!candidates.empty()) {
+            maxLength = maxDistFromPoints;
+            // Update maxLength to minimum distance between
+            //   an existing point and the point chosen
+            for (Vec l : space)
+                maxLength = std::min(maxLength, float((candidates[iFarthest] - l).norm()));
+
+            // Add point to lattice
+            space.push_back(candidates[iFarthest]);
+            candidates.erase(candidates.begin() + iFarthest);
+        }
+        qDebug() << "Added to lattice" << space.size();
+    }
+
+    // Set lattice property
+    qDebug() << "Found all points";
+    lattice.vertices = space;
     qDebug() << "Set lattice";
 }

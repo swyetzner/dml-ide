@@ -188,5 +188,5 @@ Volume::Volume(QString s_id,
  * @brief Design::Design default constructor
  */
 Design::Design() {
-    volumes = std::vector<Volume>();
+    volumes = std::vector<Volume *>();
 }

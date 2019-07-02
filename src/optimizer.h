@@ -37,6 +37,14 @@ public:
 
     void sortSprings_stress(vector<uint> &output_indices);
     void sortMasses_stress(vector<uint> &output_indices);
+
+    struct VolumeConstraint {
+        double minX, minY, minZ;
+        double maxX, maxY, maxZ;
+    };
+
+private:
+    VolumeConstraint volumeConstraint;
 };
 
 

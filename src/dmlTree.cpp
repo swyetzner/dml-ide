@@ -12,6 +12,7 @@ static inline QString materialElement() { return QStringLiteral("material"); }
 static inline QString loadcaseElement() { return QStringLiteral("loadcase"); }
 static inline QString simulationElement() { return QStringLiteral("simulation"); }\
 static inline QString optimizationElement() { return QStringLiteral("optimization"); }
+static inline QString outputElement() { return QStringLiteral("output"); }
 
 static inline QString versionAttribute() { return QStringLiteral("version"); }
 static inline QString unitsAttribute() { return QStringLiteral("units"); }
@@ -74,6 +75,7 @@ static inline QString metricAttribute() { return QStringLiteral("metric"); }
 // Optimization attributes + elements
 static inline QString volAttribute() { return QStringLiteral("vol"); }
 static inline QString ruleElement() { return QStringLiteral("rule"); }
+static inline QString constraintElement() { return QStringLiteral("constraint"); }
 
 // Rule attributes
 static inline QString methodAttribute() { return QStringLiteral("method"); }
@@ -85,6 +87,10 @@ static inline QString rotationAttribute() { return QStringLiteral("rotation"); }
 
 // Plane attributes
 static inline QString normalAttribute() { return QStringLiteral("normal"); }
+
+// Output elements
+static inline QString includeElement() { return QStringLiteral("include"); }
+static inline QString excludeElement() { return QStringLiteral("exclude"); }
 
 DMLTree::DMLTree(Design *design, QWidget *parent) : QTreeWidget(parent)
 {
@@ -193,7 +199,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
                               alpha     ? alpha->text(1)        : nullptr,
                               color     ? color->text(1)        : nullptr);
         v->index = design_ptr->volumes.size();
-        design_ptr->volumes.push_back(*v);
+        design_ptr->volumes.push_back(v);
         design_ptr->volumeMap[v->id] = v;
         log(QString("Loaded Volume: '%1'").arg(v->id));
     }
@@ -465,6 +471,51 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         qDebug() << "Rules" << design_ptr->optConfig->rules.front().threshold;
 
     }
+
+    // ---- <constraint> ----
+    if (element.tagName() == constraintElement()) {
+
+    }
+
+    // ---- <output> ----
+    if  (element.tagName() == outputElement()) {
+        auto *id = createAttributeItem(item, attrMap, idAttribute());
+        auto *sim = createAttributeItem(item, attrMap, simulationElement());
+
+        auto *o =  new output_data();
+        o->id = id ? id->text(1) : "";
+        o->sim = sim ? design_ptr->simConfigMap[sim->text(1)] : nullptr;
+
+        design_ptr->outputs.push_back(o);
+        design_ptr->outputMap[o->id] = o;
+    }
+
+    // ---- <include> ----
+    if (element.tagName() == includeElement()) {
+        auto *vol = createAttributeItem(item, attrMap, volumeAttribute());
+
+        QString outputId = parentItem->child(0)->text(1);
+        output_data * o = design_ptr->outputMap[outputId];
+
+        if (vol) {
+            Volume *v = design_ptr->volumeMap[vol->text(1)];
+            o->includes.push_back(v);
+        }
+    }
+
+    // ---- <exclude> ----
+    if (element.tagName() == excludeElement()) {
+        auto *vol = createAttributeItem(item, attrMap, volumeAttribute());
+
+        QString outputId = parentItem->child(0)->text(1);
+        output_data * o = design_ptr->outputMap[outputId];
+
+        if (vol) {
+            Volume *v = design_ptr->volumeMap[vol->text(1)];
+            o->excludes.push_back(v);
+        }
+    }
+
 
     QDomElement sibling = element.nextSiblingElement();
     if (!sibling.isNull()) {

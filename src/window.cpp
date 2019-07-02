@@ -190,6 +190,10 @@ void Window::saveSTLFile(double barDiam, double res) {
         log(tr("Export Error: A simulation must be run and saved before it can be exported."));
         return;
     }
+    if (design->outputs.empty()) {
+        log(tr("A <output> element must be configured."));
+        return;
+    }
     /**Polygonizer polygonizer = Polygonizer(arrays_bars, 0.00075, 0.0015, 32);
     polygonizer.initBaseSegments();
     qDebug() << "Initialized Base Segments";
@@ -198,7 +202,8 @@ void Window::saveSTLFile(double barDiam, double res) {
     polygonizer.calculatePolygon();
     polygonizer.writePolygonToSTL(fileName.toStdString());**/
 
-    exportThread.startExport(fileName.toStdString(), arrays_bars, res, barDiam, NUM_THREADS);
+    qDebug() << "Starting export thread";
+    exportThread.startExport(fileName.toStdString(), design->outputs[0], res, barDiam, NUM_THREADS);
 
     qDebug() << "Exporting STL file";
 
@@ -277,7 +282,7 @@ void Window::setUpDMLFeatures() {
 
     setUpPropertyTable();
     propTable->show();
-    propTable->displayVolume(design->volumes.at(0).id);
+    propTable->displayVolume(design->volumes.at(0)->id);
 }
 
 /**
@@ -401,6 +406,10 @@ void Window::on_actionSaveSim_triggered()
     arrays_bars = new bar_data();
     simWidget->prepare();
     loader->loadBarsFromSim(simulation, arrays_bars, false, false);
+
+    for (output_data *o : design->outputs) {
+        o->barData = arrays_bars;
+    }
     log(tr("Saved %1 bars from simulation.").arg(arrays_bars->bars.size()));
     log(tr("X Bounds: (%1, %2)").arg(arrays_bars->bounds.minCorner[0]).arg(arrays_bars->bounds.maxCorner[0]));
 }
@@ -483,5 +492,20 @@ void Window::dmlItemClicked(QTreeWidgetItem *item, int column) {
         displaySimProp(simConfig->id);
     } else if (id.startsWith(optimizationTag)) {
         displayOptProp();
+    }
+}
+
+
+void Window::on_unionButton_clicked()
+{
+    if (design->volumes.size() > 1) {
+        Volume * volNew = new Volume();
+        volNew->geometry = new Polygon();
+        for (int v = 0; v < design->volumes.size() - 1; v++) {
+            Volume * vol1 = design->volumes[v];
+            Volume * vol2 = design->volumes[v+1];
+            qDebug() << vol1->id << vol2->id;
+            vol1->geometry->unionPolygons(*vol2->geometry, *volNew->geometry);
+        }
     }
 }

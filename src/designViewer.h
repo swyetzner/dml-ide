@@ -73,6 +73,9 @@ private:
     QOpenGLShaderProgram *guideShaderProgram;
     QOpenGLVertexArrayObject vertexArray;
 
+    GLfloat *vertices = nullptr;
+    GLfloat *colors = nullptr;
+
     GLuint *vertexBuff_ids;
     GLuint *normalBuff_ids;
     GLuint *colorBuff_ids;
