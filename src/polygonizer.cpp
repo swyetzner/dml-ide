@@ -51,16 +51,23 @@ Polygonizer::Polygonizer(output_data *outputConfig, double resolution, double ba
         this->unions.push_back(u->geometry);
         boundingBox<Vec> b;
         u->geometry->boundingPoints(b.minCorner, b.maxCorner);
+        u->geometry->minc = b.minCorner;
+        u->geometry->maxc = b.maxCorner;
         this->barModel->bounds.combine(b);
     }
     for (auto v : outputConfig->excludes) {
         this->unionsNot.push_back(v->geometry);
         boundingBox<Vec> b;
         v->geometry->boundingPoints(b.minCorner, b.maxCorner);
+        v->geometry->minc = b.minCorner;
+        v->geometry->maxc = b.maxCorner;
         this->barModel->bounds.combine(b);
     }
     qDebug() << this->unions.size() << "Unions";
     qDebug() << this->unionsNot.size() << "Differences";
+
+    cubeMax = -FLT_MAX;
+
 
     // Add bar radius to bounds
     barModel->bounds.minCorner -= Vec(this->barRadius*4, this->barRadius*4, this->barRadius*4);
@@ -273,6 +280,8 @@ void Polygonizer::marchingCubesAdaptive(Segment &s, int level) {
     qDebug() << "Cubes (x,y,z):" << nx << ny << nz << dx[0] << dy[1] << dz[2];
     qDebug() << "Number of cubes:" << L0.size();
 
+    cubeMax = std::max(cubeMax, std::max(dx[0], std::max(dx[1], dx[2])));
+
     // Leftmost points
     for (int j = 0; j < ny + 1; j++) {
         for (int k = 0; k < nz + 1; k++) {
@@ -313,8 +322,8 @@ void Polygonizer::marchingCubesAdaptive(Segment &s, int level) {
 
                 polygonizeAdaptive(s, grid, 0, level);
             }
+            qDebug() << "Working segment (one per thread):" << s.sidx << "\t Slice:" << i << "/" << nx << j << ny;
         }
-        qDebug() << "Working segment (one per thread):" << s.sidx << "\t Slice:" << i << "/" << nx;
     }
 
     qDebug() << s.sidx << s.polygon->triangles->size();
@@ -481,7 +490,7 @@ void Polygonizer::addTriangle(Segment &s, TRIANGLE tri) {
     Vec mid = (tri.p[0] + tri.p[1] + tri.p[2]) / 3;
     Vec nsm = n * 1E-4;
 
-    if (pointDist(s, mid + nsm) < pointDist(s, mid - nsm))
+    if (pointDist(s, mid + nsm) < 0)
         n = -n;
 
     tri.n = n;
@@ -506,13 +515,17 @@ double Polygonizer::pointDist(Segment &s, Vec qp) {
     }
 
     for (Polygon *u : unions) {
-        double surfaceDist = pointDistFromSurface(*u, qp);
-        //minDist = (minDist < -surfaceDist? minDist : -surfaceDist); intersection
-        minDist = (minDist < surfaceDist? minDist : surfaceDist);
+        if (u->withinBounds(u->minc - Vec(cubeMax,cubeMax,cubeMax), u->maxc + Vec(cubeMax,cubeMax,cubeMax), qp)) {
+            double surfaceDist = pointDistFromSurface(*u, qp);
+            //minDist = (minDist < -surfaceDist? minDist : -surfaceDist); intersection
+            minDist = (minDist < surfaceDist ? minDist : surfaceDist);
+        }
     }
     for (Polygon *v : unionsNot) {
-        double diffSurfaceDist = pointDistFromSurface(*v, qp);
-        if (minDist < 0 && diffSurfaceDist < 0) minDist = -diffSurfaceDist;
+        if (v->withinBounds(v->minc - Vec(cubeMax,cubeMax,cubeMax), v->maxc + Vec(cubeMax,cubeMax,cubeMax), qp)) {
+            double diffSurfaceDist = pointDistFromSurface(*v, qp);
+            if (minDist < 0 && diffSurfaceDist < 0) minDist = -diffSurfaceDist;
+        }
     }
 
     return minDist;
@@ -645,9 +658,9 @@ double Polygonizer::pointDistFromSurface(Polygon &surface, Vec qp) {
     }
 
     for (auto t : *surface.triangles) {
-        //minDist = std::min(minDist, Utils::distPointLine(qp, t->v1->p, t->v2->p));
-        //minDist = std::min(minDist, Utils::distPointLine(qp, t->v2->p, t->v3->p));
-        //minDist = std::min(minDist, Utils::distPointLine(qp, t->v3->p, t->v1->p));
+        minDist = std::min(minDist, Utils::distPointLine(qp, t->v1->p, t->v2->p));
+        minDist = std::min(minDist, Utils::distPointLine(qp, t->v2->p, t->v3->p));
+        minDist = std::min(minDist, Utils::distPointLine(qp, t->v3->p, t->v1->p));
 
         Vec ax = t->v1->p - qp;
         Vec n = cross((t->v2->p - t->v1->p), (t->v3->p - t->v1->p)).normalized();

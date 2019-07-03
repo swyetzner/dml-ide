@@ -80,11 +80,15 @@ void Polygon::addTriangle(shared_ptr<Node> n1, shared_ptr<Node> n2, shared_ptr<N
 void Polygon::removeTriangle(shared_ptr<Tri> t) {
 // ------------------------------------------------------------
 
+    qDebug() << "Going to remove" << t->v1->p[0] << t->v1->p[1] << t->v1->p[2] << t->v2->p[0] << t->v2->p[1] << t->v2->p[2] << t->v3->p[0] << t->v3->p[1] << t->v3->p[2];
     t->v1->removeTri(t);
     t->v2->removeTri(t);
     t->v3->removeTri(t);
+    qDebug() << "Removed node tris" << t->v1->p[0] << t->v1->p[1] << t->v1->p[2];
 
     triangles->erase(remove(triangles->begin(), triangles->end(), t), triangles->end());
+    qDebug() << "Removed triangle";
+
 }
 
 // Merges current polygon with given polygon
@@ -199,12 +203,17 @@ int Polygon::fixNormals() {
 
     // Remove degenerates
     for (auto t : *triangles) {
+        if (t == nullptr) {
+            qDebug() << "Found null degenerate";
+            triangles->erase(remove(triangles->begin(), triangles->end(), t), triangles->end());
+            continue;
+        }
         if (t->v1 == t->v2 || t->v2 == t->v3 || t->v3 == t->v1) {
             removeTriangle(t);
             qDebug() << "Found degenerate";
         }
     }
-
+    qDebug() << "End of fix normals";
     return flipcnt;
 }
 

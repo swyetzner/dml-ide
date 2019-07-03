@@ -90,6 +90,7 @@ private:
     ulong nSeg;  // Number of segments
     ulong nPts; // Number of points
     double sx; // Width of each segment
+    double cubeMax; // Max cube dimension
     Vec mSize; // Vec containing model lengths
 
     void addTriangle(Segment &s, TRIANGLE tri);

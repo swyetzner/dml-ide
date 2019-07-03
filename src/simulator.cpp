@@ -153,7 +153,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;
-                    massDisplacer->relaxation = 1500;
+                    massDisplacer->relaxation = 2000;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
@@ -169,6 +169,11 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
     //optimizer = new MassDisplacer(sim, 0.2);
     //springInserter = new SpringInserter(sim, 0.001);
     //springInserter->cutoff = 3.5 * config->lattice.unit[0];
+
+    // Log device information
+    unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
+    log(tr("CPU Cores: %1").arg(concurentThreadsSupported));
+    log(tr("GPU Devices:"));
 
     equilibrium = false;
     optimized = 0;

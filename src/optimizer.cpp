@@ -190,7 +190,6 @@ void SpringRemover::optimize() {
                 }
 
                 if (leftCount == 0 || rightCount == 0) {
-                    qDebug() << "Deleting loose spring";
                     hangingSprings++;
                     sim->deleteSpring(sim->springs[s]);
                     s--;
@@ -201,17 +200,13 @@ void SpringRemover::optimize() {
                 // For 2 attached springs, determine angle between them
                 // Delete one and leave one for cleanup
                 if (leftCount == 1) {
-                    qDebug() << "Deleting hanging spring left";
                     for (int s1 = 0; s1 < springSize; s1++) {
                         if (s1 != s) {
-                            qDebug() << "Spring indices" << sim->springs[s] << sim->springs[s1] << s << s1;
                             if (sim->springs[s]->_left == sim->springs[s1]->_left) {
-                                qDebug() << "Checked masses get bars";
                                 Vec bar1 = sim->springs[s]->_right->pos - sim->springs[s]->_left->pos;
                                 Vec bar2 = sim->springs[s1]->_right->pos - sim->springs[s1]->_left->pos;
                                 if (Utils::isAcute(bar1, bar2)) {
                                     hangingSprings ++;
-                                    qDebug() << "About to GPU delete";
                                     sim->deleteSpring(sim->springs[s]);
                                     s --;
                                     springSize --;
@@ -233,7 +228,6 @@ void SpringRemover::optimize() {
                     }
                 }
                 if (rightCount == 1) {
-                    qDebug() << "Deleting hanging spring right";
                     for (int s1 = 0; s1 < springSize; s1++) {
                         if (s1 != s) {
                             if (sim->springs[s]->_left == sim->springs[s1]->_right) {
@@ -868,9 +862,9 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
                 }
             }
             //addedForces.push_back(extForceApply);
-            m->extforce += extForceApply;
-            m->force = m->extforce;
-            m->extduration = DBL_MAX;
+            //m->extforce += extForceApply;
+            //m->force = m->extforce;
+            //m->extduration = DBL_MAX;
 
             qDebug() << QString("Pos: (%1,%2,%3), Force: (%4,%5,%6)")
                     .arg(m->pos[0])
@@ -943,8 +937,8 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         totalEnergyTest = calcTotalEnergy(sim);
     }
 
-    totalMetricSim = totalEnergySim * totalLengthSim * totalLengthSim;
-    totalMetricTest = totalEnergyTest * totalLengthTest * totalLengthTest;
+    totalMetricSim = totalEnergySim * totalLengthSim ;
+    totalMetricTest = totalEnergyTest * totalLengthTest ;
 
     qDebug() << "Total lengths Sim" << totalLengthSim << " Test" << totalLengthTest;
     qDebug() << "Total energies Sim" << totalEnergySim << " Test" << totalEnergyTest;
@@ -957,7 +951,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     }
     for (Mass *m : outsideGroup) {
 
-        //m->unfix();
+        m->unfix();
     }
 
     if (totalMetricTest >= totalMetricSim) {

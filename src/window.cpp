@@ -192,6 +192,7 @@ void Window::saveSTLFile(double barDiam, double res) {
     }
     if (design->outputs.empty()) {
         log(tr("A <output> element must be configured."));
+        qDebug() << "A <output> element must be configured.";
         return;
     }
     /**Polygonizer polygonizer = Polygonizer(arrays_bars, 0.00075, 0.0015, 32);

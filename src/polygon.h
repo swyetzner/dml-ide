@@ -93,6 +93,9 @@ public:
 
     unordered_map<Vec, shared_ptr<Node>, vec_hash> nodeMap;
     vector<shared_ptr<Tri>> *triangles;
+
+    Vec minc;
+    Vec maxc;
 };
 
 
