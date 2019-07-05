@@ -57,9 +57,9 @@ void Loader::loadVolumeModel(Volume *volume) {
                 if (volume->units == "meters" || volume->units == "m") {
                     scale = 1;
                 } else if (volume->units == "centimeters" || volume->units == "cm") {
-                    scale = 0.1;
-                } else if (volume->units == "millimeters" || volume->units == "mm") {
                     scale = 0.01;
+                } else if (volume->units == "millimeters" || volume->units == "mm") {
+                    scale = 0.001;
                 }
             }
 
