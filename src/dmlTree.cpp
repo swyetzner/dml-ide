@@ -248,6 +248,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         Anchor *a = new Anchor();
         a->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
 
+        if (!(a->volume))
+            qDebug() << QString("Volume") << volume->text(1) << QString("not found.");
+
         QString loadId = parentItem->child(0)->text(1);
         design_ptr->loadcaseMap[loadId]->anchors.push_back(*a);
         design_ptr->loadcaseMap[loadId]->anchorMap[a->volume->id] = a;
@@ -265,6 +268,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         f->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
         f->magnitude = magnitude ? parseVec(magnitude->text(1)) : Vec(0, 0, 0);
         f->duration = duration ? duration->text(1).toDouble() : -1;
+
+        if (!(f->volume))
+            qDebug() << QString("Volume") << volume->text(1) << QString("not found.");
 
         QString loadId = parentItem->child(0)->text(1);
         design_ptr->loadcaseMap[loadId]->forces.push_back(*f);
@@ -284,6 +290,10 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         s->index = design_ptr->simConfigs.size();
         design_ptr->simConfigs.push_back(*s);
         design_ptr->simConfigMap[s->id] = s;
+
+        if (!(s->volume))
+          qDebug() << QString("Volume") << volume->text(1) << QString("not found.");
+
         log(QString("Loaded Simulation Config: '%1'").arg(s->id));
     }
 
@@ -312,6 +322,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         l.barDiameter = bardiam ? parseVec(bardiam->text(1)) : Vec(0, 0, 0);
         l.material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
         l.jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
+
+        if (!l.material)
+            qDebug() << QString("Material") << material->text(1) << QString("not found.");
 
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->lattice = l;
@@ -382,6 +395,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
 
         Loadcase *l = id ? design_ptr->loadcaseMap[id->text(1)] : nullptr;
 
+        if (!l)
+            qDebug() << QString("Loadcase") << id->text(1) << QString("not found.");
+
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->load = l;
     }
@@ -432,6 +448,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         OptimizationConfig *o = new OptimizationConfig();
         o->simulationConfig = sim ? design_ptr->simConfigMap[sim->text(1)] : nullptr;
         design_ptr->optConfig = o;
+
+        if (!(o->simulationConfig))
+            qDebug() << QString("Simulation") << sim->text(1) << QString("not found.");
 
         log(QString("Loaded Optimization Config: '%1'").arg(o->simulationConfig->id));
     }
@@ -485,6 +504,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *o =  new output_data();
         o->id = id ? id->text(1) : "";
         o->sim = sim ? design_ptr->simConfigMap[sim->text(1)] : nullptr;
+
+        if (!(o->sim))
+            qDebug() << QString("Simulation") << sim->text(1) << QString("not found.");
 
         design_ptr->outputs.push_back(o);
         design_ptr->outputMap[o->id] = o;
