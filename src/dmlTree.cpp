@@ -1,4 +1,4 @@
-#include <QMessageBox>
+not found#include <QMessageBox>
 #include <QTextStream>
 #include <QHeaderView>
 #include "dmlTree.h"
@@ -249,7 +249,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         a->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
 
         if (!(a->volume))
-            qDebug() << QString("Volume") << volume->text(1) << QString("not found.");
+            qDebug() << "Volume" << volume->text(1) << "not found";
 
         QString loadId = parentItem->child(0)->text(1);
         design_ptr->loadcaseMap[loadId]->anchors.push_back(*a);
@@ -270,7 +270,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         f->duration = duration ? duration->text(1).toDouble() : -1;
 
         if (!(f->volume))
-            qDebug() << QString("Volume") << volume->text(1) << QString("not found.");
+            qDebug() << "Volume" << volume->text(1) << "not found";
 
         QString loadId = parentItem->child(0)->text(1);
         design_ptr->loadcaseMap[loadId]->forces.push_back(*f);
@@ -292,7 +292,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         design_ptr->simConfigMap[s->id] = s;
 
         if (!(s->volume))
-          qDebug() << QString("Volume") << volume->text(1) << QString("not found.");
+          qDebug() << "Volume" << volume->text(1) << "not found";
 
         log(QString("Loaded Simulation Config: '%1'").arg(s->id));
     }
@@ -324,7 +324,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         l.jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
 
         if (!l.material)
-            qDebug() << QString("Material") << material->text(1) << QString("not found.");
+            qDebug() << "Material" << material->text(1) << "not found";
 
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->lattice = l;
@@ -396,7 +396,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         Loadcase *l = id ? design_ptr->loadcaseMap[id->text(1)] : nullptr;
 
         if (!l)
-            qDebug() << QString("Loadcase") << id->text(1) << QString("not found.");
+            qDebug() << "Loadcase" << id->text(1) << "not found";
 
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->load = l;
@@ -450,7 +450,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         design_ptr->optConfig = o;
 
         if (!(o->simulationConfig))
-            qDebug() << QString("Simulation") << sim->text(1) << QString("not found.");
+            qDebug() << "Simulation" << sim->text(1) << "not found";
 
         log(QString("Loaded Optimization Config: '%1'").arg(o->simulationConfig->id));
     }
@@ -506,7 +506,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         o->sim = sim ? design_ptr->simConfigMap[sim->text(1)] : nullptr;
 
         if (!(o->sim))
-            qDebug() << QString("Simulation") << sim->text(1) << QString("not found.");
+            qDebug() << "Simulation" << sim->text(1) << "not found";
 
         design_ptr->outputs.push_back(o);
         design_ptr->outputMap[o->id] = o;
