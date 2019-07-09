@@ -24,7 +24,7 @@ void Loader::loadDesignModels(Design *design) {
     }
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
-        //loadSimModel(&design->simConfigs[s]);
+        loadSimModel(&design->simConfigs[s]);
         design->simConfigMap[design->simConfigs[s].id] = &design->simConfigs[s];
     }
 }
@@ -125,8 +125,8 @@ void Loader::loadVolumeGeometry(Volume *volume){
 void Loader::loadSimModel(SimulationConfig *simConfig) {
     Volume *simVolume = simConfig->volume;
 
-    //simConfig->model = new simulation_data(simVolume->model);
-    simConfig->model = new simulation_data(simVolume->geometry);
+    simConfig->model = new simulation_data(simVolume->model);
+    //simConfig->model = new simulation_data(simVolume->geometry);
     qDebug() << "Loaded simulation data structure";
 }
 
@@ -249,18 +249,20 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     // Reload sim volume
     switch(simConfig->lattice.fill) {
         case LatticeConfig::CUBIC_FILL:
-            createGridLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]));
+            //createGridLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]));
+            createGridLattice(simConfig->model, float(simConfig->lattice.unit[0]));
             break;
         case LatticeConfig::SPACE_FILL:
             // TODO: add conform bool as includeHull
-            createSpaceLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]), true);
+            //createSpaceLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]), true);
+            createSpaceLattice(simConfig->model, float(simConfig->lattice.unit[0]), simConfig->lattice.hull);
             break;
     }
 
     double springMult = 2.9;
     if (simConfig->lattice.fill == LatticeConfig::CUBIC_FILL) springMult = 1.9;
-    loadSimFromLattice(&simConfig->lattice, sim, simConfig->lattice.unit[0]*springMult);
-
+    //loadSimFromLattice(&simConfig->lattice, sim, simConfig->lattice.unit[0]*springMult);
+    loadSimFromLattice(simConfig->model, sim, simConfig->lattice.unit[0]*springMult);
 
     // PLANE
     if (simConfig->plane != nullptr) {
@@ -419,6 +421,7 @@ void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_vol
 
 void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double springCutoff) {
 
+    qDebug() << "Loading" << springCutoff;
     // Load hull first
     for (ulong i = 0; i < arrays->lattice.size(); i++) {
         sim->createMass(Vec(arrays->lattice.at(i).x,
@@ -433,7 +436,6 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double
             Mass *massj = sim->masses[j];
             Mass *massk = sim->masses[k];
             double dist = (massj->pos - massk->pos).norm();
-
             if (dist <= springCutoff) {
 
                 sim->createSpring(massj, massk);
@@ -441,6 +443,7 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double
             }
         }
     }
+    qDebug() << sim->springs.size();
 
 
     //int num_masses = int(sim->masses.size());
@@ -657,15 +660,18 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         Volume *anchorVol = anchor.volume;
 
         for (Mass *mass : sim->masses) {
-            /**glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
+            if (anchorVol->model != nullptr) {
+                glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
-            // Check for anchor constraint
-            if (anchorVol->model->isInside(massPos, 0)) {
+                // Check for anchor constraint
+                if (anchorVol->model->isInside(massPos, 0)) {
 
-                mass->fix();
-            }**/
-            if (anchorVol->geometry->isInside(mass->pos)) {
-                mass->fix();
+                    mass->fix();
+                }
+            } else {
+                if (anchorVol->geometry->isInside(mass->pos)) {
+                    mass->fix();
+                }
             }
         }
     }
@@ -674,19 +680,31 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         Volume *forceVol = force.volume;
 
         for (Mass *mass : sim->masses) {
-            /**glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
+            glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
             // Check for force constraint
-            if (forceVol->model->isInside(massPos, 0)) {**/
-            if (forceVol->geometry->isInside(mass->pos)) {
+            if (forceVol->model != nullptr) {
+                if (forceVol->model->isInside(massPos, 0)) {
+                    mass->force += force.magnitude;
+                    mass->extforce += force.magnitude;
+                    mass->extduration += force.duration;
 
-                mass->force += force.magnitude;
-                mass->extforce += force.magnitude;
-                mass->extduration += force.duration;
+
+                    if (mass->extduration < 0) {
+                        mass->extduration = DBL_MAX;
+                    }
+                }
+            } else {
+                if (forceVol->geometry->isInside(mass->pos)) {
+
+                    mass->force += force.magnitude;
+                    mass->extforce += force.magnitude;
+                    mass->extduration += force.duration;
 
 
-                if (mass->extduration < 0) {
-                    mass->extduration = DBL_MAX;
+                    if (mass->extduration < 0) {
+                        mass->extduration = DBL_MAX;
+                    }
                 }
             }
         }

@@ -60,6 +60,7 @@ static inline QString offsetAttribute() { return QStringLiteral("offset"); }
 static inline QString bardiamAttribute() { return QStringLiteral("bardiam"); }
 static inline QString materialAttribute() { return QStringLiteral("material"); }
 static inline QString jiggleAttribute() { return QStringLiteral("jiggle"); }
+static inline QString hullAttribute() { return QStringLiteral("hull"); }
 
 // Damping attributes
 static inline QString velocityAttribute() { return QStringLiteral("velocity"); }
@@ -298,6 +299,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *bardiam = createAttributeItem(item, attrMap, bardiamAttribute());
         auto *material = createAttributeItem(item, attrMap, materialAttribute());
         auto *jiggle = createAttributeItem(item, attrMap, jiggleAttribute());
+        auto *hull = createAttributeItem(item, attrMap, hullAttribute());
 
         qDebug() << "Loading lattice config";
 
@@ -312,6 +314,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         l.barDiameter = bardiam ? parseVec(bardiam->text(1)) : Vec(0, 0, 0);
         l.material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
         l.jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
+        l.hull = hull ? hull->text(1).toInt() : true;
 
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->lattice = l;

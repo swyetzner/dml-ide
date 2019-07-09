@@ -246,6 +246,24 @@ void Window::reloadSimulation() {
     //loader->loadSimFromLattice(arrays_sim, simulation, 0.035);
     //loader->applyLoadcase(arrays_sim, simulation, design->loadcaseMap["standing"]);
 
+    // Log device information
+    unsigned concurrentThreadsSupported = std::thread::hardware_concurrency();
+    int nDevices;
+    cudaGetDeviceCount(&nDevices);
+    log(tr("GPU Devices: %1").arg(nDevices));
+    for (int i = 0; i < nDevices; i++) {
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, i);
+        log(tr("Device Number %1").arg(i));
+        log(tr("    Device Name: %1").arg(prop.name));
+        log(tr("    Device Multiprocessors: %1").arg(prop.multiProcessorCount));
+        log(tr("    Memory Clock Rate (KHz): %1").arg(prop.memoryClockRate));
+        log(tr("    Peak Memory Bandwidth (GB/s): %1\n").arg(2.0*prop.memoryClockRate * (prop.memoryBusWidth/8)/1E6));
+    }
+
+    log(tr("CPU Cores: %1").arg(concurrentThreadsSupported));
+    log(tr("OpenMP Cores: %1").arg(omp_get_num_procs()));
+
     loader->loadSimulation(simulation, &design->simConfigs[0]);
 
     simWidget = new Simulator(simulation, &design->simConfigs[0], design->optConfig, this);

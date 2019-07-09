@@ -736,6 +736,7 @@ public:
     Vec barDiameter;
     Material *material;
     Vec jiggle;
+    bool hull;
 
     QString fillName() {
         switch(fill) {
