@@ -710,10 +710,10 @@ public:
 
     QString id;
 
-    vector<Anchor> anchors;
+    vector<Anchor *> anchors;
     map<QString, Anchor *> anchorMap;
 
-    vector<Force> forces;
+    vector<Force *> forces;
     map<QString, Force *> forceMap;
 
     ulong index;
@@ -929,7 +929,7 @@ public:
     vector<Material> materials;
     map<QString, Material *> materialMap;
 
-    vector<Loadcase> loadcases;
+    vector<Loadcase *> loadcases;
     map<QString, Loadcase *> loadcaseMap;
 
     vector<SimulationConfig> simConfigs;

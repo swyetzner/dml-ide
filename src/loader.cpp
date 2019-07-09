@@ -656,9 +656,10 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
 
 void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
 
-    for (const Anchor &anchor : load->anchors) {
-        Volume *anchorVol = anchor.volume;
+    for (const Anchor *anchor : load->anchors) {
+        Volume *anchorVol = anchor->volume;
 
+        int fixedMasses = 0;
         for (Mass *mass : sim->masses) {
             if (anchorVol->model != nullptr) {
                 glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
@@ -667,47 +668,56 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 if (anchorVol->model->isInside(massPos, 0)) {
 
                     mass->fix();
+                    fixedMasses++;
                 }
             } else {
                 if (anchorVol->geometry->isInside(mass->pos)) {
                     mass->fix();
+                    fixedMasses++;
                 }
             }
         }
+        log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
     }
 
-    for (const Force &force : load->forces) {
-        Volume *forceVol = force.volume;
+    for (const Force *force : load->forces) {
+        Volume *forceVol = force->volume;
+        qDebug() << "Applying" << force->magnitude[0] << force->magnitude[1] << force->magnitude[2];
 
+        int forceMasses = 0;
         for (Mass *mass : sim->masses) {
             glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
             // Check for force constraint
             if (forceVol->model != nullptr) {
                 if (forceVol->model->isInside(massPos, 0)) {
-                    mass->force += force.magnitude;
-                    mass->extforce += force.magnitude;
-                    mass->extduration += force.duration;
+                    mass->force += force->magnitude;
+                    mass->extforce += force->magnitude;
+                    mass->extduration += force->duration;
 
 
                     if (mass->extduration < 0) {
                         mass->extduration = DBL_MAX;
                     }
+                    forceMasses++;
                 }
+
             } else {
                 if (forceVol->geometry->isInside(mass->pos)) {
 
-                    mass->force += force.magnitude;
-                    mass->extforce += force.magnitude;
-                    mass->extduration += force.duration;
+                    mass->force += force->magnitude;
+                    mass->extforce += force->magnitude;
+                    mass->extduration += force->duration;
 
 
                     if (mass->extduration < 0) {
                         mass->extduration = DBL_MAX;
                     }
+                    forceMasses++;
                 }
             }
         }
+        log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
     }
 
     //sim->masses.front()->force = Vec(100, 0, 0);

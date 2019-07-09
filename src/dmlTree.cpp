@@ -236,7 +236,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         Loadcase *l = new Loadcase();
         l->id = id ? id->text(1) : nullptr;
         l->index = design_ptr->loadcases.size();
-        design_ptr->loadcases.push_back(*l);
+        design_ptr->loadcases.push_back(l);
         design_ptr->loadcaseMap[l->id] = l;
         log(QString("Loaded Loadcase: '%1'").arg(l->id));
     }
@@ -250,7 +250,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         a->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
 
         QString loadId = parentItem->child(0)->text(1);
-        design_ptr->loadcaseMap[loadId]->anchors.push_back(*a);
+        design_ptr->loadcaseMap[loadId]->anchors.push_back(a);
         design_ptr->loadcaseMap[loadId]->anchorMap[a->volume->id] = a;
         log(QString("Loaded Anchor: '%1'").arg(a->volume->id));
     }
@@ -268,7 +268,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         f->duration = duration ? duration->text(1).toDouble() : -1;
 
         QString loadId = parentItem->child(0)->text(1);
-        design_ptr->loadcaseMap[loadId]->forces.push_back(*f);
+        design_ptr->loadcaseMap[loadId]->forces.push_back(f);
         design_ptr->loadcaseMap[loadId]->forceMap[f->volume->id] = f;
         log(QString("Loaded Force: '%1'").arg(f->volume->id));
     }
