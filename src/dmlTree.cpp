@@ -68,6 +68,9 @@ static inline QString velocityAttribute() { return QStringLiteral("velocity"); }
 // Global attributes
 static inline QString accelerationAttribute() { return QStringLiteral("acceleration"); }
 
+// Load attributes
+static inline QString queueAttribute() { return QStringLiteral("queue"); }
+
 // Stop attributes
 static inline QString criterionAttribute() { return QStringLiteral("criterion"); }
 static inline QString thresholdAttribute() { return QStringLiteral("threshold"); }
@@ -236,6 +239,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         Loadcase *l = new Loadcase();
         l->id = id ? id->text(1) : nullptr;
         l->index = design_ptr->loadcases.size();
+        l->totalDuration = 0;
         design_ptr->loadcases.push_back(l);
         design_ptr->loadcaseMap[l->id] = l;
         log(QString("Loaded Loadcase: '%1'").arg(l->id));
@@ -270,6 +274,8 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         QString loadId = parentItem->child(0)->text(1);
         design_ptr->loadcaseMap[loadId]->forces.push_back(f);
         design_ptr->loadcaseMap[loadId]->forceMap[f->volume->id] = f;
+        design_ptr->loadcaseMap[loadId]->totalDuration = std::max(design_ptr->loadcaseMap[loadId]->totalDuration,
+                f->duration);
         log(QString("Loaded Force: '%1'").arg(f->volume->id));
     }
 
@@ -348,7 +354,17 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *rotation = createAttributeItem(item, attrMap, rotationAttribute());
 
         Repeat r = Repeat();
-        r.after = after ? after->text(1).split(" ")[0].toDouble() : -1;
+        if (after) {
+            if (after->text(1) == "optimize") {
+                r.afterExplicit = false;
+            } else {
+                r.afterExplicit = true;
+                r.after = after->text(1).split(" ")[0].toDouble();
+            }
+        } else {
+            r.afterExplicit = true;
+            r.after = -1;
+        }
 
         if (rotation) {
             if (rotation->text(1) == "random") {
@@ -382,11 +398,22 @@ void DMLTree::parseExpandElement(const QDomElement &element,
     // ---- <load> ----
     if (element.tagName() == loadElement()) {
         auto *id = createAttributeItem(item, attrMap, idAttribute());
+        auto *queue = createAttributeItem(item, attrMap, queueAttribute());
 
+        vector<Loadcase *> q = vector<Loadcase *>();
         Loadcase *l = id ? design_ptr->loadcaseMap[id->text(1)] : nullptr;
+        if (queue) {
+            auto text = queue->text(1).split(",");
+            for (auto s : text) {
+                l = design_ptr->loadcaseMap[s.trimmed()];
+                qDebug() << s << q.size();
+                q.push_back(l);
+            }
+        }
 
         QString simConfigId = parentItem->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->load = l;
+        design_ptr->simConfigMap[simConfigId]->loadQueue = q;
     }
 
     // ---- <stop> ----

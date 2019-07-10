@@ -688,6 +688,7 @@ public:
     ~Anchor() {}
 
     Volume * volume;
+    vector<Mass *> masses;
 };
 
 
@@ -700,6 +701,8 @@ public:
     Volume * volume;
     Vec magnitude;
     double duration;
+
+    vector<Mass *> masses;
 };
 
 class Loadcase
@@ -715,6 +718,8 @@ public:
 
     vector<Force *> forces;
     map<QString, Force *> forceMap;
+
+    double totalDuration;
 
     ulong index;
 };
@@ -793,6 +798,7 @@ class Repeat
 {
 public:
 
+    bool afterExplicit = true;
     double after = -1;
     bool rotationExplicit = true;
     Vec rotation = Vec(0, 0, 0);
@@ -824,6 +830,7 @@ public:
     Repeat repeat;
     Plane * plane = nullptr;
     Loadcase * load;
+    vector<Loadcase *> loadQueue;
     vector<Stop> stops;
 
     ulong index;

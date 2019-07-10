@@ -131,7 +131,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
     repeatTime = config->repeat.after;
     explicitRotation = config->repeat.rotationExplicit;
     repeatRotation = config->repeat.rotation;
-    optimizeAfter = (repeatTime > 0)? 20 : 0;
+    optimizeAfter = (repeatTime > 0)? 10 : 0;
 
     double minUnitDist = DBL_MAX;
     for (Spring *t : sim->springs) {
@@ -151,7 +151,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                 case OptimizationRule::MASS_DISPLACE: {
                     massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
-                    massDisplacer->order = 0;
+                    massDisplacer->order = 3;
                     massDisplacer->chunkSize = 0;
                     massDisplacer->relaxation = 2000;
                     this->optimizer = massDisplacer;
@@ -170,10 +170,12 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
     //springInserter = new SpringInserter(sim, 0.001);
     //springInserter->cutoff = 3.5 * config->lattice.unit[0];
 
-    // Log device information
-    unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
-    log(tr("CPU Cores: %1").arg(concurentThreadsSupported));
-    log(tr("GPU Devices:"));
+    // LOAD QUEUE
+    currentLoad = 0;
+    pastLoadTime = 0;
+    for (Loadcase *l : config->loadQueue) {
+        qDebug() << "Force masses" << l->forces.front()->masses.size();
+    }
 
     equilibrium = false;
     optimized = 0;
@@ -208,6 +210,8 @@ void Simulator::run() {
     }
 
     if (!sim->running()) {
+        qDebug() << "Next Load" << currentLoad << "Queue size" << config->loadQueue.size() << "Switch at time" << pastLoadTime;
+        bool loadQueueDone = false;
 
         // Set repeats
         if (repeatTime > 0 && repeatTime < sim->time()) {
@@ -222,6 +226,21 @@ void Simulator::run() {
 
                 saveImage(grabFramebuffer(), outputFile);
                 imageNumber++;
+            }
+        }
+
+        bool currLoadDone = sim->time() >= pastLoadTime;
+        if (currLoadDone && !config->loadQueue.empty()) {
+            // Load queue
+            if (currentLoad >= config->loadQueue.size()) {
+                loadQueueDone = true;
+            } else {
+                Loadcase *load = config->loadQueue[currentLoad];
+                clearLoads();
+                applyLoad(load);
+                updateOverlays();
+                currentLoad++;
+                pastLoadTime += load->totalDuration;
             }
         }
 
@@ -294,6 +313,7 @@ void Simulator::run() {
             }
             prevEnergy = totalEnergy;
         } else {
+
             if (optConfig != nullptr) {
 
                 bool stopReached = false;
@@ -310,7 +330,7 @@ void Simulator::run() {
                 }
 
                 for (OptimizationRule r : optConfig->rules) {
-                    if (optimizeAfter <= n_repeats && prevSteps >= r.frequency && !stopReached) {
+                    if ((loadQueueDone || config->repeat.afterExplicit) && optimizeAfter <= n_repeats && prevSteps >= r.frequency && !stopReached) {
 
                         optimizer->optimize();
                         optimized++;
@@ -324,6 +344,8 @@ void Simulator::run() {
                         resizeBuffers = true;
                         updateColors();
                         updateDiameters();
+
+                        currentLoad = 0;
                     }
                 }
             }
@@ -1083,6 +1105,49 @@ void Simulator::moveStressedMasses(double ratio) {
     sim->setAll();
 }
 
+
+// --------------------------------------------------------------------
+// LOAD CONTROLS
+// --------------------------------------------------------------------
+
+void Simulator::clearLoads() {
+    for (Mass *m : sim->masses) {
+        m->extforce = Vec(0,0,0);
+        m->extduration = 0;
+        m->unfix();
+    }
+}
+
+void Simulator::applyLoad(Loadcase *load) {
+    sim->getAll();
+
+    log(tr("Applying load (%1), '%2' to simulation").arg(currentLoad).arg(load->id));
+    qDebug() << "Applying" << load->anchors[0]->masses.size() << "anchors and" << load->forces[0]->masses.size() << "forces";
+    for (Mass *m : sim->masses) {
+        for (Anchor *a : load->anchors) {
+            for (Mass *am : a->masses) {
+                if (m == am) {
+                    m->fix();
+                }
+            }
+        }
+        for (Force *f : load->forces) {
+            for (Mass *fm : f->masses) {
+                if (m == fm) {
+                    m->force += f->magnitude;
+                    m->extforce += f->magnitude;
+                    m->extduration += f->duration;
+
+
+                    if (m->extduration < 0) {
+                        m->extduration = DBL_MAX;
+                    }
+                }
+            }
+        }
+    }
+    sim->setAll();
+}
 
 // --------------------------------------------------------------------
 // OPENGL SHADERS

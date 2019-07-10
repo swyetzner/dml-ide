@@ -91,7 +91,7 @@ void SpringRemover::optimize() {
         vector<uint> springIndicesToSort;
         sortSprings_stress(springIndicesToSort);
 
-        uint toRemove = uint(stepRatio * sim->springs.size());
+        uint toRemove = stepRatio > 0 ?  uint(stepRatio * sim->springs.size()): 1;
         map<Spring *, bool> springsToDelete = map<Spring *, bool>();
         for (Spring *s : sim->springs) {
             springsToDelete[s] = false;
@@ -951,10 +951,10 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     }
     for (Mass *m : outsideGroup) {
 
-        m->unfix();
+        //m->unfix();
     }
 
-    if (totalMetricTest >= totalMetricSim) {
+    if (totalMetricTest < totalMetricSim) {
         setMassState(startPos);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];

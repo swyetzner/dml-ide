@@ -132,6 +132,11 @@ private:
     double prevEnergy;
     int prevSteps;
 
+    int currentLoad;
+    float pastLoadTime;
+    void clearLoads();
+    void applyLoad(Loadcase * load);
+
     void iterateMassStructure(double ratio);
     void removePercentBars(double ratio);
     void adjustBarDiams();

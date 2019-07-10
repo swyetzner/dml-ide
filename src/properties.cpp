@@ -191,10 +191,20 @@ void PropertiesTable::displaySimulation(QString id) {
     createNodeItem(++rowCount, 0, "load");
     createPropertyItem(++rowCount, 1, "id");
     createValueItem(rowCount, 2, simConfig->load->id);
+    createPropertyItem(++rowCount, 1, "queue");
+    QStringList q = QStringList();
+    for (Loadcase *l : simConfig->loadQueue) {
+        q.push_back(l->id);
+    }
+    createValueItem(rowCount, 2, q.join(", "));
 
     createNodeItem(++rowCount, 0, "repeat");
     createPropertyItem(++rowCount, 1, "after");
-    createValueItem(rowCount, 2, QString::number(simConfig->repeat.after));
+    if (simConfig->repeat.afterExplicit) {
+        createValueItem(rowCount, 2, QString::number(simConfig->repeat.after));
+    } else {
+        createValueItem(rowCount, 2, "optimize");
+    }
     createPropertyItem(++rowCount, 1, "rotation");
     createVecValueItem(rowCount, 2, simConfig->repeat.rotation);
 
@@ -317,21 +327,25 @@ void PropertiesTable::updateProp(int row, int col) {
                 Loadcase *l = design->loadcases[objectIndex];
                 qDebug() << "Changing" << property->text() << "property";
                 if (parentProperty != nullptr) qDebug() << "Parent:" << parentProperty->text();
-                if (property->text() == "magnitude") {
-                    QString volId = "";
-                    if (parentProperty != nullptr && parentProperty->text() == "force") {
-                        for (int r = row -1 ; r >= 0; r--) {
-                            if (this->item(r, col-1) != nullptr) {
-                                if (this->item(r, col-1)->text() == "volume") {
-                                    volId = this->item(r, col)->text();
-                                    break;
-                                }
+                QString volId = "";
+                if (parentProperty != nullptr && parentProperty->text() == "force") {
+                    for (int r = row -1 ; r >= 0; r--) {
+                        if (this->item(r, col-1) != nullptr) {
+                            if (this->item(r, col-1)->text() == "volume") {
+                                volId = this->item(r, col)->text();
+                                break;
                             }
                         }
                     }
-                    qDebug() << property->text();
+                }
+                if (property->text() == "magnitude") {
                     if (!volId.isEmpty()) {
                         l->forceMap[volId]->magnitude = parseVecInput(item->text());
+                    }
+                }
+                if (property->text() == "duration") {
+                    if (!volId.isEmpty()) {
+                        l->forceMap[volId]->duration = item->text().toDouble();
                     }
                 }
                 break;

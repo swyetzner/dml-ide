@@ -285,10 +285,16 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     }
     qDebug() << "Set spring diameters";
 
-    // LOADCASE
-    if (simConfig->load != nullptr) {
+    // LOADCASES
+    if (simConfig->load != nullptr && simConfig->loadQueue.empty()) {
         applyLoadcase(sim, simConfig->load);
+    } else {
+        for (Loadcase *l : simConfig->loadQueue) {
+            applyLoadcase(sim, l);
+        }
     }
+
+
     qDebug() << "Applied loadcase";
 
 
@@ -656,8 +662,10 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
 
 void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
 
-    for (const Anchor *anchor : load->anchors) {
+    for (Anchor *anchor : load->anchors) {
         Volume *anchorVol = anchor->volume;
+
+        anchor->masses.clear(); // Clear mass ptr cache
 
         int fixedMasses = 0;
         for (Mass *mass : sim->masses) {
@@ -668,11 +676,13 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 if (anchorVol->model->isInside(massPos, 0)) {
 
                     mass->fix();
+                    anchor->masses.push_back(mass);
                     fixedMasses++;
                 }
             } else {
                 if (anchorVol->geometry->isInside(mass->pos)) {
                     mass->fix();
+                    anchor->masses.push_back(mass);
                     fixedMasses++;
                 }
             }
@@ -680,9 +690,11 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
     }
 
-    for (const Force *force : load->forces) {
+    for (Force *force : load->forces) {
         Volume *forceVol = force->volume;
         qDebug() << "Applying" << force->magnitude[0] << force->magnitude[1] << force->magnitude[2];
+
+        force->masses.clear(); // Clear mass ptr cache
 
         int forceMasses = 0;
         for (Mass *mass : sim->masses) {
@@ -699,6 +711,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                     if (mass->extduration < 0) {
                         mass->extduration = DBL_MAX;
                     }
+
+                    force->masses.push_back(mass);
                     forceMasses++;
                 }
 
@@ -713,6 +727,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                     if (mass->extduration < 0) {
                         mass->extduration = DBL_MAX;
                     }
+
+                    force->masses.push_back(mass);
                     forceMasses++;
                 }
             }
