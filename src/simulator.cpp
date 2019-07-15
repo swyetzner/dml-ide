@@ -33,6 +33,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
     n_masses_start = long(sim->masses.size());
     n_springs_start = long(sim->springs.size());
     totalMass_start = sim->getTotalMass();
+    deflectionPoint_start = getDeflectionPoint();
     totalEnergy = 0;
     totalLength = 0;
     totalLength_start = 0;
@@ -227,6 +228,7 @@ void Simulator::run() {
                 saveImage(grabFramebuffer(), outputFile);
                 imageNumber++;
             }
+            writeMetric(metricFile);
         }
 
         bool currLoadDone = sim->time() >= pastLoadTime;
@@ -332,7 +334,13 @@ void Simulator::run() {
                 for (OptimizationRule r : optConfig->rules) {
                     if ((loadQueueDone || config->repeat.afterExplicit) && optimizeAfter <= n_repeats && prevSteps >= r.frequency && !stopReached) {
 
+                        if (!optimized) {
+                            writeMetricHeader(metricFile);
+                        }
+
                         optimizer->optimize();
+                        //writeMetric(metricFile);
+
                         optimized++;
 
                         if (n_masses != int(sim->masses.size())) resizeBuffers = true;
@@ -463,6 +471,38 @@ void Simulator::repeat() {
     }
 }
 
+double Simulator::calcDeflection() {
+    double deflection = 0;
+    vector<Mass *> points = vector<Mass *>();
+    if (config->load && !config->load->forces.empty()) {
+        for (Mass *m : config->load->forces.front()->masses) {
+            points.push_back(m);
+        }
+    }
+    for (Mass *p : points) {
+        deflection += (p->pos - p->origpos).norm();
+    }
+    return deflection;
+}
+
+Vec Simulator::getDeflectionPoint() {
+    Vec deflectionPoint = Vec(0,0,0);
+    vector<Mass *> points = vector<Mass *>();
+    if (config->load && !config->load->forces.empty()) {
+        for (Mass *m : config->load->forces.front()->masses) {
+            points.push_back(m);
+        }
+        for (Mass *p : points) {
+            deflectionPoint += p->pos;
+        }
+        deflectionPoint[0] /= points.size();
+        deflectionPoint[1] /= points.size();
+        deflectionPoint[2] /= points.size();
+    }
+
+    return deflectionPoint;
+}
+
 void Simulator::createDataDir() {
     QString currentPath = QDir::currentPath();
     qDebug() << currentPath;
@@ -496,9 +536,9 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
     }
 
     if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        file.write("Time,Iteration,Displacement,Attempts,Total Energy,Total Weight\n");
+        file.write("Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
     } else {
-        file.write("Time,Iteration,Total Weight,Bar Number\n");
+        file.write("Time,Iteration,Deflection,Total Weight,Bar Number\n");
     }
 
     // Write starting line
@@ -532,13 +572,22 @@ void Simulator::writeMetric(const QString &outputFile) {
     }
 
     if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        QString mLine = QString("%1,%2,%3,%4,%5,%6\n")
+        QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
                 .arg(sim->time())
                 .arg(optimized)
+                .arg(calcDeflection())
                 .arg(massDisplacer->dx)
                 .arg(massDisplacer->attempts)
                 .arg(totalEnergy)
                 .arg(totalLength);
+        file.write(mLine.toUtf8());
+    } else if (optConfig->stopCriteria.front().metric == OptimizationStop::WEIGHT) {
+        QString mLine = QString("%1,%2,%3,%4,%5\n")
+                .arg(sim->time())
+                .arg(optimized)
+                .arg(calcDeflection())
+                .arg(totalLength)
+                .arg(n_springs);
         file.write(mLine.toUtf8());
     }
 }
@@ -2271,6 +2320,7 @@ void Simulator::updateTextPanel() {
         totalLength += s->_rest;
         totalEnergy += s->_curr_force * s->_curr_force / s->_k;
     }
+    double deflection = calcDeflection();
 
     QString upperPanel;
     QString simName = config->id;
@@ -2284,12 +2334,14 @@ void Simulator::updateTextPanel() {
                                    "Bars: %d\n"
                                    "Time: %.2lf s\n"
                                    "Weight remaining: %.2lf%\n"
+                                   "Deflection: %.4lf m\n"
                                    "Optimization iterations: %d\n"
                                    "Optimization threshold: %.1lf% bars per iteration",
                                    simName.toUpper().toStdString().c_str(),
                                    optConfig->rules.front().methodName().replace(QChar('_'), QChar(' ')).toStdString().c_str(),
                                    sim->springs.size(),
                                    sim->time(), 100.0 * totalLength / totalLength_start,
+                                   deflection,
                                    optimized,
                                    optConfig->rules.front().threshold * 100);
                 break;
@@ -2299,12 +2351,14 @@ void Simulator::updateTextPanel() {
                                    "Bars: %d\n"
                                    "Time: %.2lf s\n"
                                     "Weight remaining: %.2lf%\n"
+                                    "Deflection: %.4lf m\n"
                                     "Energy: %.2lf%, %.4lf (current), %.4lf (start)\n"
                                     "Optimization iterations: %d\n"
                                     "Relaxation interval: %d order\n"
                                     "Displacement: %.4lf meters",
                                     simName.toUpper().toStdString().c_str(), sim->springs.size(),
                                     sim->time(), 100.0 * totalLength / totalLength_start,
+                                    deflection,
                                     (100.0 * totalEnergy / ((totalEnergy_start > 0)? totalEnergy_start : totalEnergy)),
                                     totalEnergy,
                                     totalEnergy_start,

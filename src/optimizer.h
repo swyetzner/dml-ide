@@ -35,6 +35,7 @@ public:
 
     virtual void optimize() = 0;
 
+    uint minSpringByStress();
     void sortSprings_stress(vector<uint> &output_indices);
     void sortMasses_stress(vector<uint> &output_indices);
 

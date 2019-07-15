@@ -105,6 +105,7 @@ private:
     double totalEnergy;
     double totalLength_start;
     double totalEnergy_start;
+    Vec deflectionPoint_start;
     long steps;
     vector<double> avgXStresses;
     vector<double> avgYStresses;
@@ -136,6 +137,9 @@ private:
     float pastLoadTime;
     void clearLoads();
     void applyLoad(Loadcase * load);
+
+    Vec getDeflectionPoint();
+    double calcDeflection();
 
     void iterateMassStructure(double ratio);
     void removePercentBars(double ratio);

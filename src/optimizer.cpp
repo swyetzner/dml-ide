@@ -4,6 +4,30 @@
 
 #include "optimizer.h"
 
+// Returns index of the spring with the minimum max stress
+//---------------------------------------------------------------------------
+uint Optimizer::minSpringByStress() {
+//---------------------------------------------------------------------------
+
+    uint msi = -1;
+    double minStress = FLT_MAX;
+    for (uint s = 0; s < sim->springs.size(); s++) {
+        bool underExternalForce = sim->springs[s]->_left->extforce.norm() > 1E-6
+                                  && sim->springs[s]->_right->extforce.norm() > 1E-6;
+        bool fixed = sim->springs[s]->_left->constraints.fixed && sim->springs[s]->_right->constraints.fixed;
+        double force = sim->springs[s]->_max_stress;
+
+        if (!underExternalForce && !fixed) {
+            if (force < minStress) {
+                minStress = force;
+                msi = s;
+            }
+        }
+    }
+
+    return msi;
+}
+
 // Sorts springs by max stress
 // Outputs sorted indices (indexing to sim->springs)
 // into parameter output_indices
@@ -88,19 +112,27 @@ void SpringRemover::optimize() {
     n_springs = sim->springs.size();
 
     if (n_springs > n_springs_start * stopRatio) {
-        vector<uint> springIndicesToSort;
-        sortSprings_stress(springIndicesToSort);
+        map<Spring *, bool> springsToDelete = map<Spring *, bool>();
 
         uint toRemove = stepRatio > 0 ?  uint(stepRatio * sim->springs.size()): 1;
-        map<Spring *, bool> springsToDelete = map<Spring *, bool>();
-        for (Spring *s : sim->springs) {
-            springsToDelete[s] = false;
-        }
-        for (uint j = 0; j < toRemove; j++) {
-            if (j < springIndicesToSort.size())
-                springsToDelete[sim->springs[springIndicesToSort[j]]] = true;
+
+        if (toRemove > 1) {
+            vector<uint> springIndicesToSort;
+            sortSprings_stress(springIndicesToSort);
+
+            for (Spring *s : sim->springs) {
+                springsToDelete[s] = false;
+            }
+            for (uint j = 0; j < toRemove; j++) {
+                if (j < springIndicesToSort.size())
+                    springsToDelete[sim->springs[springIndicesToSort[j]]] = true;
+            }
+        } else {
+            uint ms = minSpringByStress();
+            springsToDelete[sim->springs[ms]] = true;
         }
         qDebug() << "Removing" << toRemove << "Springs";
+
 
         // Remove hanging springs (attached to masses with only one attached spring)
         for (Spring *s : sim->springs) {
@@ -175,21 +207,8 @@ void SpringRemover::optimize() {
             for (int s = 0; s < springSize; s++) {
                 Mass *m1 = sim->springs[s]->_left;
                 Mass *m2 = sim->springs[s]->_right;
-                int leftCount = 0, rightCount = 0;
 
-                for (int t = 0; t < springSize; t++) {
-                    if (t != s) {
-
-                        if (sim->springs[t]->_left == m1 || sim->springs[t]->_right == m1) {
-                            leftCount++;
-                        }
-                        if (sim->springs[t]->_left == m2 || sim->springs[t]->_right == m2) {
-                            rightCount++;
-                        }
-                    }
-                }
-
-                if (leftCount == 0 || rightCount == 0) {
+                if (m1->spring_count == 1 || m2->spring_count == 1) {
                     hangingSprings++;
                     sim->deleteSpring(sim->springs[s]);
                     s--;
@@ -199,7 +218,7 @@ void SpringRemover::optimize() {
 
                 // For 2 attached springs, determine angle between them
                 // Delete one and leave one for cleanup
-                if (leftCount == 1) {
+                /**if (leftCount == 1) {
                     for (int s1 = 0; s1 < springSize; s1++) {
                         if (s1 != s) {
                             if (sim->springs[s]->_left == sim->springs[s1]->_left) {
@@ -254,7 +273,7 @@ void SpringRemover::optimize() {
                             }
                         }
                     }
-                }
+                }**/
                 ENDLOOP: ;
             }
 
