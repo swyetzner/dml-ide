@@ -64,6 +64,7 @@ signals:
     double getSpringConst();
     bool getShowStress();
     void reloadSimulation();
+    void stopCriteriaSat();
     void log(const QString message);
 
 public slots:

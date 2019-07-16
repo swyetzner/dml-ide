@@ -22,6 +22,9 @@
 #undef GRAPHICS
 #include <Titan/sim.h>
 
+#include <ctime>
+#include <iomanip>
+
 namespace Ui {
     class MainWindow;
 }
@@ -85,6 +88,7 @@ private slots:
     void on_actionSaveSim_triggered();
     void on_actionSTLExport_triggered();
 
+    void simulationFinished();
     void exportThreadFinished(QString fileName);
 
 private:

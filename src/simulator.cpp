@@ -257,6 +257,7 @@ void Simulator::run() {
         }
         totalEnergy = 0;
 
+        bool stopReached = false;
 
         bool equilibriumMetric = optConfig != nullptr && optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE;
         if (equilibriumMetric) {
@@ -278,7 +279,6 @@ void Simulator::run() {
                 }
             }
 
-            bool stopReached = false;
             for (auto s : optConfig->stopCriteria) {
                 switch (s.metric) {
                     case OptimizationStop::ENERGY:
@@ -318,7 +318,6 @@ void Simulator::run() {
 
             if (optConfig != nullptr) {
 
-                bool stopReached = false;
                 for (auto s : optConfig->stopCriteria) {
                     switch (s.metric) {
                         case OptimizationStop::ENERGY:
@@ -389,6 +388,12 @@ void Simulator::run() {
         steps += long(renderTimeStep / sim->masses.front()->dt);
         prevSteps += long(renderTimeStep / sim->masses.front()->dt);
         qDebug() << steps;
+
+        if (stopReached) {
+            pause();
+            emit stopCriteriaSat();
+            return;
+        }
     }
 }
 

@@ -267,6 +267,7 @@ void Window::reloadSimulation() {
     loader->loadSimulation(simulation, &design->simConfigs[0]);
 
     simWidget = new Simulator(simulation, &design->simConfigs[0], design->optConfig, this);
+    connect(simWidget, &Simulator::stopCriteriaSat, this, &Window::simulationFinished);
     connect(simWidget, &Simulator::log, this, &Window::log);
 
     ui->verticalLayout->addWidget(simWidget);
@@ -323,6 +324,23 @@ void Window::on_actionSave_triggered()
     save();
 }
 
+void Window::simulationFinished() {
+    on_actionSaveSim_triggered();
+
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    ostringstream oss;
+    oss << put_time(&tm, "%d-%m-%Y_%H-%M-%S");
+    string tmString = oss.str();
+
+    qDebug() << "Starting export thread";
+
+    exportThread.startExport(tmString + ".stl",
+            design->outputs[0],
+            simulation->springs[0]->_diam * 0.5,
+            simulation->springs[0]->_diam,
+            32);
+}
 
 void Window::exportThreadFinished(QString fileName) {
     log(tr("Completed export of %1").arg(fileName));
