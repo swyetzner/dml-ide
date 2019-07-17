@@ -22,6 +22,8 @@ void Loader::loadDesignModels(Design *design) {
         loadVolumeGeometry(design->volumes[v]);
         design->volumes[v]->model->createGraphicsData();
     }
+    //qDebug() << cUtils::cgalApplyUnion(*design->volumes[0]->cgal, *design->volumes[1]->cgal);
+
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
         loadSimModel(&design->simConfigs[s]);
@@ -113,6 +115,12 @@ void Loader::loadVolumeGeometry(Volume *volume){
 
             // LOAD FROM INPUT FILE
             volume->geometry->createPolygonFromFile(volume->url.path().toStdString(), scale);
+
+            /**iUtils::iglMesh mesh;
+            iUtils::iglFromGeometry(*volume->geometry, mesh);
+            qDebug() << "Matrix";
+            qDebug() << "\tVertices" << mesh.V.size();
+            qDebug() << "\tFaces" << mesh.F.size();**/
 
         } else {
             log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");
@@ -703,10 +711,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             // Check for force constraint
             if (forceVol->model != nullptr) {
                 if (forceVol->model->isInside(massPos, 0)) {
-                    mass->force += force->magnitude;
-                    mass->extforce += force->magnitude;
-                    mass->extduration += force->duration;
 
+                    mass->extduration += force->duration;
 
                     if (mass->extduration < 0) {
                         mass->extduration = DBL_MAX;
@@ -719,10 +725,7 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             } else {
                 if (forceVol->geometry->isInside(mass->pos)) {
 
-                    mass->force += force->magnitude;
-                    mass->extforce += force->magnitude;
                     mass->extduration += force->duration;
-
 
                     if (mass->extduration < 0) {
                         mass->extduration = DBL_MAX;
@@ -733,7 +736,15 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 }
             }
         }
-        log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
+        if (forceMasses > 0) {
+            Vec distributedForce = force->magnitude / forceMasses;
+            for (Mass *m : force->masses) {
+                m->force += distributedForce;
+                m->extforce += distributedForce;
+            }
+            log(tr("Applied %3 N force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id).arg(distributedForce.norm()));
+        } else
+            log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
     }
 
     //sim->masses.front()->force = Vec(100, 0, 0);

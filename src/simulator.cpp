@@ -1185,18 +1185,31 @@ void Simulator::applyLoad(Loadcase *load) {
                 }
             }
         }
-        for (Force *f : load->forces) {
-            for (Mass *fm : f->masses) {
-                if (m == fm) {
-                    m->force += f->magnitude;
-                    m->extforce += f->magnitude;
+    }
+    for (Force *f : load->forces) {
+        int forceMasses = 0;
+
+        for (Mass *fm : f->masses) {
+            bool valid = false;
+            for (Mass *m : sim->masses) {
+                    if (m == fm) {
                     m->extduration += f->duration;
-
-
                     if (m->extduration < 0) {
                         m->extduration = DBL_MAX;
                     }
+                    forceMasses ++;
+                    valid = true;
                 }
+            }
+            if (!valid) {
+                f->masses.erase(remove(f->masses.begin(), f->masses.end(), fm));
+            }
+        }
+        if (forceMasses > 0) {
+            Vec distributedForce = f->magnitude / forceMasses;
+            for (Mass *fm : f->masses) {
+                fm->extforce += distributedForce;
+                fm->force += distributedForce;
             }
         }
     }
