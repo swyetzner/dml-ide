@@ -287,6 +287,12 @@ void Simulator::run() {
                     case OptimizationStop::WEIGHT:
                         stopReached = totalLength / totalLength_start <= s.threshold;
                     break;
+                    case OptimizationStop::DEFLECTION:
+                        stopReached = calcDeflection() >= s.threshold;
+                    break;
+                    case OptimizationStop::NONE:
+                        stopReached = false;
+                    break;
                 }
             }
 
@@ -324,8 +330,13 @@ void Simulator::run() {
                             stopReached = totalEnergy / totalEnergy_start <= s.threshold;
                             break;
                         case OptimizationStop::WEIGHT:
-                            qDebug() << "Stop Reached" << totalLength_start << 100 * totalLength / totalLength_start << s.threshold;
                             stopReached = totalLength / totalLength_start <= s.threshold;
+                            break;
+                        case OptimizationStop::DEFLECTION:
+                            stopReached = calcDeflection() >= s.threshold;
+                            break;
+                        case OptimizationStop::NONE:
+                            stopReached = false;
                             break;
                     }
                 }
@@ -477,28 +488,36 @@ void Simulator::repeat() {
 }
 
 double Simulator::calcDeflection() {
-    double deflection = 0;
+    Vec deflectionPoint = Vec(0,0,0);
     vector<Mass *> points = vector<Mass *>();
     if (config->load && !config->load->forces.empty()) {
-        for (Mass *m : config->load->forces.front()->masses) {
-            points.push_back(m);
+        for (Force *f : config->load->forces) {
+            for (Mass *m : f->masses) {
+                points.push_back(m);
+            }
         }
+        for (Mass *p : points) {
+            deflectionPoint += p->pos;
+        }
+        deflectionPoint[0] /= points.size();
+        deflectionPoint[1] /= points.size();
+        deflectionPoint[2] /= points.size();
     }
-    for (Mass *p : points) {
-        deflection += (p->pos - p->origpos).norm();
-    }
-    return deflection;
+
+    return (deflectionPoint - getDeflectionPoint()).norm();
 }
 
 Vec Simulator::getDeflectionPoint() {
     Vec deflectionPoint = Vec(0,0,0);
     vector<Mass *> points = vector<Mass *>();
     if (config->load && !config->load->forces.empty()) {
-        for (Mass *m : config->load->forces.front()->masses) {
-            points.push_back(m);
+        for (Force *f : config->load->forces) {
+            for (Mass *m : f->masses) {
+                points.push_back(m);
+            }
         }
         for (Mass *p : points) {
-            deflectionPoint += p->pos;
+            deflectionPoint += p->origpos;
         }
         deflectionPoint[0] /= points.size();
         deflectionPoint[1] /= points.size();
@@ -1202,7 +1221,7 @@ void Simulator::applyLoad(Loadcase *load) {
                 }
             }
             if (!valid) {
-                f->masses.erase(remove(f->masses.begin(), f->masses.end(), fm));
+                f->masses.erase(remove(f->masses.begin(), f->masses.end(), fm), f->masses.end());
             }
         }
         if (forceMasses > 0) {

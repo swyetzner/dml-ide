@@ -455,9 +455,21 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         }
         if (parentItem->text(0).toLower().startsWith(optimizationElement())) {
             OptimizationStop s = OptimizationStop();
-            s.metric = metric ? (metric->text(1) == "weight"?
-                    OptimizationStop::WEIGHT : OptimizationStop::ENERGY) :
-                            OptimizationStop::WEIGHT;
+
+            if (metric) {
+                if (metric->text(1) == "weight") {
+                    s.metric = OptimizationStop::WEIGHT;
+                } else if (metric->text(1) == "energy") {
+                    s.metric = OptimizationStop::ENERGY;
+                } else if (metric->text(1) == "deflection") {
+                    s.metric = OptimizationStop::DEFLECTION;
+                } else {
+                    log(tr("Invalid <stop> criteria in <optimization>: '%1'").arg(metric->text(1)));
+                    s.metric = OptimizationStop::NONE;
+                }
+            } else {
+                s.metric = OptimizationStop::NONE;
+            }
             QString t = threshold ? threshold->text(1) : "0";
             if (t.endsWith(QChar('%'))) {
                 s.threshold = t.remove(QChar('%')).trimmed().toDouble() / 100;

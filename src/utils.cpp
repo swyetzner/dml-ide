@@ -91,6 +91,20 @@ Vec Utils::bisect(Vec p1, Vec p2) {
     return p1 + (mag / 2) * dir;
 }
 
+// Given three triangle vertices
+// Returns triangle normal
+vec3 Utils::findNormal(vec3 v1, vec3 v2, vec3 v3) {
+    vec3 n = cross((v2 - v1), (v3 - v2));
+    return normalize(n);
+}
+
+// Given three triangle vertices
+// Returns triangle normal
+Vec Utils::findNormal(Vec v1, Vec v2, Vec v3) {
+    Vec n = cross((v2 - v1), (v3 - v2));
+    return n.normalized();
+}
+
 // Returns distance of point p from line p2-p1
 double Utils::distPointLine(Vec p, Vec p1, Vec p2) {
 

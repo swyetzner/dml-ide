@@ -21,6 +21,21 @@ bool Node::operator<(const Node &node) {
     || (this->p[0] <= node.p[0] && this->p[1] <= node.p[1] && this->p[2] < node.p[2]);
 }
 
+// Add node to polygon, returns ptr if existing
+// ------------------------------------------------------------
+shared_ptr<Node> Polygon::addNode(Vec p) {
+// ------------------------------------------------------------
+
+    if (nodeMap.find(p) == nodeMap.end()) {
+        shared_ptr<Node> n = make_shared<Node>(Node(p));
+        n->index = nodeMap.size(); // Update index
+        nodeMap[p] = move(n);
+    }
+    return nodeMap[p];
+
+}
+
+
 // Add triangle to polygon
 // ------------------------------------------------------------
 void Polygon::addTriangle(Vec v1, Vec v2, Vec v3, Vec n) {
@@ -28,27 +43,10 @@ void Polygon::addTriangle(Vec v1, Vec v2, Vec v3, Vec n) {
 
     shared_ptr<Node> n1 = nullptr, n2 = nullptr, n3 = nullptr;
 
-    // Search for existing nodes
-    n1 = nodeMap[v1];
-    n2 = nodeMap[v2];
-    n3 = nodeMap[v3];
-
-    // Add nodes if not found
-    if (n1 == nullptr) {
-        n1 = make_shared<Node>(Node(v1));
-        nodeMap[v1] = move(n1);
-        n1 = nodeMap[v1];
-    }
-    if (n2 == nullptr) {
-        n2 = make_shared<Node>(Node(v2));
-        nodeMap[v2] = move(n2);
-        n2 = nodeMap[v2];
-    }
-    if (n3 == nullptr) {
-        n3 = make_shared<Node>(Node(v3));
-        nodeMap[v3] = move(n3);
-        n3 = nodeMap[v3];
-    }
+    // Add or find nodes
+    n1 = addNode(v1);
+    n2 = addNode(v2);
+    n3 = addNode(v3);
 
     // Add triangle
     addTriangle(n1, n2, n3, n);
@@ -433,6 +431,25 @@ void Polygon::createGraphicsData(float *vs, float *ns) {
 
 }
 
+// Clear nodes and triangles from polygon
+// ------------------------------------------------------------
+void Polygon::clearPolygon() {
+// ------------------------------------------------------------
+    for (auto n : nodeMap) {
+        for (auto t : n.second->tris) {
+            t.reset();
+        }
+        n.second.reset();
+    }
+    for (auto t : *triangles) {
+        t->v1.reset();
+        t->v2.reset();
+        t->v3.reset();
+        t.reset();
+    }
+    nodeMap.clear();
+    triangles->clear();
+}
 
 // Returns the UNION of two Polygons
 // Gang Mei and John C. Tipper "Simple and Robust Boolean Operations for Triangulated Surfaces" (2013)

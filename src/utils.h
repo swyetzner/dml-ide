@@ -8,8 +8,7 @@
 #include <glm/glm.hpp>
 #include <Titan/sim.h>
 
-using namespace std;
-using namespace glm;
+typedef glm::vec3 vec3;
 
 class Utils
 {
@@ -34,6 +33,8 @@ public:
     static double getAngle(Vec v1, Vec v2);
     static bool isAcute(Vec v1, Vec v2);
     static Vec bisect(Vec p1, Vec p2);
+    static vec3 findNormal(vec3 v1, vec3 v2, vec3 v3);
+    static Vec findNormal(Vec v1, Vec v2, Vec v3);
     static double distPointLine(Vec p, Vec p1, Vec p2);
     static double distPointPlane(Vec p, Vec n, double o, Vec &v);
     static bool areCloseToColinear(Vec p1, Vec p2, Vec p3, double eps);

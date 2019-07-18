@@ -18,9 +18,11 @@
 #include<QOpenGLShaderProgram>
 #include<float.h>
 #include<QDebug>
-using namespace std;
 
 const double EPSILON = 0.0001;
+
+typedef glm::vec3 vec3;
+typedef glm::vec4 vec4;
 
 struct Bar {
     Vec left;
@@ -843,7 +845,7 @@ public:
     OptimizationStop() = default;
     ~OptimizationStop() = default;
 
-    enum Metric { WEIGHT, ENERGY };
+    enum Metric { WEIGHT, ENERGY, DEFLECTION, NONE };
 
     Metric metric;
     double threshold;
@@ -854,6 +856,10 @@ public:
                 return "WEIGHT";
             case ENERGY:
                 return "ENERGY";
+            case DEFLECTION:
+                return "DEFLECTION";
+            default:
+                return "NONE";
         }
     }
 };

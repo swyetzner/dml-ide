@@ -23,8 +23,6 @@
 #undef GRAPHICS
 #include <Titan/sim.h>
 
-using namespace std;
-
 struct test_group {
     test_group() {};
 

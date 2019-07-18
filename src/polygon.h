@@ -26,6 +26,7 @@ class Node {
 public:
     Vec p;
     vector<shared_ptr<Tri>> tris;
+    unsigned int index;
 
     Node() = default;
     explicit Node(const Vec &p) { this->p = p; }
@@ -61,6 +62,7 @@ public:
         nodeMap.clear();
     }
 
+    shared_ptr<Node> addNode(Vec p);
     void addTriangle(Vec v1, Vec v2, Vec v3, Vec n);
     void addTriangle(shared_ptr<Node> n1, shared_ptr<Node> n2, shared_ptr<Node> n3, Vec n);
     void removeTriangle(shared_ptr<Tri> t);
@@ -70,6 +72,8 @@ public:
     int fixNormals();
     void createPolygonFromFile(string path, float scale);
     void createGraphicsData(float *vs, float *ns);
+    void clearPolygon();
+
 
     // CSG FUNCTIONS
     void unionPolygons(Polygon &other, Polygon &polygon);
