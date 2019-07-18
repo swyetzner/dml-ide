@@ -60,9 +60,13 @@ public:
 
     double stepRatio;
     double stopRatio;
+    map<Mass *, vector<Spring *>> massToSpringMap;
 
 protected:
     void optimize() override;
+
+private:
+    void removeSpringFromMap(Spring *d);
 };
 
 /**
