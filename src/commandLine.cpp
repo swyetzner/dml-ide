@@ -7,8 +7,9 @@
 
 namespace CommandLine {
     args::ArgumentParser parser("DML simulation runner.");
-    args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
     args::Positional<std::string> inputPath(parser, "PATH", "Path to the input DML file");
+    args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
+    args::Flag graphicsUI(parser, "GRAPHICS", "Displays the full IDE graphics UI", {'g', "graphics"});
     args::ValueFlag<double> gpuTimestep(parser, "SECONDS", "GPU timestep (controls simulation timestep)",
                                        {'t', "timestep"}, 1E-4);
     args::ValueFlag<double> renderTimestep(parser, "SECONDS", "Render timestep (controls video speed)",

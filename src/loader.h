@@ -8,8 +8,6 @@
 #include <glm/glm.hpp>
 #include "model.h"
 #include "utils.h"
-using namespace std;
-
 
 #undef GRAPHICS
 #include <Titan/sim.h>

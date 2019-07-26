@@ -22,8 +22,6 @@ void Loader::loadDesignModels(Design *design) {
         loadVolumeGeometry(design->volumes[v]);
         design->volumes[v]->model->createGraphicsData();
     }
-    //qDebug() << cUtils::cgalApplyUnion(*design->volumes[0]->cgal, *design->volumes[1]->cgal);
-
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
         loadSimModel(&design->simConfigs[s]);
@@ -38,6 +36,7 @@ void Loader::loadDesignModels(Design *design) {
  */
 void Loader::loadVolumeModel(Volume *volume) {
 
+    volume->model = new model_data();
     volume->model->model_indices = new int[1];
     volume->model->colors = vector<vec4>();
     volume->model->n_models = 1;
@@ -47,8 +46,8 @@ void Loader::loadVolumeModel(Volume *volume) {
                       volume->color.z(),
                       volume->color.w());
     volume->model->colors.push_back(color);
-
     if (volume->primitive == "stl") {
+        cout << "\nAttempting to load " << volume->url.path().toStdString() << "\n";
         if (volume->url.isEmpty())
             log("Empty URL for volume " + volume->id + ". Cannot load model");
 
@@ -68,7 +67,7 @@ void Loader::loadVolumeModel(Volume *volume) {
             qDebug() << "Scale" << scale;
 
             Utils::createModelFromFile(volume->url.path().toStdString(), scale, volume->model->vertices, volume->model->normals);
-
+            cout << "Created model from" << volume->url.path().toStdString() << "\n";
 
         } else {
             log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");
@@ -116,11 +115,12 @@ void Loader::loadVolumeGeometry(Volume *volume){
             // LOAD FROM INPUT FILE
             volume->geometry->createPolygonFromFile(volume->url.path().toStdString(), scale);
 
-            /**iUtils::iglMesh mesh;
-            iUtils::iglFromGeometry(*volume->geometry, mesh);
+            /**iUtils::iglMesh *mesh = new iUtils::iglMesh();
+            iUtils::iglFromGeometry(*volume->geometry, *mesh);
             qDebug() << "Matrix";
-            qDebug() << "\tVertices" << mesh.V.size();
-            qDebug() << "\tFaces" << mesh.F.size();**/
+            qDebug() << "\tVertices" << mesh->V.cols() << mesh->V.rows();
+            qDebug() << "\tFaces" << mesh->F.cols() << mesh->F.rows();
+            volume->mesh = mesh;**/
 
         } else {
             log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");

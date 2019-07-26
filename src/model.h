@@ -703,6 +703,7 @@ public:
     Volume * volume;
     Vec magnitude;
     double duration;
+    Vec vary;
 
     vector<Mass *> masses;
 };
@@ -818,6 +819,8 @@ public:
 
 };
 
+struct output_data;
+
 class SimulationConfig
 {
 public:
@@ -838,6 +841,7 @@ public:
     ulong index;
 
     simulation_data *model = nullptr;
+    output_data *output = nullptr;
 };
 
 class OptimizationStop {

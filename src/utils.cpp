@@ -130,6 +130,17 @@ double Utils::distPointPlane(Vec p, Vec n, double o, Vec &v) {
     return dist;
 }
 
+// Check if a point is within rectangular bounds
+bool Utils::inBounds(Vec p, Vec minc, Vec maxc) {
+
+    bool ret = true;
+    if (p[0] < minc[0] || p[0] > maxc[0]) ret = false;
+    if (p[1] < minc[1] || p[1] > maxc[1]) ret = false;
+    if (p[2] < minc[2] || p[2] > maxc[2]) ret = false;
+
+    return ret;
+}
+
 // Check if three vertices are colinear (within eps)
 bool Utils::areCloseToColinear(Vec p1, Vec p2, Vec p3, double eps) {
 

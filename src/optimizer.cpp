@@ -454,6 +454,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio)
 
     customMetricHeader = "Time,Position(x),Position(y),Position(z),Force(x),Force(y),Force(z),Index\n";
 
+    createMassGroup(this->sim, Vec(-0.05, -0.05, -0.05), Vec(0.05, 0.05, 0.05), this->massGroup);
     // Initialize connections
     /**springConns = map<Spring *, vector<Spring *>>();
     massConns = map<Mass *, vector<Spring *>>();
@@ -494,11 +495,12 @@ void MassDisplacer::optimize() {
 
     while (displaced == 0) {
         attempts ++;
-        displaced = displaceSingleMass(dx, chunkSize, order);
+        //displaced = displaceSingleMass(dx, chunkSize, order);
+        displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
     }
 
-    /**prevAttemptNums.push_back(attempts);
+    prevAttemptNums.push_back(attempts);
     while (prevAttemptNums.size() > 100) {
         prevAttemptNums.erase(prevAttemptNums.begin());
     }
@@ -520,8 +522,9 @@ void MassDisplacer::optimize() {
             dx /= 2;
             lastTune = iterations;
         }
-    }**/
+    }
 
+    if (!STARTED) STARTED = true;
     iterations++;
 
     /**if (!STARTED) {
@@ -702,6 +705,28 @@ int MassDisplacer::pickRandomMass(Simulation *sim) {
     return i;
 }
 
+// Pick a random mass form a mass group
+//---------------------------------------------------------------------------
+int MassDisplacer::pickRandomMass(MassDisplacer::MassGroup &group) {
+//---------------------------------------------------------------------------
+
+    int nm = massGroup.group.size();
+
+    // Pick a random mass
+    int i = rand() % nm;
+    bool underExternalForce = massGroup.group[i]->extforce.norm() > 1E-6;
+    bool fixed = massGroup.group[i]->constraints.fixed;
+
+    while (underExternalForce || fixed) {
+        i = rand() % nm;
+        underExternalForce = massGroup.group[i]->extforce.norm() > 1E-6;
+        fixed = massGroup.group[i]->constraints.fixed;
+    }
+
+    return i;
+
+}
+
 // Picks a random mass from a sim that is over cutoff distance away
 // from existing masses
 //---------------------------------------------------------------------------
@@ -755,6 +780,32 @@ void MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
     mt->vel = Vec(0, 0, 0);
     sim->setAll();
 }
+
+// Shift mass at pointer by dx
+//---------------------------------------------------------------------------
+void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
+//---------------------------------------------------------------------------
+
+    for (Spring *s : sim->springs) {
+        Vec orig = mt->origpos + dx;
+        if (s->_left == mt) {
+            double origLen = s->_rest;
+            s->_rest = (s->_right->origpos - orig).norm();
+            s->_k *= origLen / s->_rest;
+        }
+        if (s->_right == mt) {
+            double origLen = s->_rest;
+            s->_rest = (s->_left->origpos - orig).norm();
+            s->_k *= origLen / s->_rest;
+        }
+    }
+
+    mt->origpos += dx;
+    mt->pos += dx;
+    mt->vel = Vec(0, 0, 0);
+    sim->setAll();
+}
+
 
 
 // Moves masses in the chunk by dx
@@ -987,7 +1038,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         //m->unfix();
     }
 
-    if (totalMetricTest < totalMetricSim) {
+    if (totalMetricTest >= totalMetricSim) {
         setMassState(startPos);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
@@ -1013,6 +1064,114 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
 
     return 0;
 }
+
+// Displaces mass within a mass group
+//---------------------------------------------------------------------------
+int MassDisplacer::displaceGroupMass(double displacement) {
+//---------------------------------------------------------------------------
+
+    qDebug() << "Displacing mass";
+    sim->getAll();
+
+    n_springs = sim->springs.size();
+    n_masses = sim->masses.size();
+
+    // Pick a random mass
+    int i = pickRandomMass(massGroup);
+    Mass *mt = massGroup.group[i];
+    qDebug() << "Chose mass" << i;
+
+    // Record start positions
+    vector<Vec> startPos = vector<Vec>();
+    vector<Vec> origPos = vector<Vec>();
+    vector<double> startRest = vector<double>();
+    for (Mass *m : sim->masses) {
+        startPos.push_back(m->pos);
+        origPos.push_back(m->origpos);
+    }
+    for (Spring *s : sim->springs) {
+        startRest.push_back(s->_rest);
+    }
+
+    for (Mass *m : massGroup.outside) {
+        if (!m->constraints.fixed) {
+            m->fix();
+        }
+    }
+    sim->setAll();
+
+    // Equilibrate simulation
+    if (relaxation == 0) {
+        settleSim(sim, 1E-6);
+    } else {
+        relaxSim(sim, relaxation);
+    }
+
+    // Record start metrics
+    double totalMetricSim = 0;
+    double totalLengthSim = 0;
+    double totalEnergySim = 0;
+
+    totalLengthSim = calcTotalLength(sim);
+    totalEnergySim = calcTotalEnergy(sim);
+
+    double totalMetricTest = 0;
+    double totalLengthTest = 0;
+    double totalEnergyTest = 0;
+
+    // Pick a random direction
+    Vec dir = Utils::randDirectionVec();
+    qDebug() << "Direction" << dir[0] << dir[1] << dir[2];
+    Vec dx = displacement * dir;
+
+    // Move mass
+    shiftMassPos(sim, mt, dx);
+
+    // Run simulation
+    // Equilibrate simulation
+    if (relaxation == 0) {
+        settleSim(sim, 1E-6);
+    } else {
+        relaxSim(sim, relaxation);
+    }
+
+    // Calculate test metrics
+    totalLengthTest = calcTotalLength(sim);
+    totalEnergyTest = calcTotalEnergy(sim);
+
+    totalMetricSim = totalEnergySim * totalLengthSim ;
+    totalMetricTest = totalEnergyTest * totalLengthTest ;
+
+    qDebug() << "Total lengths Sim" << totalLengthSim << " Test" << totalLengthTest;
+    qDebug() << "Total energies Sim" << totalEnergySim << " Test" << totalEnergyTest;
+    qDebug() << "Total metrics Sim" << totalMetricSim << " Test" << totalMetricTest;
+
+    if (totalMetricTest >= totalMetricSim) {
+        setMassState(startPos);
+        for (int m = 0; m < sim->masses.size(); m++) {
+            sim->masses[m]->origpos = origPos[m];
+        }
+        for (int j = 0; j < n_springs; j++) {
+            Spring *s = sim->springs[j];
+
+            s->_k *= s->_rest / startRest[j];
+            s->_rest = startRest[j];
+            s->_max_stress = 0;
+        }
+
+        localEnergy = totalEnergySim;
+        sim->setAll();
+    } else {
+        sim->setAll();
+        qDebug() << "Moved" << i;
+        localEnergy = totalEnergyTest;
+        return 1;
+    }
+
+    return 0;
+
+}
+
 
 // Creates arrays of surrounding masses around a center mass
 //---------------------------------------------------------------------------
@@ -1055,6 +1214,47 @@ void MassDisplacer::createMassGroup(Simulation *sim, double cutoff, Mass *center
         massGroup.outside = culledOutsideGroup;
 
 }
+
+// Creates arrays of surrounding masses within a bounding box defined by min and max corner
+//---------------------------------------------------------------------------
+void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup) {
+//---------------------------------------------------------------------------
+
+    massGroup.group = vector<Mass *>();
+    massGroup.springs = vector<Spring *>();
+    massGroup.outside = vector<Mass *>();
+
+    for (Spring *s : sim->springs) {
+        bool leftInBounds = Utils::inBounds(s->_left->pos, minc, maxc);
+        bool rightInBounds = Utils::inBounds(s->_right->pos, minc, maxc);
+        if (leftInBounds && rightInBounds) {
+            massGroup.springs.push_back(s);
+            massGroup.group.push_back(s->_left);
+            massGroup.group.push_back(s->_right);
+        } else if (leftInBounds) {
+            // Border spring: Left mass is within the order group, right mass is not
+            massGroup.outside.push_back(s->_right);
+        } else if (rightInBounds) {
+            // Border spring: Right mass is within the order group, left mass is not
+            massGroup.outside.push_back(s->_left);
+        }
+    }
+
+    vector<Mass *> culledOrderGroup = vector<Mass *>();
+    vector<Mass *> culledOutsideGroup = vector<Mass *>();
+    for (Mass *m : sim->masses) {
+        if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
+            culledOrderGroup.push_back(m);
+        }
+        if (find(massGroup.outside.begin(), massGroup.outside.end(), m) != massGroup.outside.end()) {
+            culledOutsideGroup.push_back(m);
+        }
+    }
+    massGroup.group = culledOrderGroup;
+    massGroup.outside = culledOutsideGroup;
+
+}
+
 
 // Moves num masses in random directions by displacement
 // Creates serial Simulations and compares output

@@ -16,6 +16,7 @@
 #include "polygonizer.h"
 #include "properties.h"
 #include "designViewer.h"
+#include "simViewer.h"
 #include "simulatorParallel.h"
 #include "simulator.h"
 
@@ -99,7 +100,8 @@ private:
     DMLTree *dmlTreeWidget;
     PropertiesTable *propTable;
     DesignViewer *designWidget;
-    Simulator *simWidget;
+    Simulator *simulator;
+    SimViewer *simWidget;
     Loader *loader;
 
     ExportThread exportThread;

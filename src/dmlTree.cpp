@@ -41,6 +41,7 @@ static inline QString volumeAttribute() { return QStringLiteral("volume"); }
 // Force attributes
 static inline QString magnitudeAttribute() {return QStringLiteral("magnitude"); }
 static inline QString durationAttribute() { return QStringLiteral("duration"); }
+static inline QString varyAttribute() { return QStringLiteral("vary"); }
 
 // Simulation elements
 static inline QString latticeElement() {return QStringLiteral("lattice"); }
@@ -267,12 +268,14 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *volume = createAttributeItem(item, attrMap, volumeAttribute());
         auto *magnitude = createAttributeItem(item, attrMap, magnitudeAttribute());
         auto *duration = createAttributeItem(item, attrMap, durationAttribute());
+        auto *vary = createAttributeItem(item, attrMap, varyAttribute());
 
         // TODO add error checking for non-existent volume
         Force *f = new Force();
         f->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
         f->magnitude = magnitude ? parseVec(magnitude->text(1)) : Vec(0, 0, 0);
         f->duration = duration ? duration->text(1).toDouble() : -1;
+        f->vary = vary ? parseVec(vary->text(1)) : Vec(0,0,0);
 
         if (!(f->volume))
             qDebug() << "Volume" << volume->text(1) << "not found";
@@ -550,6 +553,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         if (!(o->sim))
             qDebug() << "Simulation" << sim->text(1) << "not found";
 
+        design_ptr->simConfigMap[sim->text(1)]->output = o;
         design_ptr->outputs.push_back(o);
         design_ptr->outputMap[o->id] = o;
     }

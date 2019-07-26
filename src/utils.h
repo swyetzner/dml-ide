@@ -37,6 +37,7 @@ public:
     static Vec findNormal(Vec v1, Vec v2, Vec v3);
     static double distPointLine(Vec p, Vec p1, Vec p2);
     static double distPointPlane(Vec p, Vec n, double o, Vec &v);
+    static bool inBounds(Vec p, Vec minc, Vec maxc);
     static bool areCloseToColinear(Vec p1, Vec p2, Vec p3, double eps);
     static bool areCloseToCoplanar(Vec p1, Vec p2, Vec p3, Vec p4, double eps);
     static bool getPlaneEquation(Vec normal, Vec pt, double &d);

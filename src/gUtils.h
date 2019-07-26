@@ -4,7 +4,9 @@
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 #include <glm/glm.hpp>
-using namespace glm;
+
+typedef glm::vec3 vec3;
+typedef glm::vec4 vec4;
 
 class GUtils
 {

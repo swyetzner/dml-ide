@@ -190,11 +190,7 @@ void Window::saveSTLFile(double barDiam, double res) {
         log(tr("Export Error: A simulation must be run and saved before it can be exported."));
         return;
     }
-    if (design->outputs.empty()) {
-        log(tr("A <output> element must be configured."));
-        qDebug() << "A <output> element must be configured.";
-        return;
-    }
+
     /**Polygonizer polygonizer = Polygonizer(arrays_bars, 0.00075, 0.0015, 32);
     polygonizer.initBaseSegments();
     qDebug() << "Initialized Base Segments";
@@ -203,9 +199,10 @@ void Window::saveSTLFile(double barDiam, double res) {
     polygonizer.calculatePolygon();
     polygonizer.writePolygonToSTL(fileName.toStdString());**/
 
-    qDebug() << "Starting export thread";
-    exportThread.startExport(fileName.toStdString(), design->outputs[0], res, barDiam, NUM_THREADS);
-
+    for (auto *o : design->outputs) {
+        qDebug() << "Starting export thread" << o->id;
+        exportThread.startExport(fileName.toStdString(), o, res, barDiam, NUM_THREADS);
+    }
     qDebug() << "Exporting STL file";
 
 }
@@ -266,9 +263,10 @@ void Window::reloadSimulation() {
 
     loader->loadSimulation(simulation, &design->simConfigs[0]);
 
-    simWidget = new Simulator(simulation, &design->simConfigs[0], design->optConfig, this);
-    connect(simWidget, &Simulator::stopCriteriaSat, this, &Window::simulationFinished);
-    connect(simWidget, &Simulator::log, this, &Window::log);
+    simulator = new Simulator(simulation, loader, &design->simConfigs[0],  design->optConfig);
+    simWidget = new SimViewer(simulator, this);
+    connect(simWidget, &SimViewer::stopCriteriaSat, this, &Window::simulationFinished);
+    connect(simWidget, &SimViewer::log, this, &Window::log);
 
     ui->verticalLayout->addWidget(simWidget);
     ui->propLayout->addWidget(ui->simSettingsBox);
@@ -441,11 +439,14 @@ void Window::on_actionRecordSim_toggled(bool toggled)
 void Window::on_actionSaveSim_triggered()
 {
     arrays_bars = new bar_data();
-    simWidget->prepare();
     loader->loadBarsFromSim(simulation, arrays_bars, false, false);
 
     for (output_data *o : design->outputs) {
         o->barData = arrays_bars;
+    }
+    if (design->outputs.empty()) {
+        design->outputs.push_back(new output_data());
+        design->outputs.back()->barData = arrays_bars;
     }
     log(tr("Saved %1 bars from simulation.").arg(arrays_bars->bars.size()));
     log(tr("X Bounds: (%1, %2)").arg(arrays_bars->bounds.minCorner[0]).arg(arrays_bars->bounds.maxCorner[0]));
@@ -475,15 +476,11 @@ void Window::setUpSimulationOptions() {
     }
     ui->renderUpdateEdit->setText(QString::number(defaultRenderPeriod));
 
-    connect(simWidget, &Simulator::timeChange, this, &Window::updateTimeLCD);
-    connect(simWidget, &Simulator::setTimestep, this, &Window::setTimestep);
-    connect(simWidget, &Simulator::getTimestep, this, &Window::getTimestep);
-    connect(simWidget, &Simulator::setRenderUpdate, this, &Window::setRenderUpdate);
-    connect(simWidget, &Simulator::getRenderUpdate, this, &Window::getRenderUpdate);
-    connect(simWidget, &Simulator::setSpringConst, this, &Window::setSpringConst);
-    connect(simWidget, &Simulator::getSpringConst, this, &Window::getSpringConst);
-    connect(simWidget, &Simulator::getShowStress, this, &Window::getShowStress);
-    connect(simWidget, &Simulator::reloadSimulation, this, &Window::reloadSimulation);
+    connect(simWidget, &SimViewer::timeChange, this, &Window::updateTimeLCD);
+    connect(simWidget, &SimViewer::getTimestep, this, &Window::getTimestep);
+    connect(simWidget, &SimViewer::getRenderUpdate, this, &Window::getRenderUpdate);
+    connect(simWidget, &SimViewer::getShowStress, this, &Window::getShowStress);
+    connect(simWidget, &SimViewer::reloadSimulation, this, &Window::reloadSimulation);
 }
 
 
