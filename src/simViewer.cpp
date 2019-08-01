@@ -25,6 +25,12 @@ SimViewer::SimViewer(Simulator *simulator, QWidget *parent)
     showOverlays = true;
 
     RECORDING = false;
+    outputDir = "output";
+    sampleDir = "output/sample";
+    framerate = 500;
+    renderNumber = 0;
+    simFrameInterval = 0;
+    sampleNumber = 0;
 
     bounds = getBoundingBox();
 
@@ -42,6 +48,11 @@ SimViewer::SimViewer(Simulator *simulator, QWidget *parent)
 void SimViewer::start() {
     simulator->setSyncTimestep(getRenderUpdate());
     simulator->setSimTimestep(getTimestep());
+    simFrameInterval = int(1.0 / getRenderUpdate());
+    qInfo() << "VIDEO RECORDING";
+    qInfo() << "Renders per sim second: " << simFrameInterval;
+    qInfo() << "Video frames per sim second: " << int(framerate);
+    qInfo() << "Renders per video frame: " << int(simFrameInterval / framerate);
 
     timer->start(1);
 }
@@ -67,30 +78,33 @@ void SimViewer::stop() {
 void SimViewer::run() {
     simulator->runSimulation(true);
     update();
+
+    // Record video
+    if (RECORDING && doRecord()) saveImage(grabFramebuffer());
+    renderNumber++;
 }
 
 void SimViewer::recordVideo() {
     RECORDING = true;
     imageNumber = 0;
+
+    // Output directory
+    assert(!outputDir.isEmpty());
     QString currentPath = QDir::currentPath();
-    qDebug() << currentPath;
     QDir output(currentPath + QDir::separator() + outputDir);
     if (!output.exists()) {
         log("Output folder does not exist. Creating...");
         QDir::current().mkdir(outputDir);
     } else {
         output.removeRecursively();
-        qDebug() << QDir::current().path();
         QDir::current().mkdir(outputDir);
     }
+    // Image metric file
+    imageMetricFile = QString(QDir::currentPath() + QDir::separator() +
+            outputDir + QDir::separator() + "imageCatalog.txt");
 
     // Record initial frame
-    QString outputFile = QString(QDir::currentPath() + QDir::separator() +
-                                 outputDir + QDir::separator() +
-                                 "dmlFrame_" + QString::number(imageNumber) + ".png");
-
-    saveImage(grabFramebuffer(), outputFile);
-    imageNumber++;
+    saveImage(grabFramebuffer());
 }
 
 void SimViewer::saveVideo() {
@@ -109,7 +123,7 @@ void SimViewer::saveVideo() {
         }
 
         QString outputPrefix = QDir::currentPath() + QDir::separator() + outputDir + QDir::separator();
-        QString fps = QString::number(int(1/framerate));
+        QString fps = QString::number(int(framerate));
         qDebug() << "Outputting video:" <<  fileName << " FPS" << fps;
         QString createVideoProgram = "ffmpeg -framerate " + fps + " -y -i " + outputPrefix +
                                      "dmlFrame_%d.png -vf \"eq=saturation=2.0, pad=ceil(iw/2)*2:ceil(ih/2)*2\" -vcodec libx264 -crf 25 -pix_fmt yuv420p ";
@@ -183,8 +197,8 @@ static const GLfloat brokenSpringColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
 //
 void SimViewer::updatePairVertices() {
 
-    n_springs = simulator->sim->springs.size();
     if (resizeBuffers) {
+        n_springs = simulator->sim->springs.size();
         delete pairVertices;
         pairVertices = new GLfloat[2 * 3 * n_springs];
     }
@@ -326,7 +340,8 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
                                   spring->_curr_force, stressColor);
 
         // Set alpha to max stress value
-        stressColor[3] = float(abs(spring->_curr_force) / totalForce);
+        stressColor[3] = GUtils::interpolate(0.01, 1.0, 0.0, 1.0, fabs(spring->_curr_force) / totalForce);
+        //stressColor[3] = float(abs(spring->_curr_force) / totalForce);
 
         addColor(buffer, stressColor, count);
         addColor(buffer, stressColor, count);
@@ -861,7 +876,7 @@ void SimViewer::paintGL() {
     if (n_springs != int(simulator->sim->springs.size())) {
         resizeBuffers = true;
     }
-    if (showStress || getShowStress() != showStress) {
+    if (showStress || getShowStress() != showStress || resizeBuffers) {
         showStress = getShowStress();
         updateColors();
     }
@@ -928,10 +943,10 @@ void SimViewer::updateTextPanel() {
             upperPanel.sprintf("%s --- %s\n\n"
                                "Bars: %d\n"
                                "Time: %.2lf s\n"
-                               "Weight remaining: %.2lf%\n"
+                               "Weight remaining: %.2lf%%\n"
                                "Deflection: %.4lf m\n"
                                "Optimization iterations: %d\n"
-                               "Optimization threshold: %.1lf% bars per iteration",
+                               "Optimization threshold: %.1lf%% bars per iteration",
                                simName.toUpper().toStdString().c_str(),
                                metrics.optimize_rule.methodName().replace(QChar('_'), QChar(' ')).toStdString().c_str(),
                                metrics.nbars, metrics.time,
@@ -945,9 +960,9 @@ void SimViewer::updateTextPanel() {
             upperPanel.sprintf("%s\n\n"
                                "Bars: %d\n"
                                "Time: %.2lf s\n"
-                               "Weight remaining: %.2lf%\n"
+                               "Weight remaining: %.2lf%%\n"
                                "Deflection: %.4lf m\n"
-                               "Energy: %.2lf%, %.4lf (current), %.4lf (start)\n"
+                               "Energy: %.2lf%%, %.4lf (current), %.4lf (start)\n"
                                "Optimization iterations: %d\n"
                                "Relaxation interval: %d order\n"
                                "Displacement: %.4lf meters",
@@ -967,8 +982,7 @@ void SimViewer::updateTextPanel() {
                                "Bars: %d\n"
                                "Time: %.2lf s\n",
                                simName.toUpper().toStdString().c_str(),
-                               metrics.nbars, metrics.time,
-                               100.0 * metrics.totalLength / metrics.totalLength_start);
+                               metrics.nbars, metrics.time);
             break;
     }
 
@@ -1086,7 +1100,104 @@ void SimViewer::panCameraBy(int x, int y, int z)
 // --------------------------------------------------------------------
 // VIDEO OUTPUT
 // --------------------------------------------------------------------
-void SimViewer::saveImage(const QImage &image, const QString &outputFile) {
+void SimViewer::saveImage(const QImage &image) {
+
+    QString outputFile;
+    getImageFileName(outputFile);
     image.save(outputFile);
-    qDebug() << "Frame saved" << outputFile;
+
+    QString imageMetrics;
+    getImageMetrics(imageMetrics);
+    QFile file(imageMetricFile);
+    file.open(QIODevice::Append);
+    file.write(imageMetrics.toUtf8());
+
+    qDebug() << "Frame saved" << outputFile << " Render" << renderNumber;
+    imageNumber++;
+}
+
+// Gets metrics for last image
+void SimViewer::getImageMetrics(QString &text) {
+    sim_metrics metrics;
+    simulator->getSimMetrics(metrics);
+
+    switch(metrics.optimize_rule.method) {
+        case OptimizationRule::REMOVE_LOW_STRESS:
+            text.sprintf("IMAGE --- dmlFrame_%d\n"
+                           "Bars: %d\n"
+                           "Time: %.2lf s\n"
+                           "Weight (start): %.4lf\n"
+                           "Weight (current): %.4lf\n"
+                           "Weight remaining: %.2lf%%\n"
+                           "Deflection: %.4lf m\n"
+                           "Optimization iterations: %d\n"
+                           "Optimization threshold: %.1lf%% bars per iteration\n\n",
+                           imageNumber,
+                           metrics.nbars, metrics.time,
+                           metrics.totalLength_start, metrics.totalLength,
+                           100.0 * metrics.totalLength / metrics.totalLength_start,
+                           metrics.deflection,
+                           metrics.optimize_iterations,
+                           metrics.optimize_rule.threshold * 100);
+            break;
+
+        case OptimizationRule::MASS_DISPLACE:
+            text.sprintf("IMAGE --- dmlFrame_%d\n"
+                         "Bars: %d\n"
+                         "Time: %.2lf s\n"
+                         "Weight (start): %.4lf\n"
+                         "Weight (current): %.4lf\n"
+                         "Weight remaining: %.2lf%%\n"
+                         "Deflection: %.4lf m\n"
+                         "Energy (start): %.4lf\n"
+                         "Energy (current): %.4lf\n"
+                         "Energy remaining: %.2lf%%\n"
+                         "Optimization iterations: %d\n"
+                         "Relaxation interval: %d order\n"
+                         "Displacement: %.4lf meters\n\n",
+                         imageNumber,
+                         metrics.nbars, metrics.time,
+                         metrics.totalLength_start, metrics.totalLength,
+                         100.0 * metrics.totalLength / metrics.totalLength_start,
+                         metrics.deflection,
+                         metrics.totalEnergy, metrics.totalEnergy_start,
+                         (100.0 * metrics.totalEnergy / ((metrics.totalEnergy_start > 0)? metrics.totalEnergy_start : metrics.totalEnergy)),
+                         metrics.optimize_iterations,
+                         metrics.relaxation_interval,
+                         metrics.displacement);
+            break;
+
+        case OptimizationRule::NONE:
+            text.sprintf("IMAGE --- dmlFrame_%d\n"
+                               "Bars: %d\n"
+                               "Time: %.2lf s\n\n",
+                               imageNumber,
+                               metrics.nbars, metrics.time);
+           break;
+    }
+}
+
+// Gets output file name based on imageNumber
+void SimViewer::getImageFileName(QString &outputFile) {
+    outputFile = QString(QDir::currentPath() + QDir::separator() +
+                                 outputDir + QDir::separator() +
+                                 "dmlFrame_" + QString::number(imageNumber) + ".png");
+}
+
+// Returns true if renderNumber satisfies framerate
+// simFrameInterval = renders per second (sim time)
+// framerate = desired images per second (sim time)
+bool SimViewer::doRecord() {
+    return (renderNumber % int(simFrameInterval / framerate) == 0);
+}
+
+// Saves image into sample folder
+void SimViewer::takeSample() {
+    QString samplePrefix = QDir::currentPath() + QDir::separator() + sampleDir + QDir::separator();
+    qInfo() << "Sampling video" << sampleNumber;
+
+    QString outputFile = samplePrefix + "sample_" + QString::number(sampleNumber) + ".png";
+    QImage image = grabFramebuffer();
+    image.save(outputFile);
+    sampleNumber++;
 }

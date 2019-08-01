@@ -38,9 +38,10 @@ void loadNoGraphics(std::string input, double gstep, double rstep) {
     Loader *loader = new Loader();
     loader->loadDesignModels(design);
     loader->loadSimulation(simulation, &design->simConfigs[0]);
+    cout << "Simulation springs: " << simulation->springs.size() << " masses: " << simulation->masses.size() << "\n";
     cout << "Loading complete.\n\n";
 
-    qInstallMessageHandler(qtNoDebugMessageOutput);
+    //qInstallMessageHandler(qtNoDebugMessageOutput);
     Simulator *simulator = new Simulator(simulation, loader, &design->simConfigs[0], design->optConfig);
     simulator->setSimTimestep(gstep);
     simulator->setSyncTimestep(rstep);
@@ -70,24 +71,24 @@ int main(int argc, char *argv[]) {
         string outputModelPath = CommandLine::outputModelPath? CommandLine::outputModelPath.Get(): "";
         string outputVideoPath = CommandLine::outputVideoPath? CommandLine::outputVideoPath.Get(): "";
 
-        if (graphics) {
-            QApplication a(argc, argv);
-            Window w;
-            w.setWindowTitle("Design Model Language IDE");
-
-            w.loadFromCmdLine(QString::fromStdString(dmlInput),
-                              gpuTimestep, renderTimestep,
-                              QString::fromStdString(outputModelPath),
-                              QString::fromStdString(outputVideoPath));
-            w.show();
-            return a.exec();
-
-        } else {
+        if (!graphics) {
 
             cout << "\n\nLoading without a graphical user interface...\n\n";
             loadNoGraphics(dmlInput, gpuTimestep, renderTimestep);
 
         }
+        QApplication a(argc, argv);
+        Window w;
+        w.setWindowTitle("Design Model Language IDE");
+
+        Parser *parser = new Parser();
+        parser->loadDML(dmlInput);
+        parser->parseDesign(w.design);
+        delete parser;
+
+        w.setUpDMLFeatures();
+        w.show();
+        return a.exec();
 
     } else {
         QApplication a(argc, argv);

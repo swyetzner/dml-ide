@@ -31,7 +31,7 @@ struct sim_metrics {
 class Simulator {
 public:
     explicit Simulator(Simulation *sim, Loader *loader, SimulationConfig *config,
-            OptimizationConfig * optconfig = nullptr);
+            OptimizationConfig * optconfig = nullptr, bool graphics = false);
     ~Simulator();
 
     enum Status {
@@ -45,6 +45,7 @@ public:
     Optimizer *optimizer;
     OptimizationConfig *optConfig;
     Loader *loader;
+    bar_data *barData;
     ExportThread exportThread;
 
     SpringInserter *springInserter;
@@ -52,6 +53,7 @@ public:
     SpringRemover *springRemover;
 
     Status simStatus;
+    bool GRAPHICS;
 
     // --------------------------------------------------------------------
     // SIMULATION  FUNCTIONS
@@ -125,11 +127,12 @@ private:
     void createDataDir();
     QString metricFile;
     QString customMetricFile;
+    void dumpSpringData();
     void writeMetricHeader(const QString &outputFile);
     void writeCustomMetricHeader(const QString &outputFile);
     void writeMetric(const QString &outputFile);
     void writeCustomMetric(const QString &outputFile);
-    void writePos(const QString &outputFile);
+    void writeSimDump(const QString &outputFile);
 
     // --------------------------------------------------------------------
 };

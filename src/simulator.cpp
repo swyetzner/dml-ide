@@ -1,7 +1,7 @@
 #include "simulator.h"
 #include <QDir>
 
-Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, OptimizationConfig *optConfig) {
+Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, OptimizationConfig *optConfig, bool graphics) {
     this->sim = sim;
     this->config = config;
     this->optConfig = optConfig;
@@ -34,11 +34,16 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     dataDir = "data";
     createDataDir();
 
+    dumpSpringData();
+
     n_repeats = 0;
     repeatTime = config->repeat.after;
     explicitRotation = config->repeat.rotationExplicit;
     repeatRotation = config->repeat.rotation;
     optimizeAfter = (repeatTime > 0)? 10 : 0;
+
+    barData = nullptr;
+    GRAPHICS = graphics;
 
     double minUnitDist = DBL_MAX;
     for (Spring *t : sim->springs) {
@@ -109,6 +114,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 }
 
 Simulator::~Simulator() {
+    delete barData;
     delete springInserter;
     delete springRemover;
     delete massDisplacer;
@@ -159,15 +165,27 @@ void Simulator::getSimMetrics(sim_metrics &metrics) {
     metrics.displacement = massDisplacer? massDisplacer->dx : 0;
 }
 
+void Simulator::dumpSpringData() {
+    cout << "DUMPING SPRING DATA\n";
+    QString dumpFile = QString(QDir::currentPath() + QDir::separator() +
+                               dataDir + QDir::separator() +
+                               "simDump_%1.txt").arg(optimized);
+    writeSimDump(dumpFile);
+}
+
 void Simulator::exportSimulation() {
-    bar_data *bd = new bar_data();
-    loader->loadBarsFromSim(sim, bd, false, false);
+    int NUM_THREADS = 32;
+
+    delete barData;
+    barData = new bar_data();
+    loader->loadBarsFromSim(sim, barData, false, false);
 
     if (!config->output) {
         config->output = new output_data();
     }
-    config->output->barData = bd;
-    qDebug() << "Saved" << bd->bars.size() << "bars from simulation";
+    qDebug() << config->output->id;
+    config->output->barData = barData;
+    qDebug() << "Saved" << barData->bars.size() << "bars from simulation";
 
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
@@ -175,16 +193,27 @@ void Simulator::exportSimulation() {
     oss << put_time(&tm, "%d-%m-%Y_%H-%M-%S");
     string tmString = oss.str();
 
-    qDebug() << "Starting export thread";
-    exportThread.startExport(tmString + ".stl",
-                             config->output,
-                             sim->springs[0]->_diam * 0.5,
-                             sim->springs[0]->_diam,
-                             32);
+    if (GRAPHICS) {
+        qDebug() << "Starting export thread";
+        exportThread.startExport(tmString + ".stl",
+                                 config->output,
+                                 sim->springs[0]->_diam * 0.5,
+                                 sim->springs[0]->_diam,
+                                 NUM_THREADS);
+    } else {
+        cout << "Starting export...\n";
+        Polygonizer *polygonizer = new Polygonizer(config->output,
+                                                   sim->springs[0]->_diam * 0.5,
+                                                   sim->springs[0]->_diam,
+                                                   NUM_THREADS);
+        polygonizer->initBaseSegments();
+        polygonizer->calculatePolygon();
+        polygonizer->writePolygonToSTL(tmString + ".stl");
+        delete polygonizer;
+    }
 }
 
 void Simulator::run() {
-
     if (!sim->running()) {
         qDebug() << "Next Load" << currentLoad << "Queue size" << config->loadQueue.size() << "Switch at time" << pastLoadTime;
         bool loadQueueDone = false;
@@ -193,8 +222,6 @@ void Simulator::run() {
         if (repeatTime > 0 && repeatTime < sim->time()) {
             repeatLoad();
         }
-
-        writeMetric(metricFile);
 
         bool currLoadDone = sim->time() >= pastLoadTime;
         if (currLoadDone && !config->loadQueue.empty()) {
@@ -229,12 +256,12 @@ void Simulator::run() {
         }
 
         bool equilibriumMetric = optConfig != nullptr && optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE;
-        if (equilibriumMetric && totalEnergy / totalEnergy_start < 0.1) {
+        /**if (equilibriumMetric && totalEnergy / totalEnergy_start < 0.1) {
             equilibriumMetric = false;
             optimizer = springRemover;
             switched = true;
             //emit stopCriteriaSat();
-        }
+        }**/
         if (equilibriumMetric) {
 
             equilibriate();
@@ -291,7 +318,7 @@ void Simulator::run() {
                             }
 
                             optimizer->optimize();
-                            //writeMetric(metricFile);
+                            writeMetric(metricFile);
 
                             optimized++;
 
@@ -314,8 +341,9 @@ void Simulator::run() {
 
         if (stopReached) {
             simStatus = STOPPED;
+            dumpSpringData();
             exportSimulation();
-            return;
+            exit(0);
         }
     }
 }
@@ -498,14 +526,13 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
         return;
     }
 
-    if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        file.write("Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
-    } else {
-        file.write("Time,Iteration,Deflection,Total Weight,Bar Number\n");
+    if (!optConfig->rules.empty()) {
+        if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
+            file.write("Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
+        } else {
+            file.write("Time,Iteration,Deflection,Total Weight,Bar Number\n");
+        }
     }
-
-    // Write starting line
-    writeMetric(outputFile);
 }
 
 void Simulator::writeCustomMetricHeader(const QString &outputFile) {
@@ -514,8 +541,10 @@ void Simulator::writeCustomMetricHeader(const QString &outputFile) {
         return;
     }
 
-    if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        file.write(massDisplacer->customMetricHeader.toUtf8());
+    if (!optConfig->rules.empty()) {
+        if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
+            file.write(massDisplacer->customMetricHeader.toUtf8());
+        }
     }
 }
 
@@ -526,24 +555,26 @@ void Simulator::writeMetric(const QString &outputFile) {
         return;
     }
 
-    if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
-                .arg(sim->time())
-                .arg(optimized)
-                .arg(calcDeflection())
-                .arg(massDisplacer->dx)
-                .arg(massDisplacer->attempts)
-                .arg(totalEnergy)
-                .arg(totalLength);
-        file.write(mLine.toUtf8());
-    } else if (optConfig->stopCriteria.front().metric == OptimizationStop::WEIGHT) {
-        QString mLine = QString("%1,%2,%3,%4,%5\n")
-                .arg(sim->time())
-                .arg(optimized)
-                .arg(calcDeflection())
-                .arg(totalLength)
-                .arg(n_springs);
-        file.write(mLine.toUtf8());
+    if (!optConfig->rules.empty()) {
+        if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
+            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
+                    .arg(sim->time())
+                    .arg(optimized)
+                    .arg(calcDeflection())
+                    .arg(massDisplacer->dx)
+                    .arg(massDisplacer->attempts)
+                    .arg(totalEnergy)
+                    .arg(totalLength);
+            file.write(mLine.toUtf8());
+        } else if (optConfig->rules.front().method == OptimizationRule::REMOVE_LOW_STRESS) {
+            QString mLine = QString("%1,%2,%3,%4,%5\n")
+                    .arg(sim->time())
+                    .arg(optimized)
+                    .arg(calcDeflection())
+                    .arg(totalLength)
+                    .arg(n_springs);
+            file.write(mLine.toUtf8());
+        }
     }
 }
 
@@ -554,8 +585,44 @@ void Simulator::writeCustomMetric(const QString &outputFile) {
         return;
     }
 
-    if (optConfig->stopCriteria.front().metric == OptimizationStop::ENERGY) {
-        file.write(massDisplacer->customMetric.toUtf8());
+    if (!optConfig->rules.empty()) {
+        if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
+            file.write(massDisplacer->customMetric.toUtf8());
+        }
+    }
+}
+
+void Simulator::writeSimDump(const QString &outputFile) {
+    QFile file(outputFile);
+    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+        return;
+    }
+
+    // HEADER
+    QString h = QString("SIMULATION DUMP; Time: %1, Springs: %2, Masses: %3\n")
+            .arg(sim->time())
+            .arg(sim->springs.size())
+            .arg(sim->masses.size());
+    file.write(h.toUtf8());
+
+    for (int m = 0; m < sim->masses.size(); m++) {
+        QString mline = QString("Mass %1 (%2, %3, %4) (%5, %6, %7) %8\n")
+                .arg(m)
+                .arg(sim->masses[m]->pos[0])
+                .arg(sim->masses[m]->pos[1])
+                .arg(sim->masses[m]->pos[2])
+                .arg(sim->masses[m]->extforce[0])
+                .arg(sim->masses[m]->extforce[1])
+                .arg(sim->masses[m]->extforce[2])
+                .arg(sim->masses[m]->constraints.fixed? "F": "");
+        file.write(mline.toUtf8());
+    }
+    for (int s = 0; s < sim->springs.size(); s++) {
+        QString sline = QString("Spring %1 %2 %3\n")
+                .arg(s)
+                .arg(sim->springs[s]->_left->index)
+                .arg(sim->springs[s]->_right->index);
+        file.write(sline.toUtf8());
     }
 }
 
@@ -563,11 +630,9 @@ void Simulator::printStatus() {
     sim_metrics metrics;
     getSimMetrics(metrics);
     ostringstream oss;
-    oss << "-------------------------------------------------------\r";
-    oss << "Simulating...\r";
-    oss << "Optimization Iterations: " << metrics.optimize_iterations << "\r";
-    oss << "Time: " << metrics.time << " s\r";
-    oss << "-------------------------------------------------------\r";
+    oss << "Simulating...Optimization Iterations: " << metrics.optimize_iterations << " Bars: " << metrics.nbars << " Time: " << metrics.time << "s Energy: " << metrics.totalEnergy << "\n";
+    oss << "Deflection: " << metrics.deflection << std::endl;
+
     std::cout << oss.str();
 }
 

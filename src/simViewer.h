@@ -67,9 +67,17 @@ private:
     // --------------------------------------------------------------------
     bool RECORDING;
     float framerate;
-    int imageNumber;
-    QString outputDir;
-    void saveImage(const QImage &image, const QString &outputFile);
+    int simFrameInterval;
+    int imageNumber, sampleNumber;
+    int renderNumber;
+    QString outputDir, sampleDir;
+    QString imageMetricFile;
+
+    void saveImage(const QImage &image);
+    void getImageFileName(QString &outputFile);
+    void getImageMetrics(QString &text);
+    bool doRecord();
+    void takeSample();
 
     // --------------------------------------------------------------------
     // OPENGL FUNCTIONS

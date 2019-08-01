@@ -207,6 +207,7 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
     lattice.unit = unit;
     lattice.barDiameter = bardiam;
     lattice.material = design->materialMap[material];
+    lattice.hull = hull;
     if (!(lattice.material)) {
         cerr << "Material '" << material.toStdString() << "' not found.";
         exit(EXIT_FAILURE);
@@ -214,7 +215,7 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
 
     // Damping
     Damping damping;
-    auto dml_damp = dml_sim.child("damp");
+    auto dml_damp = dml_sim.child("damping");
     double velocity = dml_damp.attribute("velocity").as_double(0);
     damping.velocity = velocity;
 
