@@ -320,7 +320,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
 
         qDebug() << "Loading lattice config";
 
-        LatticeConfig l = new LatticeConfig();
+        LatticeConfig *l = new LatticeConfig();
         l->fill = fill ? (fill->text(1) == "cubic"?
                              LatticeConfig::CUBIC_FILL :
                              LatticeConfig::SPACE_FILL) : LatticeConfig::CUBIC_FILL;
