@@ -939,7 +939,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
       float cutoff = float(latticeBox->unit[0]);
 
       // TODO: simplify STL hull according to cutoff
-      Vec startCorner, endCorner;
 
       model_data *latticeVol = latticeBox->volume.model;
 
