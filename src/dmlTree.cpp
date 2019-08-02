@@ -339,7 +339,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         QString simConfigId = parentItem->child(0)->text(1);
 
         l->volume = volume ? design_ptr->volumeMap[volume->text(1)] : design_ptr->simConfigMap[simConfigId]->volume;
-        design_ptr->simConfigMap[simConfigId]->lattices.push_back() = l;
+        design_ptr->simConfigMap[simConfigId]->lattices.push_back(l);
     }
 
     // ---- <damping> ----
