@@ -940,7 +940,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
       // TODO: simplify STL hull according to cutoff
 
-      model_data *latticeVol = latticeBox->volume.model;
+      model_data *latticeVol = latticeBox->volume->model;
 
       glm::vec3 startCorner = latticeVol->bounds.minCorner;
       glm::vec3 endCorner = latticeVol->bounds.maxCorner;
@@ -950,14 +950,14 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
       // Get point estimate to calculate k
       int xLines = int((endCorner.x - startCorner.x) / cutoff) + 1;
-      int yLines = int((endCornerp.y - startCorner.y) / cutoff) + 1;
+      int yLines = int((endCorner.y - startCorner.y) / cutoff) + 1;
       int zLines = int((endCorner.z - startCorner.z) / cutoff) + 1;
       int kNewPoints = xLines * yLines * zLines;
       kNewPoints *= 3;
 
       qDebug() << "Generating" << kNewPoints << "random point candidates with cutoff" << cutoff;
 
-      point = Utils::randPoint(startCorner, endCorner);
+      glm::vec3 point = Utils::randPoint(startCorner, endCorner);
 
       if (includeHull) {
         while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point) || !latticeVol->isInside(point, 0)) {
