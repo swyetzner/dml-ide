@@ -744,6 +744,7 @@ public:
     Material *material;
     Vec jiggle;
     bool hull;
+    Volume *volume;
 
     QString fillName() {
         switch(fill) {
@@ -826,7 +827,7 @@ public:
 
     QString id;
     Volume * volume;
-    LatticeConfig lattice;
+    vector <LatticeConfig *> lattices;
     Damping damping;
     Global global;
     Repeat repeat;

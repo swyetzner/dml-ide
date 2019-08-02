@@ -150,7 +150,7 @@ Simulator::Simulator(Simulation *sim, SimulationConfig *config, OptimizationConf
                     break;
 
                 case OptimizationRule::MASS_DISPLACE: {
-                    massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold);
+                    massDisplacer = new MassDisplacer(sim, config->lattices[0]->unit[0] * 0.2, r.threshold);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 3;
                     massDisplacer->chunkSize = 0;
@@ -2361,8 +2361,8 @@ void Simulator::updateTextPanel() {
 
     QString upperPanel;
     QString simName = config->id;
-    double latticeCutoff = config->lattice.unit[0];
-    QString material = config->lattice.material->id;
+    double latticeCutoff = config->lattices[0]->unit[0];
+    QString material = config->lattices[0]->material->id;
 
     if (optConfig != nullptr) {
         switch(optConfig->rules.front().method) {

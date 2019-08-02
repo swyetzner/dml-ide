@@ -316,26 +316,29 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *material = createAttributeItem(item, attrMap, materialAttribute());
         auto *jiggle = createAttributeItem(item, attrMap, jiggleAttribute());
         auto *hull = createAttributeItem(item, attrMap, hullAttribute());
+        auto *volume = createAttributeItem(item, attrMap, volumeAttribute());
 
         qDebug() << "Loading lattice config";
 
-        LatticeConfig l = LatticeConfig();
-        l.fill = fill ? (fill->text(1) == "cubic"?
+        LatticeConfig l = new LatticeConfig();
+        l->fill = fill ? (fill->text(1) == "cubic"?
                              LatticeConfig::CUBIC_FILL :
                              LatticeConfig::SPACE_FILL) : LatticeConfig::CUBIC_FILL;
-        l.unit = unit ? parseVec(unit->text(1)) : Vec(0, 0, 0);
-        l.display = display ? display->text(1) : nullptr;
-        l.conform = conform ? conform->text(1).toInt() : false;
-        l.offset = offset ? parseVec(offset->text(1)) : Vec(0, 0, 0);
-        l.barDiameter = bardiam ? parseVec(bardiam->text(1)) : Vec(0, 0, 0);
-        l.material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
-        l.jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
-        l.hull = hull ? hull->text(1).toInt() : true;
+        l->unit = unit ? parseVec(unit->text(1)) : Vec(0, 0, 0);
+        l->display = display ? display->text(1) : nullptr;
+        l->conform = conform ? conform->text(1).toInt() : false;
+        l->offset = offset ? parseVec(offset->text(1)) : Vec(0, 0, 0);
+        l->barDiameter = bardiam ? parseVec(bardiam->text(1)) : Vec(0, 0, 0);
+        l->material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
+        l->jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
+        l->hull = hull ? hull->text(1).toInt() : true;
 
         if (!l.material)
             qDebug() << "Material" << material->text(1) << "not found";
 
         QString simConfigId = parentItem->child(0)->text(1);
+
+        l->volume = volume ? design_ptr->volumeMap[volume->text(1)] : design_ptr->simConfigMap[simConfigId]->volume;
         design_ptr->simConfigMap[simConfigId]->lattice = l;
     }
 
@@ -357,7 +360,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         Global g = Global();
         g.acceleration = acceleration ? parseVec(acceleration->text(1)) : Vec(0, 0, 0);
 
-        QString simConfigId = parentItem->child(0)->text(1);
+        QString simConfigId = ->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->global = g;
     }
 
@@ -391,7 +394,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             r.rotation = Vec(0, 0, 0);
         }
 
-        QString simConfigId = parentItem->child(0)->text(1);
+        QString simConfigId = ->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->repeat = r;
     }
 
@@ -404,7 +407,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         p->normal = normal ? parseVec(normal->text(1)) : Vec(0, 1, 0);
         p->offset = offset ? offset->text(1).toDouble() : 0;
 
-        QString simConfigId = parentItem->child(0)->text(1);
+        QString simConfigId = ->child(0)->text(1);
         design_ptr->simConfigMap[simConfigId]->plane = p;
     }
 
