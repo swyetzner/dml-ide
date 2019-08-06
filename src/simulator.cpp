@@ -51,7 +51,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     }
     qDebug() << "Min unit distance" << minUnitDist;
 
-    relaxation = 4000;
+    relaxation = 2000;
 
     if (optConfig != nullptr) {
         for (OptimizationRule r : optConfig->rules) {
@@ -110,6 +110,13 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     prevSteps = 0;
     switched = false;
 
+    if (!GRAPHICS) {
+        for (int i = 0; i < 30; i++) {
+            printf("\n");
+        }
+        printf("\033[10;1f");
+    }
+
     qDebug() << "Initialized Simulator";
 }
 
@@ -139,7 +146,7 @@ void Simulator::runSimulation(bool running) {
         }
         simStatus = STARTED;
         run();
-        printStatus();
+        if (!GRAPHICS) printStatus();
     } else {
         simStatus = PAUSED;
     }
@@ -405,10 +412,6 @@ Vec Simulator::getSimCenter() {
     for (Mass *m : sim->masses) {
         maxX = std::max(maxX, m->pos[0]);
         maxY = std::max(maxY, m->pos[1]);
-        maxZ = std::max(maxZ, m->pos[2]);
-        minX = std::min(minX, m->pos[0]);
-        minY = std::min(minY, m->pos[1]);
-        minZ = std::min(minZ, m->pos[2]);
     }
     minCorner = Vec(minX, minY, minZ);
     maxCorner = Vec(maxX, maxY, maxZ);
@@ -629,11 +632,25 @@ void Simulator::writeSimDump(const QString &outputFile) {
 void Simulator::printStatus() {
     sim_metrics metrics;
     getSimMetrics(metrics);
-    ostringstream oss;
-    oss << "Simulating...Optimization Iterations: " << metrics.optimize_iterations << " Bars: " << metrics.nbars << " Time: " << metrics.time << "s Energy: " << metrics.totalEnergy << "\n";
-    oss << "Deflection: " << metrics.deflection << std::endl;
 
-    std::cout << oss.str();
+    //printf("\033[2J");
+    printf("\033[10;1f");
+    cout << "\033[0K" << "\n\n========================================" << std::endl;
+    cout << "\033[0K" << "\033[92m" << "SIMULATING" << "\033[97m" << std::endl;
+    cout << "\033[0K" << "========================================\n" << std::endl;
+
+    cout << "\033[0K" << "Optimization Iterations: " << metrics.optimize_iterations << std::endl;
+    cout << "\033[0K" << "Bars: " << metrics.nbars << std::endl;
+    cout << "\033[0K" << "Time: " << setw(5) << std::left << std::setfill('0') << metrics.time << " s"  << std::endl;
+    cout << "\033[0K" << "Weight: " << "\033[94m"  << std::setprecision(6) << metrics.totalLength_start << " (start), ";
+    cout << "\033[95m" << metrics.totalLength << " (current), " << "\033[97m";
+    cout << std::setprecision(4) << 100 * (metrics.totalLength / metrics.totalLength_start) << "%" << std::endl;
+
+    cout << "\033[0K" << "Energy: " << "\033[94m" << metrics.totalEnergy_start << " (start), ";
+    cout << "\033[95m" << metrics.totalEnergy << " (current), " << "\033[97m";
+    cout << std::setprecision(4) << 100 * (metrics.totalEnergy / metrics.totalEnergy_start != 0? metrics.totalEnergy_start : 1) << "%" << std::endl;
+    cout << "\033[0K" << "Deflection: " << metrics.deflection << std::endl;
+    cout << "\n";
 }
 
 

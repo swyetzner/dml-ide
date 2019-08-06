@@ -41,7 +41,7 @@ void loadNoGraphics(std::string input, double gstep, double rstep) {
     cout << "Simulation springs: " << simulation->springs.size() << " masses: " << simulation->masses.size() << "\n";
     cout << "Loading complete.\n\n";
 
-    //qInstallMessageHandler(qtNoDebugMessageOutput);
+    qInstallMessageHandler(qtNoDebugMessageOutput);
     Simulator *simulator = new Simulator(simulation, loader, &design->simConfigs[0], design->optConfig);
     simulator->setSimTimestep(gstep);
     simulator->setSyncTimestep(rstep);
