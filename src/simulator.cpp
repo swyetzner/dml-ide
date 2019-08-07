@@ -31,8 +31,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     steps = 0;
 
     simStatus = PAUSED;
-    dataDir = "data";
-    createDataDir();
+    dataDir = QDir::currentPath() + QDir::separator() + "data";
 
     dumpSpringData();
 
@@ -51,7 +50,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     }
     qDebug() << "Min unit distance" << minUnitDist;
 
-    relaxation = 2000;
+    relaxation = 3000;
 
     if (optConfig != nullptr) {
         for (OptimizationRule r : optConfig->rules) {
@@ -73,6 +72,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
                 }
 
                 case OptimizationRule::NONE:
+                    optimizer = nullptr;
                     optimizer = nullptr;
                     break;
             }
@@ -139,10 +139,15 @@ void Simulator::setSimTimestep(double dt) {
     sim->setAllDeltaTValues(dt);
 }
 
+void Simulator::setDataDir(std::string dp) {
+    dataDir = QString::fromStdString(dp);
+}
+
 void Simulator::runSimulation(bool running) {
     if (running) {
         if (simStatus != STARTED) {
             sim->initCudaParameters();
+            createDataDir();
         }
         simStatus = STARTED;
         run();
@@ -174,8 +179,7 @@ void Simulator::getSimMetrics(sim_metrics &metrics) {
 
 void Simulator::dumpSpringData() {
     cout << "DUMPING SPRING DATA\n";
-    QString dumpFile = QString(QDir::currentPath() + QDir::separator() +
-                               dataDir + QDir::separator() +
+    QString dumpFile = QString(dataDir + QDir::separator() +
                                "simDump_%1.txt").arg(optimized);
     writeSimDump(dumpFile);
 }
@@ -502,24 +506,21 @@ Vec Simulator::getDeflectionPoint() {
 }
 
 void Simulator::createDataDir() {
-    QString currentPath = QDir::currentPath();
-    qDebug() << currentPath;
-    QDir data(currentPath + QDir::separator() + dataDir);
+
+    QDir data(dataDir);
     if (!data.exists()) {
         qDebug() << "Data folder does not exist. Creating...";
-        QDir::current().mkdir(dataDir);
+        QDir::home().mkdir(dataDir);
     } else {
         data.removeRecursively();
         qDebug() << QDir::current().path();
-        QDir::current().mkdir(dataDir);
+        QDir::home().mkdir(dataDir);
     }
 
     // Create metric file
-    metricFile = QString(QDir::currentPath() + QDir::separator() +
-                        dataDir + QDir::separator() +
+    metricFile = QString(dataDir + QDir::separator() +
                         "optMetrics.csv");
-    customMetricFile = QString(QDir::currentPath() + QDir::separator() +
-                               dataDir + QDir::separator() +
+    customMetricFile = QString(dataDir + QDir::separator() +
                                "outsideForces.csv");
 }
 

@@ -60,6 +60,7 @@ public:
     // --------------------------------------------------------------------
     void setSyncTimestep(double st);
     void setSimTimestep(double dt);
+    void setDataDir(std::string dp);
     void runSimulation(bool running);
     void runStep();
     void getSimMetrics(sim_metrics &metrics);
