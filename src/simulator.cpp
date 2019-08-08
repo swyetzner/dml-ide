@@ -140,7 +140,9 @@ void Simulator::setSimTimestep(double dt) {
 }
 
 void Simulator::setDataDir(std::string dp) {
-    dataDir = QString::fromStdString(dp);
+    if (!dp.empty()) {
+        dataDir = QString::fromStdString(dp);
+    }
 }
 
 void Simulator::runSimulation(bool running) {
