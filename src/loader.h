@@ -37,7 +37,7 @@ public:
     void readSTLFromFile(model_data *arrays, QString filePath, uint n_model);
     void loadSimulation(Simulation *sim, SimulationConfig *simConfig);
     void loadSimulation(simulation_data *arrays, Simulation *sim, uint n_volume);
-    void loadSimFromLattice(simulation_data *arrays, Simulation *sim, double springCutoff);
+    void loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector <LatticeConfig *> lattices);
     void loadSimFromLattice(LatticeConfig *lattice, Simulation *sim, double springCutoff);
     void loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSection, bool markers);
     void applyLoadcase(Simulation *sim, Loadcase *load);

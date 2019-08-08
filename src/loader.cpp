@@ -267,10 +267,8 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
             break;
     }
 
-    double springMult = 2.9;
-    if (simConfig->lattices[0]->fill == LatticeConfig::CUBIC_FILL) springMult = 1.9;
     //loadSimFromLattice(&simConfig->lattice, sim, simConfig->lattice.unit[0]*springMult);
-    loadSimFromLattice(simConfig->model, sim, simConfig->lattices[0]->unit[0]*springMult);
+    loadSimFromLattice(simConfig->model, sim, simConfig->lattices);
 
     // PLANE
     if (simConfig->plane != nullptr) {
@@ -433,7 +431,10 @@ void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_vol
 }
 
 
-void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double springCutoff) {
+void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector <LatticeConfig *> lattices) {
+    // Include varying springMult by looking at the type of the LatticeConfig
+    float springCutoff = 0.0;
+    double springMult = lattices[0]->fill == LatticeConfig::CUBIC_FILL ? 1.9 : 2.9;
 
     qDebug() << "Loading" << springCutoff;
     // Load hull first
@@ -445,13 +446,22 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double
     }
 
     for (int j = 0; j < sim->masses.size() - 1; j++) {
-        for (int k = j+1; k < sim->masses.size(); k++) {
+        Mass *massj = sim->masses[j];
 
-            Mass *massj = sim->masses[j];
+        for(auto&& latticeBox: lattices) {
+            Polygon *latticeVol = latticeBox->volume->geometry;
+
+            if (latticeVol->isInside(massj->pos)) {
+                springCutoff = latticeBox->unit[0]*springMult;
+                break;
+            }
+        }
+
+        for (int k = j+1; k < sim->masses.size(); k++) {
             Mass *massk = sim->masses[k];
             double dist = (massj->pos - massk->pos).norm();
-            if (dist <= springCutoff) {
 
+            if (dist <= springCutoff) {
                 sim->createSpring(massj, massk);
                 sim->springs.back()->setRestLength(dist);
             }
@@ -906,7 +916,6 @@ void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, f
 void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating space lattice.");
 
-    // These two lines are wrong
     bool includeHull = simConfig->lattices[0]->hull;
 
     vector <LatticeConfig *> lattices = simConfig->lattices;
