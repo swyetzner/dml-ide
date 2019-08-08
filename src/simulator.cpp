@@ -206,24 +206,15 @@ void Simulator::exportSimulation() {
     oss << put_time(&tm, "%d-%m-%Y_%H-%M-%S");
     string tmString = oss.str();
 
-    if (GRAPHICS) {
-        qDebug() << "Starting export thread";
-        exportThread.startExport(tmString + ".stl",
-                                 config->output,
-                                 sim->springs[0]->_diam * 0.5,
-                                 sim->springs[0]->_diam,
-                                 NUM_THREADS);
-    } else {
-        cout << "Starting export...\n";
-        Polygonizer *polygonizer = new Polygonizer(config->output,
-                                                   sim->springs[0]->_diam * 0.5,
-                                                   sim->springs[0]->_diam,
-                                                   NUM_THREADS);
-        polygonizer->initBaseSegments();
-        polygonizer->calculatePolygon();
-        polygonizer->writePolygonToSTL(tmString + ".stl");
-        delete polygonizer;
-    }
+    cout << "Starting export...\n";
+    Polygonizer *polygonizer = new Polygonizer(config->output,
+                                               sim->springs[0]->_diam * 0.5,
+                                               sim->springs[0]->_diam,
+                                               NUM_THREADS);
+    polygonizer->initBaseSegments();
+    polygonizer->calculatePolygon();
+    polygonizer->writePolygonToSTL(tmString + ".stl");
+    delete polygonizer;
 }
 
 void Simulator::run() {

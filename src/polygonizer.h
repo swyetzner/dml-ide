@@ -9,6 +9,7 @@
 #define DMLIDE_POLYGONIZER_H
 
 #include <omp.h>
+#include <iomanip>
 
 #include <Titan/vec.h>
 
@@ -92,6 +93,8 @@ private:
     double sx; // Width of each segment
     double cubeMax; // Max cube dimension
     Vec mSize; // Vec containing model lengths
+    vector<int> completed; // Completed cubes per segment
+    vector<int> cubes; // Number of marching cubes per segment
 
     void addTriangle(Segment &s, TRIANGLE tri);
 
@@ -101,6 +104,8 @@ private:
     static double pointDistFromSurface(Polygon &surface, Vec qp);
     static Vec vertexInterp(double isolevel, Vec p1, Vec p2, double val1, double val2);
     static Vec findNormal(Vec v1, Vec v2, Vec v3);
+
+    void printProgress(int sidx);
 };
 
 static int edgeTable[256] = {
