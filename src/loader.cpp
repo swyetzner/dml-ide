@@ -995,8 +995,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
 
             candidates.push_back(newPoint);
         }
-
-        qDebug() << "Lattice Thread" << t << "done";
     }
 
 
@@ -1045,7 +1043,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
             lattice.push_back(candidates[iFarthest]);
             candidates.erase(candidates.begin() + iFarthest);
         }
-        qDebug() << "Added to lattice" << lattice.size();
     }
 
     // Set lattice property

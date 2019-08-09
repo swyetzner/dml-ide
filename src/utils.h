@@ -4,6 +4,7 @@
 #include <bitset>
 #include <fstream>
 #include <sstream>
+#include <random>
 
 #include <glm/glm.hpp>
 #include <Titan/sim.h>

@@ -37,7 +37,10 @@ string Utils::trim(string &s) {
 }
 
 float Utils::randFloat(float min, float max) {
-    return min + float(rand()) / RAND_MAX * (max - min);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(min, max);
+    return dis(gen);
 }
 
 float Utils::randUnit() {
