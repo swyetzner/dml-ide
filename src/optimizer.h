@@ -142,6 +142,8 @@ public:
         vector<Mass *> group;
         vector<Spring *> springs;
         vector<Mass *> outside;
+        vector<Mass *> edge;
+        vector<Spring*> border;
 
         double origLength = 0;
         double origEnergy = 0;
@@ -206,9 +208,9 @@ private:
     int pickRandomMass(MassGroup &group);
     int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
-    void shiftMassPos(Simulation *sim, int index, const Vec &dx);
+    int shiftMassPos(Simulation *sim, int index, const Vec &dx);
     void shiftMassPos(Simulation *sim, Mass *m, const Vec &dx);
-    void shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
+    int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
     void shiftCloneMass(Clone *clone, double dx);
