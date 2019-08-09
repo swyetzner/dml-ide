@@ -971,9 +971,8 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
     vector<glm::vec3> candidates = vector<glm::vec3>();
 
     // Spawn k new points
-    int threads = 64;
+    int threads = 1;
 
-#pragma omp parallel for
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
 
@@ -994,7 +993,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
                 }
             }
 
-#pragma omp critical
             candidates.push_back(newPoint);
         }
 
