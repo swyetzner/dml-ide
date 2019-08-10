@@ -451,7 +451,7 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
         for(auto&& latticeBox: lattices) {
             model_data *latticeVol = latticeBox->volume->model;
 
-            if (latticeVol->isInside(Utils::vecToVec3(massj->pos))) {
+            if (latticeVol->isInside(Utils::vecToVec3(massj->pos), 0)) {
                 springCutoff = latticeBox->unit[0]*springMult;
                 break;
             }
