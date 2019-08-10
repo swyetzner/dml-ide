@@ -612,3 +612,7 @@ void Utils::parseStlBinary(ifstream &text, vector<Vec> &vs, vector<Vec> &ns) {
         vs.push_back(Vec(facet.x3, facet.y3, facet.z3));
     }
 }
+
+vec3 Utils::vecToVec3(Vec &vector) {
+   return vec3(vector[0], vector[1], vector[2]);
+}

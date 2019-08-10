@@ -66,6 +66,7 @@ public:
     static void parseStlASCII(ifstream &text, vector<Vec> &vs, vector<Vec> &ns);
     static void parseStlBinary(ifstream &text, vector<vec3> &vs, vector<vec3> &ns);
     static void parseStlBinary(ifstream &text, vector<Vec> &vs, vector<Vec> &ns);
+    static vec3 vecToVec3(Vec &vector);
 };
 
 #endif // UTILS_H
