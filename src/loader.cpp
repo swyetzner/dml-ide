@@ -918,7 +918,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
     bool includeHull = simConfig->lattices[0]->hull;
 
-    vector <LatticeConfig *> lattices = simConfig->lattices;
+    vector <LatticeConfig *> latticeConfigs = simConfig->lattices;
 
     vector<glm::vec3> lattice = vector<glm::vec3>();
 
@@ -943,7 +943,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         // Interpolate edges based on cutoff
     }
 
-    for(auto&& latticeBox: lattices) {
+    for(auto&& latticeBox: latticeConfigs) {
 
       float cutoff = float(latticeBox->unit[0]);
 
@@ -1072,10 +1072,10 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
       }
 
       // Set lattice property
-      qDebug() << "Found all points";
-      arrays->lattice = lattice;
-      qDebug() << "Set lattice";
+      qDebug() << "Found all points in lattice" << latticeBox->volume->id;
   }
+  arrays->lattice = lattice;
+  qDebug() << "Set lattice";
 }
 
 
