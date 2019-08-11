@@ -295,7 +295,7 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
         cerr << "Volume '" << volume.toStdString() << "' not found for <simulation><volume>.\n";
         exit(EXIT_FAILURE);
     }
-    simConfig->lattices.push_back(lattice);
+    simConfig->lattices.push_back(&lattice);
     simConfig->damping = damping;
     simConfig->global = global;
     simConfig->repeat = repeat;
