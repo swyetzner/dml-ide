@@ -935,8 +935,8 @@ void SimViewer::updateTextPanel() {
 
     QString upperPanel;
     QString simName = simulator->config->id;
-    double latticeCutoff = simulator->config->lattice.unit[0];
-    QString material = simulator->config->lattice.material->id;
+    double latticeCutoff = simulator->config->lattices[0]->unit[0];
+    QString material = simulator->config->lattices[0]->material->id;
 
     switch(metrics.optimize_rule.method) {
         case OptimizationRule::REMOVE_LOW_STRESS:
