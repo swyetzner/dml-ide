@@ -22,6 +22,7 @@ install_all_vcpkg() {
     ./vcpkg install glew
     ./vcpkg install glfw3
     ./vcpkg install args
+    ./vcpkg install pugixml
 }
 
 install_ffmpeg() {
@@ -68,6 +69,21 @@ install_args() {
     echo "Installed args"
 }
 
+install_ffmpeg() {
+    _wget https://ffmpeg.org/releases/ffmpeg-4.1.3.tar.bz2
+    cd ffmepg-4.1.3
+    ./configure --disable-x86asm
+    make
+    make install DESTDIR=$INSTALL_PREFIX
+    cd ..
+    echo "Installed ffmpeg"
+}
+
+install_pugixml() {
+  _wget https://github.com/zeux/pugixml/releases/download/v1.9/pugixml-1.9.tar.gz
+  echo "Install pugixml"
+}
+
 _wget() {
     # set -e
     set -u
@@ -88,6 +104,10 @@ _wget() {
             "bz2")
                 echo "Unzipping bz2 format"
                 tar -xjf $dirname && rm $dirname
+                ;;
+            "gz")
+                echo "Unzipping tar format"
+                tar -xzf $dirname && rm $dirname
                 ;;
             *)
                 echo "Do not know how to extract $dirname"

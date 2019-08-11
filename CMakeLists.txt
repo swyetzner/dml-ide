@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
 
+set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -12,7 +13,7 @@ find_package(Qt5Gui CONFIG REQUIRED)
 find_package(Qt5Xml CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(GLEW CONFIG REQUIRED)
-
+find_package(pugixml CONFIG REQUIRED)
 
 set(OpenGL_GL_PREFERENCE "GLVND")
 
@@ -56,11 +57,14 @@ set(SOURCES
         src/optimizer.cpp
         src/optimizer.h
         src/commandLine.cpp
-        src/commandLine.h)
+        src/commandLine.h
+        src/parser.cpp
+        src/parser.h
+        src/simViewer.cpp
+        src/simViewer.h
+)
 
 set(CU_SOURCES
-        src/simulatorParallel.h
-        src/simulatorParallel.cu
         src/model.cu
 )
 
@@ -89,7 +93,6 @@ endif()
 set_source_files_properties(${CU_SOURCES} PROPERTIES COMPILE_FLAGS "-Xcompiler=-fPIC")
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS " -fPIC")
 
-
 target_include_directories(${PROJECT_NAME} PUBLIC inc)
 
 target_link_libraries(${PROJECT_NAME}
@@ -99,4 +102,5 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Titan
     PRIVATE glm
     PRIVATE ${GLEW_LIBRARIES}
+    PRIVATE pugixml
 )

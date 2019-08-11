@@ -142,12 +142,14 @@ public:
         vector<Mass *> group;
         vector<Spring *> springs;
         vector<Mass *> outside;
+        vector<Mass *> edge;
+        vector<Spring*> border;
 
         double origLength = 0;
         double origEnergy = 0;
         double testLength = 0;
         double testEnergy = 0;
-    };
+    } massGroup;
 
     struct DisplacedMass {
         DisplacedMass() {
@@ -203,11 +205,14 @@ private:
     bool STARTED;
 
     int pickRandomMass(Simulation *sim);
+    int pickRandomMass(MassGroup &group);
     int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
-    void shiftMassPos(Simulation *sim, int index, const Vec &dx);
-    void shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
+    int shiftMassPos(Simulation *sim, int index, const Vec &dx);
+    void shiftMassPos(Simulation *sim, Mass *m, const Vec &dx);
+    int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
+    void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
     void shiftCloneMass(Clone *clone, double dx);
     vector<DisplacedSpring> shiftOrigPos(Simulation *sim, Mass * m, const Vec &p);
     double calcTotalLength(Simulation *sim);
@@ -219,6 +224,7 @@ private:
 
     int displaceParallelMasses(int copies, int n_copy);
     int displaceSingleMass(double displacement, double chunkSize, int metricOrder);
+    int displaceGroupMass(double displacement);
     int displaceManyMasses(double displacement, int metricOrder, int num);
     void setMassState(const vector<Vec> &pos);
 };

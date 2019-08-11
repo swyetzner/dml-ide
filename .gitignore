@@ -2,6 +2,16 @@
 # Created by https://www.gitignore.io/api/qt,c++,cuda,cmake,clion
 # Edited by Sofia Wyetzner
 
+### Source Folders ###
+scripts/*
+data/*
+output/*
+cmake/*
+
+### Source Files ###
+*.stl
+*.mp4
+
 ### C++ ###
 # Prerequisites
 *.d

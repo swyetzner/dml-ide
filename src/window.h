@@ -16,6 +16,7 @@
 #include "polygonizer.h"
 #include "properties.h"
 #include "designViewer.h"
+#include "simViewer.h"
 #include "simulatorParallel.h"
 #include "simulator.h"
 
@@ -37,10 +38,10 @@ public:
     ~Window();
 
     static QTextEdit * s_textEdit;
-
-    void loadFromCmdLine(QString dmlInput, double gdt, double rdt, QString modelPath, QString videoPath);
-
     enum ViewMode { MODEL_VIEW, DESIGN_VIEW, SIM_VIEW };
+
+    Design *design;
+    void setUpDMLFeatures();
 
 signals:
     void toggleVolume(int index);
@@ -92,14 +93,14 @@ private slots:
     void exportThreadFinished(QString fileName);
 
 private:
-    Design *design;
     Simulation *simulation;
 
     Ui::MainWindow *ui;
     DMLTree *dmlTreeWidget;
     PropertiesTable *propTable;
     DesignViewer *designWidget;
-    Simulator *simWidget;
+    Simulator *simulator;
+    SimViewer *simWidget;
     Loader *loader;
 
     ExportThread exportThread;
@@ -116,7 +117,6 @@ private:
     const double defaultRenderPeriod = 0.005;
     const double defaultK = 10000;
 
-    void setUpDMLFeatures();
     void setUpSimulationOptions();
     void setUpPropertyTable();
 };

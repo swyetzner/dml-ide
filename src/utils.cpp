@@ -37,7 +37,10 @@ string Utils::trim(string &s) {
 }
 
 float Utils::randFloat(float min, float max) {
-    return min + float(rand()) / RAND_MAX * (max - min);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(min, max);
+    return dis(gen);
 }
 
 float Utils::randUnit() {
@@ -128,6 +131,17 @@ double Utils::distPointPlane(Vec p, Vec n, double o, Vec &v) {
     v = p - dist*n;
 
     return dist;
+}
+
+// Check if a point is within rectangular bounds
+bool Utils::inBounds(Vec p, Vec minc, Vec maxc) {
+
+    bool ret = true;
+    if (p[0] < minc[0] || p[0] > maxc[0]) ret = false;
+    if (p[1] < minc[1] || p[1] > maxc[1]) ret = false;
+    if (p[2] < minc[2] || p[2] > maxc[2]) ret = false;
+
+    return ret;
 }
 
 // Check if three vertices are colinear (within eps)

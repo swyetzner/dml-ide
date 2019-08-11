@@ -105,7 +105,7 @@ void PropertiesTable::displayLoadcase(QString id) {
     objectIndex = load->index;
     this->title->setText(QString("Loadcase (%1)").arg(load->index));
 
-    this->setRowCount(1 + 2*load->anchors.size() + 4 *load->forces.size());
+    this->setRowCount(1 + 2*load->anchors.size() + 5 *load->forces.size());
     this->setColumnCount(3);
 
     QStringList headerLabels = QStringList();
@@ -132,6 +132,8 @@ void PropertiesTable::displayLoadcase(QString id) {
         createVecValueItem(rowCount, 2, f->magnitude);
         createPropertyItem(++rowCount, 1, "duration");
         createValueItem(rowCount, 2, f->duration > 0 ? QString::number(f->duration) : "");
+        createPropertyItem(++rowCount, 1, "vary");
+        createVecValueItem(rowCount, 2, f->vary);
     }
     connect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
 }
@@ -346,6 +348,11 @@ void PropertiesTable::updateProp(int row, int col) {
                 if (property->text() == "duration") {
                     if (!volId.isEmpty()) {
                         l->forceMap[volId]->duration = item->text().toDouble();
+                    }
+                }
+                if (property->text() == "vary") {
+                    if (!volId.isEmpty()) {
+                        l->forceMap[volId]->vary = parseVecInput(item->text());
                     }
                 }
                 break;

@@ -226,12 +226,24 @@ void Polygonizer::calculatePolygon() {
 
     unsigned long triangleCount = 0;
     unsigned long nodeCount = 0;
+    completed = vector<int>(segments.size(), 0);
+    cubes = vector<int>(segments.size(), 1);
+    printf("\033[2J");
+    std::cout << "\033[2;1fCalculating Triangle Mesh..." << std::endl;
+
+    for (int i = 0; i < segments.size(); i++) {
+        printProgress(i);
+    }
+
 
 #pragma omp parallel for
     for (int i = 0; i < segments.size(); i++) {
         marchingCubesAdaptive(segments[i], 2);
     }
+
+    printProgress(segments.size() - 1); // Print last status to place cursor at end
     qDebug() << "Marching cubes completed";
+    std::cout << "\nMARCHING CUBES COMPLETED" << std::endl;
 
     for (const Segment &s : segments) {
         triangleCount += s.polygon->triangles->size();
@@ -244,6 +256,7 @@ void Polygonizer::calculatePolygon() {
     }
 
     qDebug() << "Polygon size" << this->geometry.triangles->size() << "tris" << this->geometry.nodeMap.size() << "nodes";
+    std::cout << "Mesh size " << this->geometry.triangles->size() << " tris, " << this->geometry.nodeMap.size() << " nodes\n";
 
     // Reduce mesh
     //this->geometry.reduceMesh(1E-2, 0.5);
@@ -275,10 +288,12 @@ void Polygonizer::marchingCubesAdaptive(Segment &s, int level) {
     vector<double> L0, L1;
     L0.resize(ulong(ny + 1) * (nz + 1));
     L1.resize(ulong(ny + 1) * (nz + 1));
-    qDebug() << "Start Node:" << startNode[0] << startNode[1] << startNode[2];
-    qDebug() << "Segment size:" << s.bsize[0] << s.bsize[1] << s.bsize[2];
-    qDebug() << "Cubes (x,y,z):" << nx << ny << nz << dx[0] << dy[1] << dz[2];
-    qDebug() << "Number of cubes:" << L0.size();
+    //qDebug() << "Start Node:" << startNode[0] << startNode[1] << startNode[2];
+    //qDebug() << "Segment size:" << s.bsize[0] << s.bsize[1] << s.bsize[2];
+    //qDebug() << "Cubes (x,y,z):" << nx << ny << nz << dx[0] << dy[1] << dz[2];
+    //qDebug() << "Number of cubes:" << L0.size();
+    cubes[s.sidx] = nx * ny * nz;
+    completed[s.sidx] = 0;
 
     cubeMax = std::max(cubeMax, std::max(dx[0], std::max(dx[1], dx[2])));
 
@@ -321,13 +336,15 @@ void Polygonizer::marchingCubesAdaptive(Segment &s, int level) {
                 grid.val[7] = L0[(j + 1) * nz + (k + 1)];
 
                 polygonizeAdaptive(s, grid, 0, level);
+                completed[s.sidx]++;
             }
-            qDebug() << "Working segment (one per thread):" << s.sidx << "\t Slice:" << i << "/" << nx << j << ny;
+#pragma omp critical
+            printProgress(s.sidx);
         }
     }
 
-    qDebug() << s.sidx << s.polygon->triangles->size();
-    if (s.sidx == 0) qDebug() << "ZERO" << s.polygon->triangles->size();
+    //qDebug() << s.sidx << s.polygon->triangles->size();
+    //if (s.sidx == 0) qDebug() << "ZERO" << s.polygon->triangles->size();
 }
 
 
@@ -536,7 +553,6 @@ double Polygonizer::pointDist(Segment &s, Vec qp) {
 //---------------------------------------------------------------------------
 double Polygonizer::pointDistFromBars(vector<Bar> &surface, Vec qp) {
 //---------------------------------------------------------------------------
-
     double minDist = FLT_MAX;
     Vec minPoint;
     QString minType;
@@ -887,7 +903,24 @@ bool Polygonizer::writePolygonToSTL(string path){
     }
 
     qDebug() << sizeof(facet);
+    std::cout << "Wrote mesh to binary STL [" << path << "]\n\n";
 
     file.close();
     return  true;
+}
+
+// Prints progress of a marching cubes thread
+void Polygonizer::printProgress(int sidx) {
+    int line = 5 + sidx - 1;
+    printf("\033[%d;1f", line);
+    cout << "\033[0K" << "\033[92mSegment " << std::setw(2) << std::setfill(' ')<< sidx << " \033[97m[";
+
+    float progress = float(completed[sidx]) / cubes[sidx];
+    int pos = 40 * progress;
+    for (int i = 0; i < 40; i++) {
+        if (i < pos) cout << "=";
+        else if (i == pos) cout << ">";
+        else cout << " ";
+    }
+    cout << "] " << int(progress * 100) << "%" << std::endl;
 }

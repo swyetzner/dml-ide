@@ -11,8 +11,10 @@ namespace CommandLine {
     extern args::ArgumentParser parser;
     extern args::HelpFlag help;
     extern args::Positional<std::string> inputPath;
+    extern args::Flag graphicsUI;
     extern args::ValueFlag<double> gpuTimestep;
     extern args::ValueFlag<double> renderTimestep;
+    extern args::ValueFlag<std::string> outputDataPath;
     extern args::ValueFlag<std::string> outputModelPath;
     extern args::ValueFlag<std::string> outputVideoPath;
 
