@@ -12,7 +12,7 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
 {
 
     this->design = design;
-
+    qDebug() << "Design Assigned"; // For some reason, this prevents the IDE from crashing when loading a file
     // Set model constants
     n_models = long(design->volumes.size());
     n_modelVertices = new long(n_models);
