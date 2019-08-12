@@ -448,15 +448,20 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
     for (int j = 0; j < sim->masses.size() - 1; j++) {
         Mass *massj = sim->masses[j];
 
+        float jCutoff, kCutoff;
+
+        for(auto&& latticeBox: lattices) {
+            if (latticeBox->volume->model->isInside(Utils::vecToVec3(massj->pos), 0))
+                jCutoff = latticeBox->unit[0] * springMult;
+        }
+
         for (int k = j+1; k < sim->masses.size(); k++) {
             Mass *massk = sim->masses[k];
             double dist = (massj->pos - massk->pos).norm();
 
             for(auto&& latticeBox: lattices) {
-                if (latticeBox->volume->model->isInside(Utils::vecToVec3(massj->pos), 0))
-                    float jCutoff = latticeBox->unit[0]*springMult;
                 if (latticeBox->volume->model->isInside(Utils::vecToVec3(massk->pos), 0))
-                    float kCutoff = latticeBox->unit[0]*springMult;
+                    kCutoff = latticeBox->unit[0]*springMult;
             }
 
             springCutoff = std::min(jCutoff, kCutoff);
