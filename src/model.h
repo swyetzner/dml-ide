@@ -24,6 +24,14 @@ const double EPSILON = 0.0001;
 typedef glm::vec3 vec3;
 typedef glm::vec4 vec4;
 
+// Allows me to reference these before defining them
+class Volume;
+class Material;
+class Anchor;
+class Force;
+class Loadcase;
+class LatticeConfig;
+
 struct Bar {
     Vec left;
     Vec right;
@@ -414,7 +422,7 @@ struct simulation_data {
     vector<glm::vec3> vertices = std::vector<glm::vec3>();
     vector<uint> indices = vector<uint>();
     vector<glm::vec3> lattice = std::vector<glm::vec3>();
-    vector<LatticeConfig *> pointOrigins = std::vector<LatticeConfig *>(); // Tracks the lattice each point is associated with
+    vector<model::LatticeConfig *> pointOrigins = std::vector<model::LatticeConfig *>(); // Tracks the lattice each point is associated with
     vector<uint> hull = std::vector<uint>();
     // vec3 *d_vertices; //CUDA memory
 
