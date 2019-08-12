@@ -450,19 +450,13 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
 
         float jCutoff, kCutoff;
 
-        for(auto&& latticeBox: lattices) {
-            if (latticeBox->volume->model->isInside(Utils::vecToVec3(massj->pos), 0))
-                jCutoff = latticeBox->unit[0] * springMult;
-        }
+        jCutoff = arrays->pointOrigins.at(j)->unit[0] * springMult;
 
         for (int k = j+1; k < sim->masses.size(); k++) {
             Mass *massk = sim->masses[k];
             double dist = (massj->pos - massk->pos).norm();
 
-            for(auto&& latticeBox: lattices) {
-                if (latticeBox->volume->model->isInside(Utils::vecToVec3(massk->pos), 0))
-                    kCutoff = latticeBox->unit[0]*springMult;
-            }
+            kCutoff = arrays->pointOrigins.at(k)->unit[0] * springMult;
 
             springCutoff = std::min(jCutoff, kCutoff);
 
@@ -926,6 +920,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     vector <LatticeConfig *> latticeConfigs = simConfig->lattices;
 
     vector<glm::vec3> lattice = vector<glm::vec3>();
+    vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
 
 
     if (includeHull) {
@@ -943,6 +938,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
+                pointOrigins.push_back(NULL);
             }
         }
         // Interpolate edges based on cutoff
@@ -991,6 +987,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         // Add point to lattice
         latticeTemp.push_back(point);
+        pointOrigins.push_back(latticeBox);
         float maxLength = cutoff;
         int k;
         qDebug() << "First point" << point.x << point.y << point.z;
@@ -1068,6 +1065,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
                 // Add point to lattice
                 latticeTemp.push_back(candidates[iFarthest]);
+                pointOrigins.push_back(latticeBox);
                 candidates.erase(candidates.begin() + iFarthest);
             }
             qDebug() << "Added to lattice" << latticeTemp.size();
@@ -1078,6 +1076,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         qDebug() << "Found all points in lattice" << latticeBox->volume->id;
     }
     arrays->lattice = lattice;
+    arrays->pointOrigins = pointOrigins;
     qDebug() << "Set lattice";
 }
 

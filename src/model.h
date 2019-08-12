@@ -414,6 +414,7 @@ struct simulation_data {
     vector<glm::vec3> vertices = std::vector<glm::vec3>();
     vector<uint> indices = vector<uint>();
     vector<glm::vec3> lattice = std::vector<glm::vec3>();
+    vector<LatticeConfig *> pointOrigins = std::vector<LatticeConfig *>(); // Tracks the lattice each point is associated with
     vector<uint> hull = std::vector<uint>();
     // vec3 *d_vertices; //CUDA memory
 
@@ -831,6 +832,7 @@ public:
     QString id;
     Volume * volume;
     vector <LatticeConfig *> lattices;
+
     Damping damping;
     Global global;
     Repeat repeat;
