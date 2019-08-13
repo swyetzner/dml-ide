@@ -1003,14 +1003,14 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 
                 if (includeHull) {
-                    while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(point, 0)) {
+                    while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
                         // Generate a new point if its within the cutoff of the model edge
                         //   or its not inside the model
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 } else {
 
-                    while (!arrays->isInside(newPoint) || !latticeVol->isInside(point, 0)) {
+                    while (!arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
                         // Generate a new point if its within the cutoff of the model edge
                         //   or its not inside the model
                         newPoint = Utils::randPoint(startCorner, endCorner);
