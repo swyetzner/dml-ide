@@ -258,7 +258,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     switch(simConfig->lattices[0]->fill) {
         case LatticeConfig::CUBIC_FILL:
             //createGridLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]));
-            createGridLattice(simConfig->model, float(simConfig->lattices[0]->unit[0]));
+            createGridLattice(simConfig->model, simConfig);
             break;
         case LatticeConfig::SPACE_FILL:
             // TODO: add conform bool as includeHull
@@ -775,68 +775,79 @@ void Loader::createGridLattice(simulation_data *arrays, int dimX, int dimY, int 
 }
 
 // Creates a lattice with a grid based on a cutoff edge length
-void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
+void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating grid lattice.");
 
     vector<glm::vec3> grid = vector<glm::vec3>();
-    glm::vec3 startCorner = arrays->bounds.minCorner;
-    glm::vec3 endCorner = arrays->bounds.maxCorner;
-    glm::vec3 gridPoint;
+    vector<LatticeConfig *> latticeConfigs = simConfig->lattices;
 
-    vector<float> xLines = vector<float>();
-    vector<float> yLines = vector<float>();
-    vector<float> zLines = vector<float>();
+    for (LatticeConfig *latticeBox : latticeConfigs) {
+        model_data *latticeVol = latticeBox->volume->model;
+        float cutoff = float(latticeBox->unit[0]);
+        vector<glm::vec3> gridTemp = vector<glm::vec3>();
 
-    float endDiff;
+        glm::vec3 startCorner = latticeVol->bounds.minCorner;
+        glm::vec3 endCorner = latticeVol->bounds.maxCorner;
+        glm::vec3 gridPoint;
 
-    qDebug() << "Bounds top corner " << endCorner.x << "," << endCorner.y << "," << endCorner.z;
+        vector<float> xLines = vector<float>();
+        vector<float> yLines = vector<float>();
+        vector<float> zLines = vector<float>();
 
-    for (float x = startCorner.x; x <= endCorner.x; x += cutoff) {
-        xLines.push_back(x);
-    }
-    endDiff = endCorner.x - xLines.back();
+        float endDiff;
 
-    for (int i = 0; i < xLines.size(); i++) {
-        xLines[i] += 0.5f * endDiff;
-    }
+        qDebug() << "Bounds top corner " << endCorner.x << "," << endCorner.y << "," << endCorner.z;
 
+        for (float x = startCorner.x; x <= endCorner.x; x += cutoff) {
+            xLines.push_back(x);
+        }
+        endDiff = endCorner.x - xLines.back();
 
-    for (float y = startCorner.y; y <= endCorner.y; y += cutoff) {
-        yLines.push_back(y);
-    }
-
-    endDiff = endCorner.y - yLines.back();
-    for (int i = 0; i < yLines.size(); i++) {
-        yLines[i] += 0.5f * endDiff;
-    }
+        for (int i = 0; i < xLines.size(); i++) {
+            xLines[i] += 0.5f * endDiff;
+        }
 
 
-    for (float z = startCorner.z; z <= endCorner.z; z += cutoff) {
-        zLines.push_back(z);
-    }
+        for (float y = startCorner.y; y <= endCorner.y; y += cutoff) {
+            yLines.push_back(y);
+        }
 
-    endDiff = endCorner.z - zLines.back();
-    for (int i = 0; i < zLines.size(); i++) {
-        zLines[i] += 0.5f * endDiff;
-    }
+        endDiff = endCorner.y - yLines.back();
+        for (int i = 0; i < yLines.size(); i++) {
+            yLines[i] += 0.5f * endDiff;
+        }
 
-    qDebug() << "Lattice bottom corner " << xLines[0] << "," << yLines[0] << "," << zLines[0];
-    qDebug() << "Lattice top corner " << xLines.back() << "," << yLines.back() << "," << zLines.back();
 
-    vector<glm::vec3> model = vector<glm::vec3>();
+        for (float z = startCorner.z; z <= endCorner.z; z += cutoff) {
+            zLines.push_back(z);
+        }
 
-    // Populate grid and check inside
-    for (ulong z = 0; z < zLines.size(); z++) {
-        for (ulong y = 0; y < yLines.size(); y++) {
-            for (ulong x = 0; x < xLines.size(); x++) {
-                gridPoint = glm::vec3(xLines[x], yLines[y], zLines[z]);
+        endDiff = endCorner.z - zLines.back();
+        for (int i = 0; i < zLines.size(); i++) {
+            zLines[i] += 0.5f * endDiff;
+        }
 
-                if (arrays->isInside(gridPoint)) {
-                    // Add to lattice
-                    grid.push_back(gridPoint);
+        qDebug() << "Lattice bottom corner " << xLines[0] << "," << yLines[0] << "," << zLines[0];
+        qDebug() << "Lattice top corner " << xLines.back() << "," << yLines.back() << "," << zLines.back();
+
+        vector <glm::vec3> model = vector<glm::vec3>();
+
+        // Populate grid and check inside
+        for (ulong z = 0; z < zLines.size(); z++) {
+            for (ulong y = 0; y < yLines.size(); y++) {
+                for (ulong x = 0; x < xLines.size(); x++) {
+                    gridPoint = glm::vec3(xLines[x], yLines[y], zLines[z]);
+
+                    if (arrays->isInside(gridPoint) && latticeBox->isInside(gridPoint)) {
+                        // Add to lattice
+                        gridTemp.push_back(gridPoint);
+                    }
                 }
             }
         }
+
+        qDebug() << "Found all points in lattice" << latticeBox->volume->id;
+        grid.insert(grid.end(), gridTemp.begin(), gridTemp.end());
     }
 
     // Set lattice property
