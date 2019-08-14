@@ -780,6 +780,7 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
 
     vector<glm::vec3> grid = vector<glm::vec3>();
     vector<LatticeConfig *> latticeConfigs = simConfig->lattices;
+    vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
 
     for (LatticeConfig *latticeBox : latticeConfigs) {
         model_data *latticeVol = latticeBox->volume->model;
@@ -841,6 +842,7 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
                     if (arrays->isInside(gridPoint) && latticeVol->isInside(gridPoint, 0)) {
                         // Add to lattice
                         gridTemp.push_back(gridPoint);
+                        pointOrigins.push_back(latticeBox);
                     }
                 }
             }
@@ -852,6 +854,7 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
 
     // Set lattice property
     arrays->lattice = grid;
+    arrays->pointOrigins = pointOrigins;
     qDebug() << "Created grid lattice" << arrays->lattice.size();
 }
 
