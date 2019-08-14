@@ -838,7 +838,7 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
                 for (ulong x = 0; x < xLines.size(); x++) {
                     gridPoint = glm::vec3(xLines[x], yLines[y], zLines[z]);
 
-                    if (arrays->isInside(gridPoint) && latticeBox->isInside(gridPoint)) {
+                    if (arrays->isInside(gridPoint) && latticeBox->isInside(gridPoint, 0)) {
                         // Add to lattice
                         gridTemp.push_back(gridPoint);
                     }
