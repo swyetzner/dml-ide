@@ -21,7 +21,7 @@ public:
     ~Loader();
 
     void createGridLattice(simulation_data *arrays, int dimX, int dimY, int dimZ);
-    void createGridLattice(simulation_data *arrays, float cutoff);
+    void createGridLattice(simulation_data *arrays, SimulationConfig *simConfig);
     void createSpaceLattice(simulation_data *arrays, SimulationConfig *simConfig);
     void createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff);
     void createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff, bool includeHull);
