@@ -82,12 +82,11 @@ void GUtils::createMainAxes(GLuint &id, float size) {
 void GUtils::drawMainAxes(GLuint vaIndex, GLuint &bufferId) {
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
 
-    f->glDisable(GL_DEPTH_TEST);
-
     f->glEnableVertexAttribArray(vaIndex);
     f->glBindBuffer(GL_ARRAY_BUFFER, bufferId);
     f->glVertexAttribPointer(vaIndex, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
+    glEnable(GL_DEPTH_TEST);
     f->glDrawArrays(GL_LINES, 0, GLsizei(6));
 
     f->glDisableVertexAttribArray(vaIndex);

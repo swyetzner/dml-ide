@@ -5,7 +5,9 @@
         <file>../resources/icons/wireframe.png</file>
         <file>../resources/shaders/bars.vert</file>
         <file>../resources/shaders/bars.frag</file>
+        <file>../resources/shaders/lineCylinders.vert</file>
         <file>../resources/shaders/lineCylinders.geom</file>
+        <file>../resources/shaders/lineCylinders.frag</file>
         <file>../resources/shaders/arrows.vert</file>
         <file>../resources/shaders/arrows.geom</file>
         <file>../resources/shaders/arrows.frag</file>
