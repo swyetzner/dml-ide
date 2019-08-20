@@ -952,7 +952,16 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
-                pointOrigins.push_back(NULL);
+
+                for(LatticeConfig *latticeBox : latticeConfigs) {
+                    if (latticeBox->volume->model.isInside(arrays->vertices[i], 0)) {
+                        pointOrigins.push_back(latticeBox);
+                        break;
+                    }
+                }
+                // Just in case the hull point wasn't in any of the lattice boxes
+                if (lattice.size() != pointOrigins.size())
+                    pointOrigins.push_back(latticeConfigs.at(0));
             }
         }
         // Interpolate edges based on cutoff
