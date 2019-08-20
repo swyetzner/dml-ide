@@ -9,14 +9,14 @@ Utils::Utils()
 
 }
 
-bool Utils::startsWith(const string &s, const string &p) {
+inline bool Utils::startsWith(const string &s, const string &p) {
     if (p.size() > s.size()) {
         return false;
     }
     return equal(p.begin(), p.end(), s.begin());
 }
 
-bool Utils::endsWith(const string &s, const string &e) {
+inline bool Utils::endsWith(const string &s, const string &e) {
     if (e.size() > s.size()) {
         return false;
     }

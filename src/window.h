@@ -56,6 +56,7 @@ public slots:
     void log(const QString message);
     void open();
     void save();
+    void load();
     void exportSTL();
     void saveSTLFile(double barDiam, double res);
     void modelItemToggled(QTreeWidgetItem * item, int column);
@@ -73,6 +74,7 @@ public slots:
 private slots:
     void on_actionOpen_triggered();
     void on_actionSave_triggered();
+    void on_actionLoad_triggered();
 
     void on_actionwireframeView_triggered();
     void on_actionSTLView_triggered();
@@ -91,6 +93,7 @@ private slots:
 
     void simulationFinished();
     void exportThreadFinished(QString fileName);
+
 
 private:
     Simulation *simulation;
