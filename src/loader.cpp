@@ -954,7 +954,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 lattice.push_back(arrays->vertices[i]);
 
                 for(LatticeConfig *latticeBox : latticeConfigs) {
-                    if (latticeBox->volume->model.isInside(arrays->vertices[i], 0)) {
+                    if (latticeBox->volume->model->isInside(arrays->vertices[i], 0)) {
                         pointOrigins.push_back(latticeBox);
                         break;
                     }
