@@ -340,17 +340,45 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
         // DENSITY -- MASS VALUES
         if (mat->dUnits != nullptr) {
-            // Note that this is an approximation for volume governed up by a single mass
             double v = pow(simConfig->lattice.unit[0],3);
             double d = mat->density;
             double unit = 1;
-
             if (mat->dUnits == "gcc") { unit *= 1000; }
-            qDebug() << v*d*unit;
-            sim->setAllMassValues(v*d*unit);
-            qDebug() << sim->masses.front()->m;
+
+
+            switch (simConfig->lattice.structure) {
+                case LatticeConfig::FULL:
+                    qDebug() << v * d * unit;
+                    sim->setAllMassValues(v * d * unit);
+                    qDebug() << sim->masses.front()->m;
+                    break;
+                case LatticeConfig::BARS:
+                    for (Mass *m : sim->masses) {
+                        m->m = 0;
+                    }
+                    double totalM = 0;
+                    for (Spring *s : sim->springs) {
+                        // get volume for half
+                        double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
+                        qDebug() << vol << s->_rest / 2 << s->_diam / 2;
+                        double m = vol * d * unit;
+                        s->_left->m += m;
+                        s->_right->m += m;
+                        totalM += 2 * m;
+                    }
+                    qDebug() << "Total mass" << totalM << "kg";
+                    break;
+            }
         }
 
+        // TIMESTEP
+        double maxNatFreq = 0;
+        for (Spring * s: sim->springs) {
+            double minM = std::min(s->_left->m, s->_right->m);
+            maxNatFreq = std::max(sqrt(s->_k / minM), maxNatFreq);
+        }
+        double timestepLimit = 1 / (2 * 3.14159 * maxNatFreq);
+        qDebug() << maxNatFreq << timestepLimit;
         //sim->masses.front()->extforce = Vec(-100, 0, 0);
         //sim->masses.front()->extduration = 0.1;
     }
@@ -696,6 +724,7 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             }
         }
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
+        cout << "Anchored " << fixedMasses << " masses with volume " << anchorVol->id.toStdString() << ".\n";
     }
 
     for (Force *force : load->forces) {
@@ -743,6 +772,7 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 m->extforce += distributedForce;
             }
             log(tr("Applied %3 N force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id).arg(distributedForce.norm()));
+            cout << "Applied " << distributedForce.norm() << "N force to " << forceMasses << " masses with volume " << forceVol->id.toStdString() << ".\n";
         } else
             log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
     }
@@ -1020,6 +1050,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
 
                 if (distFromPoint < cutoff) {
                     candidates.erase(candidates.begin() + i);
+                    sumDistsStore.erase(sumDistsStore.begin() + i);
                     i--;
                     continue;
                 }

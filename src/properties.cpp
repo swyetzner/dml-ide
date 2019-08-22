@@ -156,7 +156,7 @@ void PropertiesTable::displaySimulation(QString id) {
     headerLabels.append("");
     headerLabels.append("");
 
-    this->setRowCount(21 + 3 * int(simConfig->stops.size()));
+    this->setRowCount(23 + 3 * int(simConfig->stops.size()));
     this->setColumnCount(3);
 
     this->setHorizontalHeaderLabels(headerLabels);
@@ -185,6 +185,10 @@ void PropertiesTable::displaySimulation(QString id) {
     createValueItem(rowCount, 2, simConfig->lattice.material->id);
     createPropertyItem(++rowCount, 1, "jiggle");
     createVecValueItem(rowCount, 2, simConfig->lattice.jiggle);
+    createPropertyItem(++rowCount, 1, "hull");
+    createValueItem(rowCount, 2, QString::number(simConfig->lattice.hull));
+    createPropertyItem(++rowCount, 1, "structure");
+    createValueItem(rowCount, 2, simConfig->lattice.structureName());
 
     createNodeItem(++rowCount, 0, "damping");
     createPropertyItem(++rowCount, 1, "velocity");
@@ -381,6 +385,12 @@ void PropertiesTable::updateProp(int row, int col) {
                 }
                 if(property->text() == "velocity") {
                     simConfig->damping.velocity = item->text().toDouble();
+                }
+                if (property->text() == "hull") {
+                    simConfig->lattice.hull = item->text().toInt();
+                }
+                if (property->text() == "structure") {
+                    simConfig->lattice.structure = item->text() == "bars" ? LatticeConfig::BARS : LatticeConfig::FULL;
                 }
                 break;
             }

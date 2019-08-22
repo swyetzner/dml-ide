@@ -62,6 +62,7 @@ static inline QString bardiamAttribute() { return QStringLiteral("bardiam"); }
 static inline QString materialAttribute() { return QStringLiteral("material"); }
 static inline QString jiggleAttribute() { return QStringLiteral("jiggle"); }
 static inline QString hullAttribute() { return QStringLiteral("hull"); }
+static inline QString structureAttribute() { return QStringLiteral("structure"); }
 
 // Damping attributes
 static inline QString velocityAttribute() { return QStringLiteral("velocity"); }
@@ -319,6 +320,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *material = createAttributeItem(item, attrMap, materialAttribute());
         auto *jiggle = createAttributeItem(item, attrMap, jiggleAttribute());
         auto *hull = createAttributeItem(item, attrMap, hullAttribute());
+        auto *structure = createAttributeItem(item, attrMap, structureAttribute());
 
         qDebug() << "Loading lattice config";
 
@@ -334,6 +336,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         l.material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
         l.jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
         l.hull = hull ? hull->text(1).toInt() : true;
+        l.structure = structure ? (structure->text(1) == "bars"?
+                            LatticeConfig::BARS :
+                            LatticeConfig::FULL) : LatticeConfig::FULL;
 
         if (!l.material)
             qDebug() << "Material" << material->text(1) << "not found";

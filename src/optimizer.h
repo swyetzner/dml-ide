@@ -94,7 +94,7 @@ protected:
 class MassDisplacer : public Optimizer {
 
 public:
-    MassDisplacer(Simulation *sim, double dx, double displaceRatio);
+    MassDisplacer(Simulation *sim, double dx, double displaceRatio, double massFactor);
     ~MassDisplacer() {
         delete start;
         delete test;
@@ -110,6 +110,7 @@ public:
     double dx;
     bool equilibrium;
     vector<double> prevEnergy;
+    double massFactor;
 
     double localEnergy;
     int attempts;
@@ -236,7 +237,7 @@ private:
     int displaceSingleMass(double displacement, double chunkSize, int metricOrder);
     int displaceGroupMass(double displacement);
     int displaceManyMasses(double displacement, int metricOrder, int num);
-    void setMassState(const vector<Vec> &pos);
+    void setMassState(const vector<Vec> &pos, const vector<double> &mm);
 };
 
 

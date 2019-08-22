@@ -110,6 +110,8 @@ private:
     bool switched;
     Vec center;
 
+    bool OPTIMIZER;
+
     void loadOptimizers();
     Vec getSimCenter();
     void equilibriate();
