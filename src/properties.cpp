@@ -168,23 +168,25 @@ void PropertiesTable::displaySimulation(QString id) {
     createPropertyItem(rowCount, 0, "volume");
     createValueItem(rowCount++, 1, simConfig->volume->id);
 
-    createNodeItem(rowCount, 0, "lattice");
-    createPropertyItem(++rowCount, 1, "fill");
-    createValueItem(rowCount, 2, simConfig->lattices[0]->fillName());
-    createPropertyItem(++rowCount, 1, "unit");
-    createVecValueItem(rowCount, 2, simConfig->lattices[0]->unit);
-    createPropertyItem(++rowCount, 1, "display");
-    createValueItem(rowCount, 2, simConfig->lattices[0]->display);
-    createPropertyItem(++rowCount, 1, "conform");
-    createValueItem(rowCount, 2, QString(simConfig->lattices[0]->conform));
-    createPropertyItem(++rowCount, 1, "offset");
-    createVecValueItem(rowCount, 2, simConfig->lattices[0]->offset);
-    createPropertyItem(++rowCount, 1, "bar diameter");
-    createVecValueItem(rowCount, 2, simConfig->lattices[0]->barDiameter);
-    createPropertyItem(++rowCount, 1, "material");
-    createValueItem(rowCount, 2, simConfig->lattices[0]->material->id);
-    createPropertyItem(++rowCount, 1, "jiggle");
-    createVecValueItem(rowCount, 2, simConfig->lattices[0]->jiggle);
+    for (LatticeConfig *lattice : simConfig->lattices) {
+        createNodeItem(rowCount, 0, "lattice");
+        createPropertyItem(++rowCount, 1, "fill");
+        createValueItem(rowCount, 2, lattice->fillName());
+        createPropertyItem(++rowCount, 1, "unit");
+        createVecValueItem(rowCount, 2, lattice->unit);
+        createPropertyItem(++rowCount, 1, "display");
+        createValueItem(rowCount, 2, lattice->display);
+        createPropertyItem(++rowCount, 1, "conform");
+        createValueItem(rowCount, 2, QString(lattice->conform));
+        createPropertyItem(++rowCount, 1, "offset");
+        createVecValueItem(rowCount, 2, lattice->offset);
+        createPropertyItem(++rowCount, 1, "bar diameter");
+        createVecValueItem(rowCount, 2, lattice->barDiameter);
+        createPropertyItem(++rowCount, 1, "material");
+        createValueItem(rowCount, 2, lattice->material->id);
+        createPropertyItem(++rowCount, 1, "jiggle");
+        createVecValueItem(rowCount, 2, lattice->jiggle);
+    }
 
     createNodeItem(++rowCount, 0, "damping");
     createPropertyItem(++rowCount, 1, "velocity");
