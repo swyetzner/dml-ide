@@ -360,7 +360,6 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     for (Spring *s : sim->springs) {
                         // get volume for half
                         double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
-                        qDebug() << vol << s->_rest / 2 << s->_diam / 2;
                         double m = vol * d * unit;
                         s->_left->m += m;
                         s->_right->m += m;
