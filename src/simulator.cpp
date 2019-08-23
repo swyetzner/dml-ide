@@ -818,6 +818,9 @@ void Simulator::printStatus() {
     cout << "\033[95m" << metrics.totalEnergy << " (current), " << "\033[97m";
     cout << std::setprecision(4) << ((metrics.totalEnergy_start > 0.0)? (100 * (metrics.totalEnergy / metrics.totalEnergy_start)) : 100.0) << "%" << std::endl;
     cout << "\033[0K" << "Deflection: " << metrics.deflection << std::endl;
+    if (OPTIMIZER && optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
+        cout << "\033[0K" << "Displacement: " << metrics.displacement << std::endl;
+    }
     cout << "\n";
 }
 

@@ -501,12 +501,14 @@ void MassDisplacer::optimize() {
 
     while (displaced == 0) {
         attempts ++;
+        if (attempts == 1) cout << "\033[J";
+        cout << "Trial " << attempts << ": ";
         displaced = displaceSingleMass(dx, chunkSize, order);
         //displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
     }
 
-    /**prevAttemptNums.push_back(attempts);
+    prevAttemptNums.push_back(attempts);
     while (prevAttemptNums.size() > 100) {
         prevAttemptNums.erase(prevAttemptNums.begin());
     }
@@ -528,7 +530,7 @@ void MassDisplacer::optimize() {
             dx /= 2;
             lastTune = iterations;
         }
-    }**/
+    }
 
     if (!STARTED) STARTED = true;
     iterations++;
@@ -983,6 +985,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     qDebug() << "Total lengths Sim" << totalLengthSim << " Test" << totalLengthTest;
     qDebug() << "Total energies Sim" << totalEnergySim << " Test" << totalEnergyTest;
     qDebug() << "Total metrics Sim" << totalMetricSim << " Test" << totalMetricTest;
+    cout << "\tMetrics " << totalMetricSim << " (sim),\t" << totalMetricTest << " (test);\t";
 
     for (int e = 0; e < edgeGroup.size(); e++) {
         Mass *m = edgeGroup[e];
@@ -995,6 +998,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     }
 
     if (isnan(totalMetricTest) || totalMetricTest >= totalMetricSim) {
+        cout << "REJECT\n";
         setMassState(startPos, startMass);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
@@ -1012,6 +1016,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         localEnergy = totalEnergySim;
         sim->setAll();
     } else {
+        cout << "ACCEPT\n";
         sim->setAll();
         qDebug() << "Moved" << i;
         localEnergy = totalEnergyTest;
