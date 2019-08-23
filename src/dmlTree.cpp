@@ -30,10 +30,12 @@ static inline QString nameAttribute() { return QStringLiteral("name"); }
 static inline QString elasticityAttribute() { return QStringLiteral("elasticity"); }
 static inline QString yieldAttribute() { return QStringLiteral("yield"); }
 static inline QString densityAttribute() { return QStringLiteral("density"); }
+static inline QString expansionAttribute() { return QStringLiteral("expansion"); }
 
 // Loadcase elements
 static inline QString anchorElement() { return QStringLiteral("anchor"); }
 static inline QString forceElement() { return QStringLiteral("force"); }
+static inline QString actuationElement() { return QStringLiteral("actuation"); }
 
 // Anchor attributes
 static inline QString volumeAttribute() { return QStringLiteral("volume"); }
@@ -42,6 +44,9 @@ static inline QString volumeAttribute() { return QStringLiteral("volume"); }
 static inline QString magnitudeAttribute() {return QStringLiteral("magnitude"); }
 static inline QString durationAttribute() { return QStringLiteral("duration"); }
 static inline QString varyAttribute() { return QStringLiteral("vary"); }
+
+// Actuation attributes
+static inline QString waveAttribute() {return QStringLiteral("wave");}
 
 // Simulation elements
 static inline QString latticeElement() {return QStringLiteral("lattice"); }
@@ -217,6 +222,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *elast = createAttributeItem(item, attrMap, elasticityAttribute());
         auto *yield = createAttributeItem(item, attrMap, yieldAttribute());
         auto *density = createAttributeItem(item, attrMap, densityAttribute());
+        auto *expansion = createAttributeItem(item, attrMap, expansionAttribute());
 
         Material *m = new Material();
         m->id = id ? id->text(1) : nullptr;
@@ -227,6 +233,8 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         if (yield) { m->yUnits = yield->text(1).split(" ").size() > 1 ? yield->text(1).split(" ")[1] : nullptr; }
         m->density = density ? density->text(1).split(" ")[0].toDouble() : 0;
         if (density) { m->dUnits = density->text(1).split(" ")[1].size() > 1 ? density->text(1).split(" ")[1] : nullptr; }
+        m->expansion = expansion ? expansion->text(1).split(",")[0] : nullptr;
+        if (expansion) { m->expansionCoeff = expansion->text(1).split(",")[1].trimmed().toDouble(); }
 
         m->index = design_ptr->materials.size();
         design_ptr->materials.push_back(*m);
@@ -287,6 +295,23 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         design_ptr->loadcaseMap[loadId]->totalDuration = std::max(design_ptr->loadcaseMap[loadId]->totalDuration,
                 f->duration);
         log(QString("Loaded Force: '%1'").arg(f->volume->id));
+    }
+
+    // ---- <actuation> ----
+    if (element.tagName() == actuationElement()) {
+        auto *id = createAttributeItem(item, attrMap, idAttribute());
+        auto *wave = createAttributeItem(item, attrMap, waveAttribute());
+        auto *magnitude = createAttributeItem(item, attrMap, magnitudeAttribute());
+
+        Actuation *a = new Actuation();
+        a->id = id ? id->text(1) : nullptr;
+        a->wave = wave ? wave->text(1) == "sin"? Actuation::SIN : Actuation::NONE : Actuation::NONE;
+        a->magnitude = magnitude ? parseVec(magnitude->text(1)) : Vec(0,0,0);
+
+        QString loadId = parentItem->child(0)->text(1);
+        design_ptr->loadcaseMap[loadId]->actuations.push_back(a);
+        design_ptr->loadcaseMap[loadId]->actuationMap[a->id] = a;
+        log(QString("Loaded Actuation: '%1'").arg(a->id));
     }
 
     // ---- <simulation> ----
