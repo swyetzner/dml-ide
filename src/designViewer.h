@@ -58,6 +58,7 @@ private:
     void updateShader();
     void updateBuffers();
     void drawVertexArray();
+    void drawModels();
 
     void cleanUp();
 
@@ -71,6 +72,8 @@ private:
 
     QOpenGLShaderProgram *shaderProgram;
     QOpenGLShaderProgram *guideShaderProgram;
+    QOpenGLShaderProgram *depthShaderProgram;
+    QOpenGLShaderProgram *depthQuadProgram;
     QOpenGLVertexArrayObject vertexArray;
 
     GLfloat *vertices = nullptr;
@@ -80,6 +83,14 @@ private:
     GLuint *normalBuff_ids;
     GLuint *colorBuff_ids;
     GLuint axesBuff_id;
+    GLuint depthFrameBuff_id;
+    GLuint depthTexBuff_id;
+    GLuint quadBuff_id;
+
+    float frameWidth;
+    float frameHeight;
+    float nearPlane;
+    float farPlane;
 
     // Rotate + Zoom
     int m_xRot;
@@ -104,6 +115,7 @@ private:
     QMatrix4x4 camera;
     QMatrix4x4 world;
     QMatrix3x3 normals;
+    QVector3D eye;
     // --------------------------------------------------------------------
 };
 
