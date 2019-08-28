@@ -37,26 +37,86 @@ void createCylinders(float r1, float r2, int res) {
     b = normalize(b);
 
     // Iterate around line
-    for (int i = 0; i < res + 1; i++) {
+    for (int i = 0; i < res + 2; i++) {
         float theta = i * twoPi / res;
 
         //gs_out.normal = cos(theta1)*a + sin(thet1)*b;
 
         vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
         vPosition = projMatrix * mvMatrix * q1;
-        vNormal = normalize(p1 - q1.xyz);
+        vNormal = normalize(q1.xyz - p1);
         gl_Position = vPosition;
         EmitVertex();
 
         vec4 q2 = vec4(p2 + r2*cos(theta)*a + r2*sin(theta)*b, 1.0);
         vPosition = projMatrix * mvMatrix * q2;
-        vNormal = normalize(p2 - q2.xyz);
+        vNormal = normalize(q2.xyz - p2);
+        gl_Position = vPosition;
+        EmitVertex();
+    }
+    EndPrimitive();
+
+    // Close each end
+    vec3 p3 = p1 + r1*p;  // Extrapolate center of end
+    for (int i = 0; i < res + 1; i++) {
+        float theta = i * twoPi / res;
+
+        vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
+        vPosition = projMatrix * mvMatrix * q1;
+        vNormal = normalize(q1.xyz - p1);
+        gl_Position = vPosition;
+        EmitVertex();
+
+        vPosition = projMatrix * mvMatrix * vec4(p3, 1.0);
+        vNormal = p;
+        gl_Position = vPosition;
+        EmitVertex();
+    }
+    EndPrimitive();
+
+    vec3 p4 = p2 + r2*p;  // Extrapolate center of end
+    for (int i = 0; i < res + 1; i++) {
+        float theta = i * twoPi / res;
+
+        vec4 q2 = vec4(p2 + r2*cos(theta)*a + r2*sin(theta)*b, 1.0);
+        vPosition = projMatrix * mvMatrix * q2;
+        vNormal = normalize(q2.xyz - p2);
+        gl_Position = vPosition;
+        EmitVertex();
+
+        vPosition = projMatrix * mvMatrix * vec4(p4, 1.0);
+        vNormal = p;
+        gl_Position = vPosition;
+        EmitVertex();
+    }
+    EndPrimitive();
+
+
+/**
+    // Top and bottom faces
+    for (int i = 0; i < res + 2; i++) {
+        float theta = i * twoPi / res;
+        vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
+        vec4 q2 = vec4(p2 + r2*cos(theta)*a + r2*sin(theta)*b, 1.0);
+        vPosition = projMatrix * mvMatrix * q1;
+        vNormal = normalize(q1.xyz - q2.xyz);
+        gl_Position = vPosition;
+        EmitVertex();
+    }
+    EndPrimitive();
+
+    for (int i = 0; i < res + 2; i++) {
+        float theta = i * twoPi / res;
+        vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
+        vec4 q2 = vec4(p2 + r2*cos(theta)*a + r2*sin(theta)*b, 1.0);
+        vPosition = projMatrix * mvMatrix * q2;
+        vNormal = normalize(q2.xyz - q1.xyz);
         gl_Position = vPosition;
         EmitVertex();
     }
     //gl_Position = (gl_in[0].gl_Position + gl_in[1].gl_Position) * 0.5;
     //EmitVertex();
-    EndPrimitive();
+    EndPrimitive();**/
 }
 
 

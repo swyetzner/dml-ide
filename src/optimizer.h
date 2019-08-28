@@ -151,6 +151,15 @@ public:
         double testEnergy = 0;
     } massGroup;
 
+    vector<MassGroup> massGroups;
+
+    // Struct holding separation grid information
+    struct TrenchGrid {
+        Vec startCorner;
+        Vec endCorner;
+        Vec dimension;
+    } trenchGrid;
+
     struct DisplacedMass {
         DisplacedMass() {
             index = -1;
@@ -213,6 +222,7 @@ private:
     int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
+    void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
     void shiftCloneMass(Clone *clone, double dx);
     vector<DisplacedSpring> shiftOrigPos(Simulation *sim, Mass * m, const Vec &p);
     double calcTotalLength(Simulation *sim);

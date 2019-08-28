@@ -142,20 +142,29 @@ void SimViewer::saveVideo() {
 static const char *vertexShaderPlaneSource =
         "#version 330\n"
         "layout (location = 3) in vec3 vertexPos;\n"
+        "out vec4 vertPos;\n"
         "out vec4 vertexColor;\n"
         "uniform mat4 projMatrix;\n"
         "uniform mat4 mvMatrix;\n"
         "void main() {\n"
-        "   gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);\n"
-        "   vertexColor = vec4(0.2, 0.2, 0.2, 1.0);\n"
+        "   vertPos = projMatrix * mvMatrix * vec4(vertexPos, 1.0);\n"
+        "   gl_Position = vertPos;\n"
+        "   vertexColor = vec4(0.8, 0.8, 0.8, 1.0);\n"
         "}\n";
 
 static const char *fragmentShaderPlaneSource =
         "#version 330\n"
         "out vec4 fragColor;\n"
+        "in vec4 vertPos;\n"
         "in vec4 vertexColor;\n"
+        "uniform mat3 normMatrix;\n"
+        "uniform vec3 normal;\n"
+        "uniform vec3 lightPos;\n"
         "void main() {\n"
-        "   fragColor = vertexColor;\n"
+        "    vec3 L = normalize(lightPos - vertPos.xyz);\n"
+        "    float NL = max(dot(normalize(normMatrix * normal), L), 0.0);\n"
+        "    vec4 clColor = clamp(vertexColor * 0.2 + vertexColor * 0.8 * NL, 0.0, 1.0);\n"
+        "    fragColor = vec4(clColor.xyz, 1.0);\n"
         "}\n";
 
 
@@ -424,6 +433,8 @@ void SimViewer::updatePlaneVertices() {
     int pVerticesCount = 0;
     n_planes = simulator->sim->planes.size();
 
+    if (!planeVertices) planeVertices = new GLfloat[12 * n_planes];
+
     for (ulong i =0; i < ulong(n_planes); i++) {
         GLfloat *p = planeVertices + pVerticesCount;
         ContactPlane *c = simulator->sim->planes[i];
@@ -435,10 +446,6 @@ void SimViewer::updatePlaneVertices() {
         Vec v2 = c->_offset * c->_normal + 1*u1 - 1*u2;
         Vec v3 = c->_offset * c->_normal + 1*u1 + 1*u2;
         Vec v4 = c->_offset * c->_normal - 1*u1 + 1*u2;
-        qDebug() << v1[0] << v1[1] << v1[2];
-        qDebug() << v2[0] << v2[1] << v2[2];
-        qDebug() << v3[0] << v3[1] << v3[2];
-        qDebug() << v4[0] << v4[1] << v4[2];
 
         *p++ = GLfloat(v1[0]); *p++ = GLfloat(v1[1]); *p++ = GLfloat(v1[2]);
         *p++ = GLfloat(v2[0]); *p++ = GLfloat(v2[1]); *p++ = GLfloat(v2[2]);
@@ -464,9 +471,9 @@ void SimViewer::initVertexArray() {
 void SimViewer::initShaders() {
 
     springShaderProgram = new QOpenGLShaderProgram;
-    springShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/resources/shaders/bars.vert");
+    springShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/resources/shaders/lineCylinders.vert");
     springShaderProgram->addShaderFromSourceFile(QOpenGLShader::Geometry, ":/resources/shaders/lineCylinders.geom");
-    springShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/resources/shaders/bars.frag");
+    springShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/resources/shaders/lineCylinders.frag");
     springShaderProgram->bindAttributeLocation("vertexPos", 0);
     springShaderProgram->bindAttributeLocation("colorPos", 2);
     springShaderProgram->bindAttributeLocation("diameter", 3);
@@ -501,14 +508,17 @@ void SimViewer::initShaders() {
     springShaderProgram->bind();
     projMatrixLoc = springShaderProgram->uniformLocation("projMatrix");
     mvMatrixLoc = springShaderProgram->uniformLocation("mvMatrix");
-    normalMatrixLoc = springShaderProgram->uniformLocation("normalMatrix");
+    normalMatrixLoc = springShaderProgram->uniformLocation("normMatrix");
     lightPosLoc = springShaderProgram->uniformLocation("lightPos");
-    springShaderProgram->setUniformValue(lightPosLoc, 0, 0, 70);
     springShaderProgram->release();
+    qDebug() << "locs " << projMatrixLoc << mvMatrixLoc << normalMatrixLoc << lightPosLoc;
 
     planeShaderProgram->bind();
     projMatrixLoc = planeShaderProgram->uniformLocation("projMatrix");
     mvMatrixLoc = planeShaderProgram->uniformLocation("mvMatrix");
+    planeShaderProgram->uniformLocation("normMatrix");
+    planeShaderProgram->uniformLocation("normal");
+    planeShaderProgram->uniformLocation("lightPos");
     planeShaderProgram->release();
 
     axesShaderProgram->bind();
@@ -605,17 +615,26 @@ void SimViewer::updateShaders() {
     scale = simulator->sim->springs[0]->_diam / 0.002;
 
     normal = world.normalMatrix();
+    QVector3D pnq = QVector3D(0,0,0);
+    if (n_planes == 1) {
+        Vec pn = simulator->sim->planes[0]->_normal;
+        pnq = QVector3D(pn[0], pn[1], pn[2]);
+    }
+    QVector3D light = QVector3D(0, 0, 70);
 
     springShaderProgram->bind();
-    springShaderProgram->setUniformValue(projMatrixLoc, projection);
-    springShaderProgram->setUniformValue(mvMatrixLoc, camera * world);
-    springShaderProgram->setUniformValue(normalMatrixLoc, normal);
-    springShaderProgram->setUniformValue(lightPosLoc, 0, 0, 70);
+    springShaderProgram->setUniformValue("projMatrix", projection);
+    springShaderProgram->setUniformValue("mvMatrix", camera * world);
+    springShaderProgram->setUniformValue("normMatrix", normal);
+    springShaderProgram->setUniformValue("lightPos", light);
     springShaderProgram->release();
 
     planeShaderProgram->bind();
-    planeShaderProgram->setUniformValue(projMatrixLoc, projection);
-    planeShaderProgram->setUniformValue(mvMatrixLoc, camera * world);
+    planeShaderProgram->setUniformValue("projMatrix", projection);
+    planeShaderProgram->setUniformValue("mvMatrix", camera * world);
+    planeShaderProgram->setUniformValue("normMatrix", normal);
+    planeShaderProgram->setUniformValue("normal", pnq);
+    planeShaderProgram->setUniformValue("lightPos", light);
     planeShaderProgram->release();
 
     axesShaderProgram->bind();
@@ -703,6 +722,7 @@ void SimViewer::drawVertexArray() {
     glBindBuffer(GL_ARRAY_BUFFER, diameterBuff_id);
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
 
+    glEnable(GL_DEPTH_TEST);
     glDrawArrays(GL_LINES, 0, GLsizei(verticesCount / 3));
 
     glDisableVertexAttribArray(3);
@@ -720,6 +740,8 @@ void SimViewer::drawVertexArray() {
     glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
 
     glPointSize(10.0f);
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
     glDrawArrays(GL_POINTS, 0, GLsizei(extForces.size()));
 
     glDisableVertexAttribArray(6);
@@ -731,6 +753,7 @@ void SimViewer::drawVertexArray() {
     glBindBuffer(GL_ARRAY_BUFFER, anchorVertexBuff_id);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
+    glEnable(GL_DEPTH_TEST);
     glDrawArrays(GL_POINTS, 0, GLsizei(anchors.size()));
 
     glDisableVertexAttribArray(0);
@@ -841,10 +864,15 @@ void SimViewer::initializeGL() {
     qDebug() << "Initializing OpenGL";
 
     updateColors();
+    qDebug() << "Initialized colors";
     updatePairVertices();
+    qDebug() << "Initialized spring vertices";
     updateDiameters();
+    qDebug() << "Initialized spring diameters";
     updatePlaneVertices();
+    qDebug() << "Initialized plane vertices";
     updateOverlays();
+    qDebug() << "Initialized overlays";
 
     qDebug() << "Filled graphics data";
 
@@ -853,11 +881,27 @@ void SimViewer::initializeGL() {
     initBuffers();
 
     qDebug() << "Initialized QOpenGLWidget";
+    qDebug() << "Format depth" << this->format();
 
     initCamera();
     ortho.setToIdentity();
     ortho.ortho(0.0f, 800.0f, 0.0f, 600.0, 0.1f, 100.0f);
 
+    GLint i, count;
+    GLint size;
+    GLenum type;
+    const GLsizei bufSize = 16;
+    GLchar  name[bufSize];
+    GLsizei  length;
+
+    printf("GL_FLOAT_VEC3: %u\n", GL_FLOAT_VEC3);
+    printf("GL_FLOAT_MAT4: %u\n", GL_FLOAT_MAT4);
+    glGetProgramiv(springShaderProgram->programId(), GL_ACTIVE_UNIFORMS, &count);
+    qDebug() << "Active uniforms: " << count;
+    for (i = 0; i < count; i++) {
+        glGetActiveUniform(springShaderProgram->programId(), GLuint(i), bufSize, &length, &size, &type, name);
+        printf("Uniform #%d Type: %u Name: %s\n", i, type, name);
+    }
 }
 
 
@@ -867,10 +911,8 @@ void SimViewer::initializeGL() {
 //
 void SimViewer::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_CLAMP);
+
     glClearColor(0, 0, 0, 0);
 
     if (n_springs != int(simulator->sim->springs.size())) {
@@ -909,7 +951,7 @@ void SimViewer::paintGL() {
 void SimViewer::resizeGL(int width, int height) {
     glViewport(0, 0, width, height);
     projection.setToIdentity();
-    projection.perspective(45.0f, GLfloat(width) / height, 0.01f, 100.0f);
+    projection.perspective(45.0f, GLfloat(width) / height, 0.1f, 20.0f);
 }
 
 

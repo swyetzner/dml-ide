@@ -11,6 +11,7 @@
 
 #include <ctime>
 #include <iomanip>
+#include <fstream>
 
 struct sim_metrics {
     sim_metrics() = default;
@@ -18,6 +19,7 @@ struct sim_metrics {
     double time;
     double totalLength;
     double totalEnergy;
+
     double totalLength_start;
     double totalEnergy_start;
     double deflection;
@@ -64,6 +66,7 @@ public:
     void runSimulation(bool running);
     void runStep();
     void getSimMetrics(sim_metrics &metrics);
+    void loadSimDump(std::string sp);
     void exportSimulation();
 
 private:
@@ -85,6 +88,8 @@ private:
     double totalMass_start;
     double totalLength;
     double totalEnergy;
+    double totalLength_prev;
+    double totalEnergy_prev;
     double totalLength_start;
     double totalEnergy_start;
     Vec deflectionPoint_start;
@@ -105,9 +110,11 @@ private:
     bool switched;
     Vec center;
 
+    void loadOptimizers();
     Vec getSimCenter();
     void equilibriate();
     bool stopCriteriaMet();
+    bool dumpCriteriaMet();
 
     int currentLoad;
     float pastLoadTime;

@@ -115,6 +115,30 @@ void Window::save() {
     }
 }
 
+void Window::load() {
+    QString fileName =
+            QFileDialog::getOpenFileName(this, tr("Simulation Dump File"),
+                                         QDir::currentPath(),
+                                         tr("Text Files (*.txt)"));
+    if (fileName.isEmpty())
+        return;
+
+    QFile file(fileName);
+    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+
+        log(tr("Cannot read file %1:\n%2.")
+            .arg(QDir::toNativeSeparators(fileName),
+                 file.errorString()));
+        return;
+    }
+
+    QString dirName = fileName;
+    dirName.truncate(dirName.lastIndexOf("/"));
+    qDebug() << "About to read simulation dump file";
+
+    simulator->loadSimDump(fileName.toStdString());
+}
+
 void Window::exportSTL() {
 
     ExportDialog *exportDialog = new ExportDialog(simulation->springs[0]->_diam, simulation->springs[0]->_diam * 0.5, this);
@@ -279,6 +303,12 @@ void Window::on_actionSave_triggered()
 {
     save();
 }
+
+void Window::on_actionLoad_triggered()
+{
+    load();
+}
+
 
 void Window::simulationFinished() {
     on_actionSaveSim_triggered();

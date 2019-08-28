@@ -17,6 +17,8 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     deflectionPoint_start = getDeflectionPoint();
     totalEnergy = 0;
     totalLength = 0;
+    totalEnergy_prev = 0;
+    totalLength_prev = 0;
     totalLength_start = 0;
     totalEnergy_start = 0;
     springInserter = nullptr;
@@ -33,8 +35,6 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     simStatus = PAUSED;
     dataDir = QDir::currentPath() + QDir::separator() + "data";
 
-    dumpSpringData();
-
     n_repeats = 0;
     repeatTime = config->repeat.after;
     explicitRotation = config->repeat.rotationExplicit;
@@ -44,43 +44,9 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     barData = nullptr;
     GRAPHICS = graphics;
 
-    double minUnitDist = DBL_MAX;
-    for (Spring *t : sim->springs) {
-        minUnitDist = fmin(minUnitDist, t->_rest);
-    }
-    qDebug() << "Min unit distance" << minUnitDist;
-
     relaxation = 3000;
 
-    if (optConfig != nullptr) {
-        for (OptimizationRule r : optConfig->rules) {
-            switch(r.method) {
-                case OptimizationRule::REMOVE_LOW_STRESS:
-                    this->optimizer = new SpringRemover(sim, r.threshold);
-                    qDebug() << "Created SpringRemover" << r.threshold;
-                    break;
-
-                case OptimizationRule::MASS_DISPLACE: {
-                    massDisplacer = new MassDisplacer(sim, config->lattices[0]->unit[0] * 0.2, r.threshold);
-                    massDisplacer->maxLocalization = minUnitDist + 1E-4;
-                    massDisplacer->order = 0;
-                    massDisplacer->chunkSize = 0;
-                    massDisplacer->relaxation = relaxation;
-                    this->optimizer = massDisplacer;
-                    qDebug() << "Created MassDisplacer" << r.threshold;
-                    break;
-                }
-
-                case OptimizationRule::NONE:
-                    optimizer = nullptr;
-                    optimizer = nullptr;
-                    break;
-            }
-        }
-    }
-    qDebug() << "Set optimizations";
-
-    springRemover = new SpringRemover(sim, 0.05);
+    loadOptimizers();
     //optimizer = new MassDisplacer(sim, 0.2);
     //springInserter = new SpringInserter(sim, 0.001);
     //springInserter->cutoff = 3.5 * config->lattice.unit[0];
@@ -150,6 +116,7 @@ void Simulator::runSimulation(bool running) {
         if (simStatus != STARTED) {
             sim->initCudaParameters();
             createDataDir();
+            dumpSpringData();
         }
         simStatus = STARTED;
         run();
@@ -184,6 +151,111 @@ void Simulator::dumpSpringData() {
     QString dumpFile = QString(dataDir + QDir::separator() +
                                "simDump_%1.txt").arg(optimized);
     writeSimDump(dumpFile);
+}
+
+void Simulator::loadSimDump(std::string sp) {
+    int nm = 0, ns = 0;
+    double time = 0;
+    double slen, clen;
+    double sener, cener;
+
+    ifstream dumpFile(sp, ios::in);
+    if (dumpFile.is_open()) {
+        std::string line;
+        // First line
+        if (!(getline(dumpFile, line) && Utils::startsWith(line, "SIMULATION DUMP"))) {
+            cout << "Sim dump file is in an unrecognizable format." << std::endl;
+            exit(1);
+        }
+        sscanf(line.c_str(), "SIMULATION DUMP; Time: %lf, Springs: %d, Masses: %d", &time, &ns, &nm);
+        // Stat lines
+        getline(dumpFile, line);
+        sscanf(line.c_str(), "Start Length: %lf, Start Energy %lf", &slen, &sener);
+        totalLength_start = slen;
+        totalEnergy_start = sener;
+        getline(dumpFile, line);
+        sscanf(line.c_str(), "Current Length: %lf, Current Energy %lf", &clen, &cener);
+        totalLength = clen;
+        totalEnergy = cener;
+        totalLength_prev = totalLength;
+        totalEnergy_prev = totalEnergy;
+
+        int ss = sim->springs.size();
+        int sm = sim->masses.size();
+        vector<Spring *> delSpring = vector<Spring *>();
+        for (int i = ns; i < ss; i++) {
+            delSpring.push_back(sim->getSpringByIndex(i));
+        }
+        vector<Mass *> delMass = vector<Mass *>();
+        for (int i = nm; i < sm; i++) {
+            delMass.push_back(sim->getMassByIndex(i));
+        }
+        for (auto s : delSpring) {
+            sim->deleteSpring(s);
+        }
+        for (auto m : delMass) {
+            sim->deleteMass(m);
+        }
+        while (getline(dumpFile, line)) {
+            if (Utils::startsWith(line, "Mass")) {
+                Vec p, f;
+                double m;
+                int i;
+                sscanf(line.c_str(), "Mass %d (%lf, %lf, %lf) (%lf, %lf, %lf) %lf", &i, &p[0], &p[1], &p[2],
+                        &f[0], &f[1], &f[2], &m);
+
+                if (i < sim->masses.size()) {
+                    sim->masses[i]->origpos = p;
+                    sim->masses[i]->pos = p;
+                    sim->masses[i]->m = m;
+                    sim->masses[i]->extforce = f;
+                    if (Utils::endsWith(line, "F")) sim->masses[i]->fix();
+                } else {
+                    qDebug() << "Creating mass" << i;
+                    sim->createMass(p);
+                    sim->masses[i]->m = m;
+                    sim->masses[i]->extforce = f;
+                    if (Utils::endsWith(line, "F")) sim->masses[i]->fix();
+                }
+            }
+            if (Utils::startsWith(line, "Spring")) {
+                int l, r, i;
+                double k, d;
+                sscanf(line.c_str(), "Spring %d %d %d %lf %lf", &i, &l, &r, &k, &d);
+
+                assert(l < sim->masses.size() && r < sim->masses.size());
+                Mass *m1 = sim->masses[l];
+                Mass *m2 = sim->masses[r];
+                double rest = (m1->origpos - m2->origpos).norm();
+
+                if (i < sim->springs.size()) {
+                    sim->springs[i]->setMasses(m1, m2);
+                    double a = 3.14159 * (d / 2) * (d / 2);
+                    double unit = 1;
+                    sim->springs[i]->_k = k;
+                    sim->springs[i]->_diam = d;
+                    sim->springs[i]->_rest = rest;
+
+                } else {
+                    qDebug() << "Creating spring" << i;
+                    Spring *spring = new Spring(m1, m2, k, rest, d);
+                    int unit = 1;
+                    if (config->lattice.material->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+                    if (config->lattice.material->yUnits == "MPa") { unit *= 1000 * 1000; }
+                    spring->_break_force = 5 * config->lattice.material->yield * unit;
+                    sim->createSpring(spring);
+                }
+            }
+        }
+        n_springs = sim->springs.size();
+        n_masses = sim->masses.size();
+        sim->setAll();
+        loadOptimizers();
+        optimized = 0;
+    } else {
+        cout << "Cannot open file for loading: " << sp << std::endl;
+        exit(1);
+    }
 }
 
 void Simulator::exportSimulation() {
@@ -245,13 +317,16 @@ void Simulator::run() {
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
-        qDebug() << "Synced to CPU";
+        qDebug() << "Synced to CPU" << sim->springs.size();
+        totalLength_prev = totalLength;
         totalLength = 0;
         for (Spring *s: sim->springs) {
             totalLength += s->_rest;
         }
 
+        if (dumpCriteriaMet()) dumpSpringData();
         bool stopReached = stopCriteriaMet();
+        qDebug() << "Evaluated stop criteria" << stopReached;
 
         if (!optimized) {
             if (varyLoad) {
@@ -390,9 +465,45 @@ void Simulator::repeatLoad() {
         // Increase repeat time
         repeatTime += config->repeat.after;
 
-        sim->setAll();
         n_repeats++;
     }
+}
+
+void Simulator::loadOptimizers() {
+    if (optConfig != nullptr) {
+        for (OptimizationRule r : optConfig->rules) {
+            switch(r.method) {
+                case OptimizationRule::REMOVE_LOW_STRESS:
+                    this->optimizer = new SpringRemover(sim, r.threshold);
+                    qDebug() << "Created SpringRemover" << r.threshold;
+                    break;
+
+                case OptimizationRule::MASS_DISPLACE: {
+                    double minUnitDist = DBL_MAX;
+                    for (Spring *t : sim->springs) {
+                        minUnitDist = fmin(minUnitDist, t->_rest);
+                    }
+
+                    massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold);
+                    massDisplacer->maxLocalization = minUnitDist + 1E-4;
+                    massDisplacer->order = 0;
+                    massDisplacer->chunkSize = 0;
+                    massDisplacer->relaxation = relaxation;
+                    this->optimizer = massDisplacer;
+                    qDebug() << "Created MassDisplacer" << r.threshold;
+                    break;
+                }
+
+                case OptimizationRule::NONE:
+                    optimizer = nullptr;
+                    optimizer = nullptr;
+                    break;
+            }
+        }
+    }
+    qDebug() << "Set optimizations";
+
+    springRemover = new SpringRemover(sim, 0.05);
 }
 
 Vec Simulator::getSimCenter() {
@@ -417,6 +528,7 @@ Vec Simulator::getSimCenter() {
 }
 
 void Simulator::equilibriate() {
+    totalEnergy_prev = totalEnergy;
     totalEnergy = 0;
     for (Spring *s : sim->springs) {
         totalEnergy += s->_curr_force * s->_curr_force / s->_k;
@@ -458,24 +570,54 @@ bool Simulator::stopCriteriaMet() {
     return stopReached;
 }
 
+bool Simulator::dumpCriteriaMet() {
+    bool dump = false;
+    for (auto s : optConfig->stopCriteria) {
+        double interval = (1 - s.threshold) / 10;
+        switch (s.metric) {
+            case OptimizationStop::ENERGY:
+                for (int i = 0; i < 10; i++) {
+                    double marker = 1 - (i *interval);
+                    if ((totalEnergy / totalEnergy_start) <= marker
+                            && (totalEnergy_prev / totalEnergy_start) > marker) {
+                        return true;
+                    }
+                }
+                break;
+            case OptimizationStop::WEIGHT:
+                for (int i = 0; i < 10; i++) {
+                    double marker = 1 - (i *interval);
+                    if ((totalLength / totalLength_start) <= marker
+                           && (totalLength_prev / totalLength_start) > marker) {
+                        return true;
+                    }
+                }
+                break;
+            case OptimizationStop::DEFLECTION:
+                dump = false;
+                break;
+            case OptimizationStop::NONE:
+                dump = false;
+                break;
+        }
+    }
+    return dump;
+}
+
 double Simulator::calcDeflection() {
-    Vec deflectionPoint = Vec(0,0,0);
+    double deflection = 0;
     vector<Mass *> points = vector<Mass *>();
     if (config->load && !config->load->forces.empty()) {
         for (Force *f : config->load->forces) {
             for (Mass *m : f->masses) {
                 points.push_back(m);
+                deflection += (m->origpos - m->pos).norm();
             }
         }
-        for (Mass *p : points) {
-            deflectionPoint += p->pos;
-        }
-        deflectionPoint[0] /= points.size();
-        deflectionPoint[1] /= points.size();
-        deflectionPoint[2] /= points.size();
+        deflection /= points.size();
     }
 
-    return (deflectionPoint - getDeflectionPoint()).norm();
+    return deflection;
 }
 
 Vec Simulator::getDeflectionPoint() {
@@ -602,23 +744,35 @@ void Simulator::writeSimDump(const QString &outputFile) {
             .arg(sim->masses.size());
     file.write(h.toUtf8());
 
+    // STATS
+    QString s = QString("Start Length: %1, Start Energy: %2\n"
+                        "Current Length: %3, Current Energy: %4\n")
+            .arg(totalLength_start)
+            .arg(totalEnergy_start)
+            .arg(totalLength)
+            .arg(totalEnergy);
+    file.write(s.toUtf8());
+
     for (int m = 0; m < sim->masses.size(); m++) {
-        QString mline = QString("Mass %1 (%2, %3, %4) (%5, %6, %7) %8\n")
+        QString mline = QString("Mass %1 (%2, %3, %4) (%5, %6, %7) %8 %9\n")
                 .arg(m)
-                .arg(sim->masses[m]->pos[0])
-                .arg(sim->masses[m]->pos[1])
-                .arg(sim->masses[m]->pos[2])
+                .arg(sim->masses[m]->origpos[0])
+                .arg(sim->masses[m]->origpos[1])
+                .arg(sim->masses[m]->origpos[2])
                 .arg(sim->masses[m]->extforce[0])
                 .arg(sim->masses[m]->extforce[1])
                 .arg(sim->masses[m]->extforce[2])
+                .arg(sim->masses[m]->m)
                 .arg(sim->masses[m]->constraints.fixed? "F": "");
         file.write(mline.toUtf8());
     }
     for (int s = 0; s < sim->springs.size(); s++) {
-        QString sline = QString("Spring %1 %2 %3\n")
+        QString sline = QString("Spring %1 %2 %3 %4 %5\n")
                 .arg(s)
                 .arg(sim->springs[s]->_left->index)
-                .arg(sim->springs[s]->_right->index);
+                .arg(sim->springs[s]->_right->index)
+                .arg(sim->springs[s]->_k)
+                .arg(sim->springs[s]->_diam);
         file.write(sline.toUtf8());
     }
 }
@@ -642,7 +796,7 @@ void Simulator::printStatus() {
 
     cout << "\033[0K" << "Energy: " << "\033[94m" << metrics.totalEnergy_start << " (start), ";
     cout << "\033[95m" << metrics.totalEnergy << " (current), " << "\033[97m";
-    cout << std::setprecision(4) << 100 * (metrics.totalEnergy / metrics.totalEnergy_start != 0? metrics.totalEnergy_start : 1) << "%" << std::endl;
+    cout << std::setprecision(4) << ((metrics.totalEnergy_start > 0.0)? (100 * (metrics.totalEnergy / metrics.totalEnergy_start)) : 100.0) << "%" << std::endl;
     cout << "\033[0K" << "Deflection: " << metrics.deflection << std::endl;
     cout << "\n";
 }

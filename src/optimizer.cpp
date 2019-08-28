@@ -454,7 +454,12 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio)
 
     customMetricHeader = "Time,Position(x),Position(y),Position(z),Force(x),Force(y),Force(z),Index\n";
 
-    createMassGroup(this->sim, Vec(-0.05, -0.05, -0.05), Vec(0.05, 0.05, 0.05), this->massGroup);
+    trenchGrid.startCorner = Vec(-0.3, -0.05, -0.05);
+    trenchGrid.endCorner = Vec(0.3, 0.05, 0.05);
+    trenchGrid.dimension = Vec(0.15, 0.1, 0.1);
+    massGroups = vector<MassGroup>();
+
+    createMassGroup(this->sim, Vec(-0.4, -0.05, -0.05), Vec(-0.05, 0.05, 0.05), this->massGroup);
     // Initialize connections
     /**springConns = map<Spring *, vector<Spring *>>();
     massConns = map<Mass *, vector<Spring *>>();
@@ -1055,7 +1060,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         //m->unfix();
     }
 
-    if (totalMetricTest >= totalMetricSim) {
+    if (isnan(totalMetricTest) || totalMetricTest >= totalMetricSim) {
         setMassState(startPos);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
@@ -1359,6 +1364,33 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
     massGroup.outside = culledOutsideGroup;
     massGroup.edge = culledEdgeGroup;
 
+}
+
+// Creates Mass Groups from global Trench Grid
+// Trenches separate mass groups
+//---------------------------------------------------------------------------
+void MassDisplacer::createMassGroupGrid(Simulation *sim, const TrenchGrid &grid, vector<MassGroup> &groups) {
+//---------------------------------------------------------------------------
+
+    int nx, ny, nz;
+    assert(grid.startCorner[0] <= grid.endCorner[0]);
+    assert(grid.startCorner[1] <= grid.endCorner[1]);
+    assert(grid.startCorner[2] <= grid.endCorner[2]);
+
+    nx = ceil((grid.endCorner[0] - grid.startCorner[0]) / grid.dimension[0]);
+    ny = ceil((grid.endCorner[1] - grid.startCorner[1]) / grid.dimension[1]);
+    nz = ceil((grid.endCorner[2] - grid.startCorner[2]) / grid.dimension[2]);
+
+    for (int x = 0; x < nx; x++) {
+        for (int y = 0; y < ny; y++) {
+            for (int z = 0; z < nz; z++) {
+                Vec minc = grid.startCorner + Vec(x*grid.dimension[0], y*grid.dimension[1], z*grid.dimension[2]);
+                Vec maxc = minc + grid.dimension;
+                MassGroup mg;
+                createMassGroup(sim, minc, maxc, mg);
+            }
+        }
+    }
 }
 
 
