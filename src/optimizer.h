@@ -108,6 +108,7 @@ public:
     vector<Vec> movedVectors;
 
     double dx;
+    double dx_start;
     bool equilibrium;
     vector<double> prevEnergy;
     double massFactor;

@@ -438,6 +438,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
 
     this->stepRatio = displaceRatio;
     this->dx = dx;
+    this->dx_start = dx;
     this->massFactor = massFactor;
     this->order = 0;
     this->chunkSize = -1;
@@ -525,7 +526,7 @@ void MassDisplacer::optimize() {
         }
 
         qDebug() << "Success Rate:" << successRate << " Max Success Rate:" << maxAvgSuccessRate;
-        if (successRate < maxAvgSuccessRate * 0.5 && (iterations - lastTune) > 100) {
+        if (successRate < maxAvgSuccessRate * 0.5 && dx/2 >= dx_start/8 && (iterations - lastTune) > 100) {
             // If success rate is less than half of max, decrease displacement to fine-tune
             dx /= 2;
             lastTune = iterations;
@@ -775,7 +776,7 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
             double origLen = s->_rest;
             s->_rest = (s->_right->origpos - orig).norm();
             // Check for NaN
-            if (s->_rest == 0) {
+            if (s->_rest < 0.001) {
                 s->_rest = origLen;
                 return 0;
             }
@@ -790,7 +791,7 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
             double origLen = s->_rest;
             s->_rest = (s->_left->origpos - orig).norm();
             // Check for NaN
-            if (s->_rest == 0) {
+            if (s->_rest < 0.001) {
                 s->_rest = origLen;
                 return 0;
             }
@@ -940,6 +941,16 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     else {
         totalLengthSim = calcTotalLength(sim);
         totalEnergySim = calcTotalEnergy(sim);
+    }
+    
+    if (isnan(totalEnergySim)) {
+      for (Mass *m : sim->masses) {
+	std::cout << "Mass " << m->index << " m " << m->m << " pos " << m->pos[0] << "," << m->pos[1]<< "," << m->pos[2] << std::endl;
+      }
+      for (Spring *s : sim->springs) {
+	std::cout << "Spring " << s->_left->index <<"," << s->_right->index << " rest " << s->_rest << " k " << s->_k << std::endl;
+      }
+      exit(1);
     }
 
     double totalMetricTest = 0;

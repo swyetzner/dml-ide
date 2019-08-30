@@ -106,8 +106,12 @@ _wget() {
                 tar -xjf $dirname && rm $dirname
                 ;;
             "gz")
-                echo "Unzipping tar format"
+                echo "Unzipping tar.gz format"
                 tar -xzf $dirname && rm $dirname
+                ;;
+            "xz")
+                echo "Unzipping tar.xz format"
+                tar -xvf $dirname && rm $dirname
                 ;;
             *)
                 echo "Do not know how to extract $dirname"
