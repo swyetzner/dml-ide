@@ -45,7 +45,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     barData = nullptr;
     GRAPHICS = graphics;
 
-    relaxation = 2000;
+    relaxation = 3000;
 
     if (OPTIMIZER) loadOptimizers();
     //optimizer = new MassDisplacer(sim, 0.2);
@@ -215,12 +215,14 @@ void Simulator::loadSimDump(std::string sp) {
                     sim->masses[i]->vel = Vec(0,0,0);
                     (Utils::endsWith(line, "F"))? sim->masses[i]->fix() : sim->masses[i]->unfix();
                 } else {
-                    qDebug() << "Creating mass" << i;
                     sim->createMass(p);
                     sim->masses[i]->m = m;
                     sim->masses[i]->extforce = f;
                     sim->masses[i]->extduration = FLT_MAX;
                     if (Utils::endsWith(line, "F")) sim->masses[i]->fix();
+                    if (f.norm() > 0) {
+                        qDebug() << "Force on" << sim->masses[i]->pos[0];
+                    }
                 }
             }
             if (Utils::startsWith(line, "Spring")) {
@@ -242,7 +244,6 @@ void Simulator::loadSimDump(std::string sp) {
                     sim->springs[i]->_rest = rest;
 
                 } else {
-                    qDebug() << "Creating spring" << i;
                     Spring *spring = new Spring(m1, m2, k, rest, d);
                     int unit = 1;
                     if (config->lattice.material->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
@@ -636,7 +637,6 @@ double Simulator::calcDeflection() {
         }
         deflection /= points.size();
     }
-
     return deflection;
 }
 

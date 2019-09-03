@@ -760,6 +760,20 @@ int MassDisplacer::getMassCandidate(Simulation *sim, vector<int> existingMasses,
     return i;
 }
 
+// Returns true if a spring exists in sim that connects m1 and m2
+//---------------------------------------------------------------------------
+bool MassDisplacer::springExists(Simulation *sim, Mass *m1, Mass *m2) {
+//---------------------------------------------------------------------------
+
+    for (Spring *s : sim->springs) {
+        if ((s->_left == m1 && s->_right == m2) || (s->_left == m2 && s->_right == m1)) {
+            return true;
+        }
+    }
+    return false;
+
+}
+
 
 // Merge Mass m2 onto Mass m1 with Spring c as the connecting spring of length close to 0 to be deleted
 //---------------------------------------------------------------------------
@@ -771,34 +785,46 @@ void MassDisplacer::mergeMasses(Simulation *sim, Mass *m1, Mass *m2, Spring *c) 
     sim->deleteSpring(c);
 
     // Find springs connected to m2
-    for (Spring *s : sim->springs) {
+    for (int i = 0; i < sim->springs.size(); i++) {
+        Spring *s = sim->springs[i];
+
         if (s->_left == m2) {
-            double origLen = s->_rest;
-            s->setLeft(m1);
-            s->_rest = (s->_right->origpos - m2->origpos).norm();
-            s->_k *= origLen / s->_rest;
+            if (springExists(sim, s->_right, m1)) {
+                sim->deleteSpring(s);
+                i--;
+                continue;
+            } else {
+                double origLen = s->_rest;
+                s->setLeft(m1);
+                s->_rest = (s->_right->origpos - m2->origpos).norm();
+                s->_k *= origLen / s->_rest;
+            }
         }
         if (s->_right == m2) {
-            double origLen = s->_rest;
-            s->setRight(m1);
-            s->_rest = (s->_left->origpos - m2->origpos).norm();
-            s->_k *= origLen / s->_rest;
+            if (springExists(sim, s->_left, m1)) {
+                sim->deleteSpring(s);
+                i--;
+                continue;
+            } else {
+                double origLen = s->_rest;
+                s->setRight(m1);
+                s->_rest = (s->_left->origpos - m2->origpos).norm();
+                s->_k *= origLen / s->_rest;
+            }
         }
     }
 
     // Set mass
     m1->m += m2->m;
 
-    // Delete mass
-    sim->deleteMass(m2);
-
     sim->setAll();
 }
 
 
 // Shift mass at index by dx
+// Fills merged with masses with springs that have been deleted through merge
 //---------------------------------------------------------------------------
-int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
+int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vector<Mass *> &merged) {
 //---------------------------------------------------------------------------
 
     Mass *mt = sim->masses[index];
@@ -808,9 +834,10 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
             double origLen = s->_rest;
             s->_rest = (s->_right->origpos - orig).norm();
             // Check for merge
-            if (s->_rest < maxLocalization * 0.1) {
+            if (s->_rest < maxLocalization / 10) {
                 mergeMasses(sim, s->_right, mt, s);
-                return 1;
+                merged.push_back(s->_right);
+                return 2;
             }
             s->_k *= origLen / s->_rest;
 
@@ -823,9 +850,10 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
             double origLen = s->_rest;
             s->_rest = (s->_left->origpos - orig).norm();
             // Check for merge
-            if (s->_rest < maxLocalization * 0.1) {
+            if (s->_rest < maxLocalization / 10) {
                 mergeMasses(sim, s->_left, mt, s);
-                return 1;
+                merged.push_back(s->_left);
+                return 2;
             }
             s->_k *= origLen / s->_rest;
 
@@ -887,12 +915,12 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
 
 // Moves masses in the chunk by dx
 //---------------------------------------------------------------------------
-int MassDisplacer::shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices) {
+int MassDisplacer::shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices, vector<Mass *> &merged) {
 //---------------------------------------------------------------------------
 
     int ret = 1;
     for (int i : indices) {
-        ret *= shiftMassPos(sim, i, dx);
+        ret *= shiftMassPos(sim, i, dx, merged);
     }
     return ret;
 }
@@ -922,6 +950,8 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     Mass *mt = sim->masses[i];
     qDebug() << "Chose mass" << i;
 
+    vector<Mass *> merged = vector<Mass *>();
+
     // Define chunk
     vector<int> chunk = vector<int>();
     chunk.push_back(i);
@@ -948,6 +978,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     // Record start positions
     vector<Vec> startPos = vector<Vec>();
     vector<Vec> origPos = vector<Vec>();
+    vector<Mass *> startSprings = vector<Mass *>();
     vector<double> startMass = vector<double>();
     vector<double> startRest = vector<double>();
     for (Mass *m : sim->masses) {
@@ -957,6 +988,8 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     }
     for (Spring *s : sim->springs) {
         startRest.push_back(s->_rest);
+        startSprings.push_back(s->_left);
+        startSprings.push_back(s->_right);
     }
     for (Spring *t : sim->springs) {
         t->_broken = false;
@@ -1008,10 +1041,13 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     Vec dx = displacement * dir;
 
     // Move mass
-    int successMove = shiftRandomChunk(sim, dx, chunk);
+    int successMove = shiftRandomChunk(sim, dx, chunk, merged);
     if (!successMove) {
         qDebug() << "Overlapped mass";
         return 0;
+    }
+    if (!merged.empty()) {
+        qDebug() << "Merged masses";
     }
 
     // Run simulation
@@ -1063,15 +1099,32 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         setMassState(startPos, startMass);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
+            sim->masses[m]->vel = Vec(0,0,0);
         }
-        for (int j = 0; j < n_springs; j++) {
+        // Reverse merges
+        for (int m = 0; m < startSprings.size(); m+=2) {
+            Mass *m1 = startSprings[m];
+            Mass *m2 = startSprings[m + 1];
+            if (m/2 < sim->springs.size()) {
+                Spring *s = sim->springs[m/2];
+                if (s->_left != m1) {
+                    s->setLeft(m1);
+                }
+                if (s->_right != m2) {
+                    s->setRight(m2);
+                }
+            } else {
+                Spring *s = new Spring(*sim->springs.front());
+                s->setMasses(m1, m2);
+                sim->createSpring(s);
+                qDebug() << "Rest" << s->_rest;
+            }
+        }
+        for (int j = 0; j < sim->springs.size(); j++) {
             Spring *s = sim->springs[j];
-
-            //if (s->_left == mt || s->_right == mt) {
-                s->_k *= s->_rest / startRest[j];
-                s->_rest = startRest[j];
-                s->_max_stress = 0;
-            //}
+            s->_k *= s->_rest / startRest[j];
+            s->_rest = startRest[j];
+            s->_max_stress = 0;
         }
 
         localEnergy = totalEnergySim;
@@ -1470,7 +1523,7 @@ int MassDisplacer::displaceManyMasses(double displacement, int metricOrder, int 
         qDebug() << "Direction" << dir[0] << dir[1] << dir[2];
         Vec dvec = displacement * dir;
 
-        shiftMassPos(sim, m, dvec);
+        //shiftMassPos(sim, m, dvec);
     }
 
     // Equilibrate simulation

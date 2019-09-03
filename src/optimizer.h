@@ -218,10 +218,11 @@ private:
     int pickRandomMass(MassGroup &group);
     int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
+    bool springExists(Simulation *sim, Mass *m1, Mass *m2);
     void mergeMasses(Simulation *sim, Mass *m1, Mass *m2, Spring *c);
-    int shiftMassPos(Simulation *sim, int index, const Vec &dx);
+    int shiftMassPos(Simulation *sim, int index, const Vec &dx, vector<Mass *> &merged);
     void shiftMassPos(Simulation *sim, Mass *m, const Vec &dx);
-    int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices);
+    int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices, vector<Mass *> &merged);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
