@@ -761,6 +761,41 @@ int MassDisplacer::getMassCandidate(Simulation *sim, vector<int> existingMasses,
 }
 
 
+// Merge Mass m2 onto Mass m1 with Spring c as the connecting spring of length close to 0 to be deleted
+//---------------------------------------------------------------------------
+void MassDisplacer::mergeMasses(Simulation *sim, Mass *m1, Mass *m2, Spring *c) {
+//---------------------------------------------------------------------------
+
+    assert((c->_left == m1 && c->_right == m2) || (c->_left == m2 && c->_right == m1));
+    // Delete c
+    sim->deleteSpring(c);
+
+    // Find springs connected to m2
+    for (Spring *s : sim->springs) {
+        if (s->_left == m2) {
+            double origLen = s->_rest;
+            s->setLeft(m1);
+            s->_rest = (s->_right->origpos - m2->origpos).norm();
+            s->_k *= origLen / s->_rest;
+        }
+        if (s->_right == m2) {
+            double origLen = s->_rest;
+            s->setRight(m1);
+            s->_rest = (s->_left->origpos - m2->origpos).norm();
+            s->_k *= origLen / s->_rest;
+        }
+    }
+
+    // Set mass
+    m1->m += m2->m;
+
+    // Delete mass
+    sim->deleteMass(m2);
+
+    sim->setAll();
+}
+
+
 // Shift mass at index by dx
 //---------------------------------------------------------------------------
 int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
@@ -772,10 +807,10 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
         if (s->_left == mt) {
             double origLen = s->_rest;
             s->_rest = (s->_right->origpos - orig).norm();
-            // Check for NaN
-            if (s->_rest == 0) {
-                s->_rest = origLen;
-                return 0;
+            // Check for merge
+            if (s->_rest < maxLocalization * 0.1) {
+                mergeMasses(sim, s->_right, mt, s);
+                return 1;
             }
             s->_k *= origLen / s->_rest;
 
@@ -787,10 +822,10 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx) {
         if (s->_right == mt) {
             double origLen = s->_rest;
             s->_rest = (s->_left->origpos - orig).norm();
-            // Check for NaN
-            if (s->_rest == 0) {
-                s->_rest = origLen;
-                return 0;
+            // Check for merge
+            if (s->_rest < maxLocalization * 0.1) {
+                mergeMasses(sim, s->_left, mt, s);
+                return 1;
             }
             s->_k *= origLen / s->_rest;
 
@@ -817,6 +852,11 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
         if (s->_left == mt) {
             double origLen = s->_rest;
             s->_rest = (s->_right->origpos - orig).norm();
+            // Check for merge
+            if (s->_rest < 0.001) {
+                mergeMasses(sim, s->_right, mt, s);
+                return;
+            }
             s->_k *= origLen / s->_rest;
             double massDiff = s->_rest / origLen;
             s->_left->m -= massDiff / 2;
@@ -825,6 +865,11 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
         if (s->_right == mt) {
             double origLen = s->_rest;
             s->_rest = (s->_left->origpos - orig).norm();
+            // Check for merge
+            if (s->_rest < 0.001) {
+                mergeMasses(sim, s->_left, mt, s);
+                return;
+            }
             s->_k *= origLen / s->_rest;
             double massDiff = s->_rest / origLen;
             s->_left->m -= massDiff / 2;
@@ -940,6 +985,16 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         totalEnergySim = calcTotalEnergy(sim);
     }
 
+    if (isnan(totalEnergySim)) {
+        for (Mass *m : sim->masses) {
+            std::cout << "Mass " << m->index << " m " << m->m << " pos " << m->pos[0] << "," << m->pos[1] << "," << m->pos[2] << std::endl;
+        }
+        for (Spring *s : sim->springs) {
+            std::cout << "Spring " << s->_left->index << "," << s->_right->index << " rest " << s->_rest << " k " << s->_k << std::endl;
+        }
+        exit(1);
+    }
+
     double totalMetricTest = 0;
     double totalLengthTest = 0;
     double totalEnergyTest = 0;
@@ -975,6 +1030,16 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     } else {
         totalLengthTest = calcTotalLength(sim);
         totalEnergyTest = calcTotalEnergy(sim);
+    }
+
+    if (isnan(totalEnergyTest)) {
+        for (Mass *m : sim->masses) {
+            std::cout << "Mass " << m->index << " m " << m->m << " pos " << m->pos[0] << "," << m->pos[1] << "," << m->pos[2] << std::endl;
+        }
+        for (Spring *s : sim->springs) {
+            std::cout << "Spring " << s->_left->index << "," << s->_right->index << " rest " << s->_rest << " k " << s->_k << std::endl;
+        }
+        exit(1);
     }
 
     totalMetricSim = totalEnergySim * totalLengthSim ;
