@@ -255,22 +255,20 @@ void Loader::readSTLFromFile(model_data *arrays, QString filePath, uint n_model)
 void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
     // Reload sim volume
-    switch(simConfig->lattice.fill) {
+    switch(simConfig->lattices[0]->fill) {
         case LatticeConfig::CUBIC_FILL:
             //createGridLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]));
-            createGridLattice(simConfig->model, float(simConfig->lattice.unit[0]));
+            createGridLattice(simConfig->model, simConfig);
             break;
         case LatticeConfig::SPACE_FILL:
             // TODO: add conform bool as includeHull
             //createSpaceLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]), true);
-            createSpaceLattice(simConfig->model, float(simConfig->lattice.unit[0]), simConfig->lattice.hull);
+            createSpaceLattice(simConfig->model, simConfig);
             break;
     }
 
-    double springMult = 2.9;
-    if (simConfig->lattice.fill == LatticeConfig::CUBIC_FILL) springMult = 1.9;
     //loadSimFromLattice(&simConfig->lattice, sim, simConfig->lattice.unit[0]*springMult);
-    loadSimFromLattice(simConfig->model, sim, simConfig->lattice.unit[0]*springMult);
+    loadSimFromLattice(simConfig->model, sim, simConfig->lattices);
 
     // PLANE
     if (simConfig->plane != nullptr) {
@@ -289,7 +287,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
     // DIAMETER
     for (Spring *s : sim->springs) {
-        s->_diam = simConfig->lattice.barDiameter[1];
+        s->_diam = simConfig->lattices[0]->barDiameter[1];
     }
     qDebug() << "Set spring diameters";
 
@@ -307,8 +305,8 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
 
     // MATERIAL
-    if (simConfig->lattice.material != nullptr) {
-        Material *mat = simConfig->lattice.material;
+    if (simConfig->lattices[0]->material != nullptr) {
+        Material *mat = simConfig->lattices[0]->material;
 
         // TODO: get correct bardiam dimension
         double maxK = 0;
@@ -317,7 +315,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
             // ELASTICITY -- SPRING CONSTANT
             if (mat->eUnits != nullptr) {
                 double pi = atan(1.0)*4;
-                double a = pi * (simConfig->lattice.barDiameter[1] / 2) * (simConfig->lattice.barDiameter[1] / 2);
+                double a = pi * (simConfig->lattices[0]->barDiameter[1] / 2) * (simConfig->lattices[0]->barDiameter[1] / 2);
                 double unit = 1;
 
                 if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
@@ -340,7 +338,8 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
         // DENSITY -- MASS VALUES
         if (mat->dUnits != nullptr) {
-            double v = pow(simConfig->lattice.unit[0],3);
+            // Note that this is an approximation for volume governed up by a single mass
+            double v = pow(simConfig->lattices[0]->unit[0],3);
             double d = mat->density;
             double unit = 1;
             if (mat->dUnits == "gcc") { unit *= 1000; }
@@ -461,7 +460,10 @@ void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_vol
 }
 
 
-void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double springCutoff) {
+void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector <LatticeConfig *> lattices) {
+    // Include varying springMult by looking at the type of the LatticeConfig
+    float springCutoff = 0.0;
+    double springMult = lattices[0]->fill == LatticeConfig::CUBIC_FILL ? 1.9 : 2.9;
 
     qDebug() << "Loading" << springCutoff;
     // Load hull first
@@ -473,13 +475,21 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, double
     }
 
     for (int j = 0; j < sim->masses.size() - 1; j++) {
-        for (int k = j+1; k < sim->masses.size(); k++) {
+        Mass *massj = sim->masses[j];
 
-            Mass *massj = sim->masses[j];
+        float jCutoff, kCutoff;
+
+        jCutoff = arrays->pointOrigins.at(j)->unit[0] * springMult;
+
+        for (int k = j+1; k < sim->masses.size(); k++) {
             Mass *massk = sim->masses[k];
             double dist = (massj->pos - massk->pos).norm();
-            if (dist <= springCutoff) {
 
+            kCutoff = arrays->pointOrigins.at(k)->unit[0] * springMult;
+
+            springCutoff = std::min(jCutoff, kCutoff);
+
+            if (dist <= springCutoff) {
                 sim->createSpring(massj, massk);
                 sim->springs.back()->setRestLength(dist);
             }
@@ -796,72 +806,86 @@ void Loader::createGridLattice(simulation_data *arrays, int dimX, int dimY, int 
 }
 
 // Creates a lattice with a grid based on a cutoff edge length
-void Loader::createGridLattice(simulation_data *arrays, float cutoff) {
+void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating grid lattice.");
 
     vector<glm::vec3> grid = vector<glm::vec3>();
-    glm::vec3 startCorner = arrays->bounds.minCorner;
-    glm::vec3 endCorner = arrays->bounds.maxCorner;
-    glm::vec3 gridPoint;
+    vector<LatticeConfig *> latticeConfigs = simConfig->lattices;
+    vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
 
-    vector<float> xLines = vector<float>();
-    vector<float> yLines = vector<float>();
-    vector<float> zLines = vector<float>();
+    for (LatticeConfig *latticeBox : latticeConfigs) {
+        model_data *latticeVol = latticeBox->volume->model;
+        float cutoff = float(latticeBox->unit[0]);
+        vector<glm::vec3> gridTemp = vector<glm::vec3>();
 
-    float endDiff;
+        glm::vec3 startCorner = latticeVol->bounds.minCorner;
+        glm::vec3 endCorner = latticeVol->bounds.maxCorner;
+        glm::vec3 gridPoint;
 
-    qDebug() << "Bounds top corner " << endCorner.x << "," << endCorner.y << "," << endCorner.z;
+        vector<float> xLines = vector<float>();
+        vector<float> yLines = vector<float>();
+        vector<float> zLines = vector<float>();
 
-    for (float x = startCorner.x; x <= endCorner.x; x += cutoff) {
-        xLines.push_back(x);
-    }
-    endDiff = endCorner.x - xLines.back();
+        float endDiff;
 
-    for (int i = 0; i < xLines.size(); i++) {
-        xLines[i] += 0.5f * endDiff;
-    }
+        qDebug() << "Bounds top corner " << endCorner.x << "," << endCorner.y << "," << endCorner.z;
 
+        for (float x = startCorner.x; x <= endCorner.x; x += cutoff) {
+            xLines.push_back(x);
+        }
+        endDiff = endCorner.x - xLines.back();
 
-    for (float y = startCorner.y; y <= endCorner.y; y += cutoff) {
-        yLines.push_back(y);
-    }
-
-    endDiff = endCorner.y - yLines.back();
-    for (int i = 0; i < yLines.size(); i++) {
-        yLines[i] += 0.5f * endDiff;
-    }
+        for (int i = 0; i < xLines.size(); i++) {
+            xLines[i] += 0.5f * endDiff;
+        }
 
 
-    for (float z = startCorner.z; z <= endCorner.z; z += cutoff) {
-        zLines.push_back(z);
-    }
+        for (float y = startCorner.y; y <= endCorner.y; y += cutoff) {
+            yLines.push_back(y);
+        }
 
-    endDiff = endCorner.z - zLines.back();
-    for (int i = 0; i < zLines.size(); i++) {
-        zLines[i] += 0.5f * endDiff;
-    }
+        endDiff = endCorner.y - yLines.back();
+        for (int i = 0; i < yLines.size(); i++) {
+            yLines[i] += 0.5f * endDiff;
+        }
 
-    qDebug() << "Lattice bottom corner " << xLines[0] << "," << yLines[0] << "," << zLines[0];
-    qDebug() << "Lattice top corner " << xLines.back() << "," << yLines.back() << "," << zLines.back();
 
-    vector<glm::vec3> model = vector<glm::vec3>();
+        for (float z = startCorner.z; z <= endCorner.z; z += cutoff) {
+            zLines.push_back(z);
+        }
 
-    // Populate grid and check inside
-    for (ulong z = 0; z < zLines.size(); z++) {
-        for (ulong y = 0; y < yLines.size(); y++) {
-            for (ulong x = 0; x < xLines.size(); x++) {
-                gridPoint = glm::vec3(xLines[x], yLines[y], zLines[z]);
+        endDiff = endCorner.z - zLines.back();
+        for (int i = 0; i < zLines.size(); i++) {
+            zLines[i] += 0.5f * endDiff;
+        }
 
-                if (arrays->isInside(gridPoint)) {
-                    // Add to lattice
-                    grid.push_back(gridPoint);
+        qDebug() << "Lattice bottom corner " << xLines[0] << "," << yLines[0] << "," << zLines[0];
+        qDebug() << "Lattice top corner " << xLines.back() << "," << yLines.back() << "," << zLines.back();
+
+        vector <glm::vec3> model = vector<glm::vec3>();
+
+        // Populate grid and check inside
+        for (ulong z = 0; z < zLines.size(); z++) {
+            for (ulong y = 0; y < yLines.size(); y++) {
+                for (ulong x = 0; x < xLines.size(); x++) {
+                    gridPoint = glm::vec3(xLines[x], yLines[y], zLines[z]);
+
+                    if (arrays->isInside(gridPoint) && latticeVol->isInside(gridPoint, 0)) {
+                        // Add to lattice
+                        gridTemp.push_back(gridPoint);
+                        pointOrigins.push_back(latticeBox);
+                    }
                 }
             }
         }
+
+        qDebug() << "Found all points in lattice" << latticeBox->volume->id;
+        grid.insert(grid.end(), gridTemp.begin(), gridTemp.end());
     }
 
     // Set lattice property
     arrays->lattice = grid;
+    arrays->pointOrigins = pointOrigins;
     qDebug() << "Created grid lattice" << arrays->lattice.size();
 }
 
@@ -933,27 +957,16 @@ void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, f
 }
 
 // Creates a lattice with random pseudo-evenly-spacedd interal points
-void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool includeHull) {
+void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating space lattice.");
 
+    bool includeHull = simConfig->lattices[0]->hull;
+
+    vector <LatticeConfig *> latticeConfigs = simConfig->lattices;
+
     vector<glm::vec3> lattice = vector<glm::vec3>();
+    vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
 
-    // TODO: simplify STL hull according to cutoff
-    glm::vec3 startCorner = arrays->bounds.minCorner;
-    glm::vec3 endCorner = arrays->bounds.maxCorner;
-    qDebug() << "Start corner" << startCorner.x << startCorner.y << startCorner.z;
-    qDebug() << "End corner" << endCorner.x << endCorner.y << endCorner.z;
-
-    // Get point estimate to calculate k
-    int xLines = int((endCorner.x - startCorner.x) / cutoff) + 1;
-    int yLines = int((endCorner.y - startCorner.y) / cutoff) + 1;
-    int zLines = int((endCorner.z - startCorner.z) / cutoff) + 1;
-    int kNewPoints = xLines * yLines * zLines;
-    kNewPoints *= 3;
-
-    qDebug() << "Generating" << kNewPoints << "random point candidates with cutoff" << cutoff;
-
-    glm::vec3 point = Utils::randPoint(startCorner, endCorner);
 
     if (includeHull) {
 
@@ -970,35 +983,70 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
+
+                for(LatticeConfig *latticeBox : latticeConfigs) {
+                    if (latticeBox->volume->model->isInside(arrays->vertices[i], 0)) {
+                        pointOrigins.push_back(latticeBox);
+                        break;
+                    }
+                }
+                // Just in case the hull point wasn't in any of the lattice boxes
+                if (lattice.size() != pointOrigins.size())
+                    pointOrigins.push_back(latticeConfigs.at(0));
             }
         }
         // Interpolate edges based on cutoff
-
-
-        while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point)) {
-
-            // Generate a new point if its within the cutoff of the model edge
-            //   or its not inside the model
-            point = Utils::randPoint(startCorner, endCorner);
-        }
-
-    } else {
-
-        while (!arrays->isInside(point)) {
-            // Generate a new point if its within the cutoff of the model edge
-            //   or its not inside the model
-            point = Utils::randPoint(startCorner, endCorner);
-        }
     }
 
+    for(auto&& latticeBox: latticeConfigs) {
 
-    // Add point to lattice
-    lattice.push_back(point);
-    float maxLength = cutoff;
-    int k;
-    qDebug() << "First point" << point.x << point.y << point.z;
+        vector<glm::vec3> latticeTemp = vector<glm::vec3>();
+        float cutoff = float(latticeBox->unit[0]);
 
-    vector<glm::vec3> candidates = vector<glm::vec3>();
+        // TODO: simplify STL hull according to cutoff
+
+        model_data *latticeVol = latticeBox->volume->model;
+
+        glm::vec3 startCorner = latticeVol->bounds.minCorner;
+        glm::vec3 endCorner = latticeVol->bounds.maxCorner;
+
+        qDebug() << "Start corner" << startCorner.x << startCorner.y << startCorner.z;
+        qDebug() << "End corner" << endCorner.x << endCorner.y << endCorner.z;
+
+        // Get point estimate to calculate k
+        int xLines = int((endCorner.x - startCorner.x) / cutoff) + 1;
+        int yLines = int((endCorner.y - startCorner.y) / cutoff) + 1;
+        int zLines = int((endCorner.z - startCorner.z) / cutoff) + 1;
+        int kNewPoints = xLines * yLines * zLines;
+        kNewPoints *= 3;
+
+        qDebug() << "Generating" << kNewPoints << "random point candidates with cutoff" << cutoff;
+
+        glm::vec3 point = Utils::randPoint(startCorner, endCorner);
+
+        if (includeHull) {
+            while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point) || !latticeVol->isInside(point, 0)) {
+
+                // Generate a new point if its within the cutoff of the model edge
+                //   or its not inside the model
+                point = Utils::randPoint(startCorner, endCorner);
+            }
+        } else {
+            while (!arrays->isInside(point) || !latticeVol->isInside(point, 0)) {
+                // Generate a new point if its within the cutoff of the model edge
+                //   or its not inside the model
+                point = Utils::randPoint(startCorner, endCorner);
+            }
+        }
+
+        // Add point to lattice
+        latticeTemp.push_back(point);
+        pointOrigins.push_back(latticeBox);
+        float maxLength = cutoff;
+        int k;
+        qDebug() << "First point" << point.x << point.y << point.z;
+
+        vector<glm::vec3> candidates = vector<glm::vec3>();
 
     // Spawn k new points
     int threads = 1;
@@ -1006,79 +1054,84 @@ void Loader::createSpaceLattice(simulation_data *arrays, float cutoff, bool incl
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
 
-            glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
+                glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 
-            if (includeHull) {
-                while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint)) {
-                    // Generate a new point if its within the cutoff of the model edge
-                    //   or its not inside the model
-                    newPoint = Utils::randPoint(startCorner, endCorner);
-                }
-            } else {
+                if (includeHull) {
+                    while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
+                        // Generate a new point if its within the cutoff of the model edge
+                        //   or its not inside the model
+                        newPoint = Utils::randPoint(startCorner, endCorner);
+                    }
+                } else {
 
-                while (!arrays->isInside(newPoint)) {
-                    // Generate a new point if its within the cutoff of the model edge
-                    //   or its not inside the model
-                    newPoint = Utils::randPoint(startCorner, endCorner);
+                    while (!arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
+                        // Generate a new point if its within the cutoff of the model edge
+                        //   or its not inside the model
+                        newPoint = Utils::randPoint(startCorner, endCorner);
+                    }
                 }
-            }
 
             candidates.push_back(newPoint);
         }
     }
 
 
-    while (maxLength >= cutoff && candidates.size() > 0) {
+        while (maxLength >= cutoff && candidates.size() > 0) {
 
-        // Find point furthest from original point
-        uint iFarthest = 0;
-        float maxDistFromPoints = 0.0f;
-        vector<float> sumDistsStore = vector<float>();
-        for (auto c: candidates) {
-            sumDistsStore.push_back(0.0f);
-        }
+            // Find point furthest from original point
+            uint iFarthest = 0;
+            float maxDistFromPoints = 0.0f;
+            vector<float> sumDistsStore = vector<float>();
+            for (auto c: candidates) {
+                sumDistsStore.push_back(0.0f);
+            }
 
-        for (uint i = 0; i < candidates.size(); i++) {
-            bool reject = false;
+            for (uint i = 0; i < candidates.size(); i++) {
+                bool reject = false;
 
-            float sumDists = 0.0f;
-            float distFromPoint;
+                float sumDists = 0.0f;
+                float distFromPoint;
 
-            if (lattice.size() > 0) {
-                vec3 l = lattice.back();
-                distFromPoint = length(candidates[i] - l);
+                if (latticeTemp.size() > 0) {
+                    vec3 l = latticeTemp.back();
+                    distFromPoint = length(candidates[i] - l);
 
-                if (distFromPoint < cutoff) {
-                    candidates.erase(candidates.begin() + i);
-                    sumDistsStore.erase(sumDistsStore.begin() + i);
-                    i--;
-                    continue;
+                    if (distFromPoint < cutoff) {
+                        candidates.erase(candidates.begin() + i);
+                        sumDistsStore.erase(sumDistsStore.begin() + i);
+                        i--;
+                        continue;
+                    }
+                    sumDistsStore[i] += distFromPoint;
                 }
-                sumDistsStore[i] += distFromPoint;
+
+                if (sumDistsStore[i] > maxDistFromPoints) {
+                    maxDistFromPoints = sumDistsStore[i];
+                    iFarthest = i;
+                }
             }
 
-            if (sumDistsStore[i] > maxDistFromPoints) {
-                maxDistFromPoints = sumDistsStore[i];
-                iFarthest = i;
+            if (candidates.size() > 0) {
+                maxLength = maxDistFromPoints;
+                // Update maxLength to minimum distance between
+                //   an existing point and the point chosen
+                for (vec3 l : latticeTemp)
+                    maxLength = std::min(maxLength, length(candidates[iFarthest] - l));
+
+                // Add point to lattice
+                latticeTemp.push_back(candidates[iFarthest]);
+                pointOrigins.push_back(latticeBox);
+                candidates.erase(candidates.begin() + iFarthest);
             }
+            qDebug() << "Added to lattice" << latticeTemp.size();
         }
-
-        if (candidates.size() > 0) {
-            maxLength = maxDistFromPoints;
-            // Update maxLength to minimum distance between
-            //   an existing point and the point chosen
-            for (vec3 l : lattice)
-                maxLength = std::min(maxLength, length(candidates[iFarthest] - l));
-
-            // Add point to lattice
-            lattice.push_back(candidates[iFarthest]);
-            candidates.erase(candidates.begin() + iFarthest);
-        }
+      
+        lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
+        // Set lattice property
+        qDebug() << "Found all points in lattice" << latticeBox->volume->id;
     }
-
-    // Set lattice property
-    qDebug() << "Found all points";
     arrays->lattice = lattice;
+    arrays->pointOrigins = pointOrigins;
     qDebug() << "Set lattice";
 }
 

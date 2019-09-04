@@ -165,7 +165,7 @@ void PropertiesTable::displaySimulation(QString id) {
     headerLabels.append("");
     headerLabels.append("");
 
-    this->setRowCount(23 + 3 * int(simConfig->stops.size()));
+    this->setRowCount(12 + 11 * int(simConfig->lattices.size()) + 3 * int(simConfig->stops.size()));
     this->setColumnCount(3);
 
     this->setHorizontalHeaderLabels(headerLabels);
@@ -177,27 +177,29 @@ void PropertiesTable::displaySimulation(QString id) {
     createPropertyItem(rowCount, 0, "volume");
     createValueItem(rowCount++, 1, simConfig->volume->id);
 
-    createNodeItem(rowCount, 0, "lattice");
-    createPropertyItem(++rowCount, 1, "fill");
-    createValueItem(rowCount, 2, simConfig->lattice.fillName());
-    createPropertyItem(++rowCount, 1, "unit");
-    createVecValueItem(rowCount, 2, simConfig->lattice.unit);
-    createPropertyItem(++rowCount, 1, "display");
-    createValueItem(rowCount, 2, simConfig->lattice.display);
-    createPropertyItem(++rowCount, 1, "conform");
-    createValueItem(rowCount, 2, QString(simConfig->lattice.conform));
-    createPropertyItem(++rowCount, 1, "offset");
-    createVecValueItem(rowCount, 2, simConfig->lattice.offset);
-    createPropertyItem(++rowCount, 1, "bar diameter");
-    createVecValueItem(rowCount, 2, simConfig->lattice.barDiameter);
-    createPropertyItem(++rowCount, 1, "material");
-    createValueItem(rowCount, 2, simConfig->lattice.material->id);
-    createPropertyItem(++rowCount, 1, "jiggle");
-    createVecValueItem(rowCount, 2, simConfig->lattice.jiggle);
-    createPropertyItem(++rowCount, 1, "hull");
-    createValueItem(rowCount, 2, QString::number(simConfig->lattice.hull));
-    createPropertyItem(++rowCount, 1, "structure");
-    createValueItem(rowCount, 2, simConfig->lattice.structureName());
+    for (LatticeConfig *lattice : simConfig->lattices) {
+        createNodeItem(rowCount, 0, "lattice");
+        createPropertyItem(++rowCount, 1, "fill");
+        createValueItem(rowCount, 2, lattice->fillName());
+        createPropertyItem(++rowCount, 1, "unit");
+        createVecValueItem(rowCount, 2, lattice->unit);
+        createPropertyItem(++rowCount, 1, "display");
+        createValueItem(rowCount, 2, lattice->display);
+        createPropertyItem(++rowCount, 1, "conform");
+        createValueItem(rowCount, 2, QString(lattice->conform));
+        createPropertyItem(++rowCount, 1, "offset");
+        createVecValueItem(rowCount, 2, lattice->offset);
+        createPropertyItem(++rowCount, 1, "bar diameter");
+        createVecValueItem(rowCount, 2, lattice->barDiameter);
+        createPropertyItem(++rowCount, 1, "material");
+        createValueItem(rowCount, 2, lattice->material->id);
+        createPropertyItem(++rowCount, 1, "jiggle");
+        createVecValueItem(rowCount, 2, lattice->jiggle);
+        createPropertyItem(++rowCount, 1, "hull");
+        createValueItem(rowCount, 2, QString::number(simConfig->lattice.hull));
+        createPropertyItem(++rowCount, 1, "structure");
+        createValueItem(rowCount, 2, simConfig->lattice.structureName());
+    }
 
     createNodeItem(++rowCount, 0, "damping");
     createPropertyItem(++rowCount, 1, "velocity");
@@ -381,16 +383,16 @@ void PropertiesTable::updateProp(int row, int col) {
                     simConfig->load = design->loadcaseMap[item->text()];
                 }
                 if (property->text() == "fill") {
-                    simConfig->lattice.fill = item->text() == "cubic" ? LatticeConfig::CUBIC_FILL : LatticeConfig::SPACE_FILL;
+                    simConfig->lattices[0]->fill = item->text() == "cubic" ? LatticeConfig::CUBIC_FILL : LatticeConfig::SPACE_FILL;
                 }
                 if (property->text() == "unit") {
-                    simConfig->lattice.unit = parseVecInput(item->text());
+                    simConfig->lattices[0]->unit = parseVecInput(item->text());
                 }
                 if (property->text() == "bar diameter") {
-                    simConfig->lattice.barDiameter = parseVecInput(item->text());
+                    simConfig->lattices[0]->barDiameter = parseVecInput(item->text());
                 }
                 if (property->text() == "material") {
-                    simConfig->lattice.material = design->materialMap[item->text()];
+                    simConfig->lattices[0]->material = design->materialMap[item->text()];
                 }
                 if(property->text() == "velocity") {
                     simConfig->damping.velocity = item->text().toDouble();
@@ -609,8 +611,3 @@ QVariant PropertiesModel::data(const QModelIndex &index, int role) const {
 
     switch(displayObject) {}
 }
-
-
-
-
-

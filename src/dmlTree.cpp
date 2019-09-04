@@ -345,14 +345,15 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *material = createAttributeItem(item, attrMap, materialAttribute());
         auto *jiggle = createAttributeItem(item, attrMap, jiggleAttribute());
         auto *hull = createAttributeItem(item, attrMap, hullAttribute());
+        auto *volume = createAttributeItem(item, attrMap, volumeAttribute());
         auto *structure = createAttributeItem(item, attrMap, structureAttribute());
 
         qDebug() << "Loading lattice config";
 
-        LatticeConfig l = LatticeConfig();
-        l.fill = fill ? (fill->text(1) == "cubic"?
+        LatticeConfig *l = new LatticeConfig();
+        l->fill = fill ? (fill->text(1) == "cubic"?
                              LatticeConfig::CUBIC_FILL :
-                             LatticeConfig::SPACE_FILL) : LatticeConfig::CUBIC_FILL;
+
         l.unit = unit ? parseVec(unit->text(1)) : Vec(0, 0, 0);
         l.display = display ? display->text(1) : nullptr;
         l.conform = conform ? conform->text(1).toInt() : false;
@@ -369,7 +370,9 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             qDebug() << "Material" << material->text(1) << "not found";
 
         QString simConfigId = parentItem->child(0)->text(1);
-        design_ptr->simConfigMap[simConfigId]->lattice = l;
+
+        l->volume = volume ? design_ptr->volumeMap[volume->text(1)] : design_ptr->simConfigMap[simConfigId]->volume;
+        design_ptr->simConfigMap[simConfigId]->lattices.push_back(l);
     }
 
     // ---- <damping> ----
