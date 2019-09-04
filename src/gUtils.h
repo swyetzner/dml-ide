@@ -2,6 +2,7 @@
 #define GUTILS_H
 
 #include <QOpenGLFunctions>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 #include <glm/glm.hpp>
 
@@ -23,6 +24,10 @@ public:
     static void createAxisData(vec3 origin, vec3 end, GLfloat *data);
     static void createMainAxes(GLuint &bufferId, float size);
     static void drawMainAxes(GLuint vaPos, GLuint &bufferId);
+
+    static void initShadowBuffers(GLuint &framebuffId, GLuint &texbuffId, int frameHeight, int frameWidth);
+    static void fillShadowTransforms(QMatrix4x4 shadowProj, QVector3D lightPos, std::vector<QMatrix4x4> &shadowTransforms);
+    static void initDepthShaderProgram(QOpenGLShaderProgram *p, int vaoVertexLoc);
 
     static const char *oneColorVertexShaderSource;
     static const char *oneColorFragmentShaderSource;

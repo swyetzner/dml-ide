@@ -687,6 +687,8 @@ public:
     QString yUnits;
     double density;
     QString dUnits;
+    QString expansion;
+    double expansionCoeff;
 
     ulong index;
 };
@@ -717,6 +719,28 @@ public:
     vector<Mass *> masses;
 };
 
+class Actuation
+{
+public:
+    Actuation() = default;
+    ~Actuation() = default;
+
+    enum ActuationWave { SIN, NONE };
+
+    QString id;
+    ActuationWave wave;
+    Vec magnitude;
+
+    QString waveName() {
+        switch(wave) {
+        case SIN:
+            return "sin";
+        default:
+            return "none";
+        }
+    }
+};
+
 class Loadcase
 {
 public:
@@ -731,6 +755,9 @@ public:
     vector<Force *> forces;
     map<QString, Force *> forceMap;
 
+    vector<Actuation *> actuations;
+    map<QString, Actuation *> actuationMap;
+
     double totalDuration;
 
     ulong index;
@@ -744,6 +771,7 @@ public:
     ~LatticeConfig() {}
 
     enum LatticeFill { CUBIC_FILL, SPACE_FILL };
+    enum LatticeStructure { BARS, FULL };
 
     LatticeFill fill;
     Vec unit;
@@ -755,6 +783,7 @@ public:
     Vec jiggle;
     bool hull;
     Volume *volume;
+    LatticeStructure  structure;
 
     QString fillName() {
         switch(fill) {
@@ -762,6 +791,15 @@ public:
             return "cubic";
         case SPACE_FILL:
             return "space";
+        }
+    }
+
+    QString structureName() {
+        switch(structure) {
+        case BARS:
+            return "bars";
+        case FULL:
+            return "full";
         }
     }
 

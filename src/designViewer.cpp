@@ -4,6 +4,12 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     : QOpenGLWidget (parent),
       shaderProgram(nullptr),
       guideShaderProgram(nullptr),
+      depthShaderProgram(nullptr),
+      depthQuadProgram(nullptr),
+      frameWidth(2048),
+      frameHeight(2048),
+      nearPlane(0.1f),
+      farPlane(7.5f),
       m_xRot(0),
       m_yRot(0),
       m_zRot(0),
@@ -52,14 +58,17 @@ static const char *vertexShaderSource =
         "out vec3 vertexPosition;\n"
         "out vec3 vertexNormal;\n"
         "out vec4 vertexColor;\n"
+        "out vec4 fragPosLightSpace;\n"
         "uniform mat4 projMatrix;\n"
         "uniform mat4 mvMatrix;\n"
         "uniform mat3 normalMatrix;\n"
+        "uniform mat4 lightSpaceMatrix;\n"
         "void main() {\n"
         "   gl_Position = projMatrix * mvMatrix * vec4(vertexPos, 1.0);\n"
         "   vertexPosition = vertexPos;\n"
         "   vertexNormal = normalMatrix * vertexNorm;\n"
         "   vertexColor = vertexCol;\n"
+        "   fragPosLightSpace = lightSpaceMatrix * vec4(vertexPos, 1.0);\n"
         "}\n";
 
 static const char *fragmentShaderSource =
@@ -68,13 +77,59 @@ static const char *fragmentShaderSource =
         "in vec3 vertexPosition;\n"
         "in vec3 vertexNormal;\n"
         "in vec4 vertexColor;\n"
+        "in vec4 fragPosLightSpace;\n"
+        "uniform sampler2D shadowMap;\n"
         "uniform vec3 lightPos;\n"
+        "uniform vec3 viewPos;\n"
+        "float shadowCalc(vec4 posLight, float normalLight) {\n"
+        "   vec3 projCoords = posLight.xyz / posLight.w;\n"
+        "   projCoords = projCoords * 0.5 + 0.5;\n"
+        "   float closestDepth = texture(shadowMap, projCoords.xy).r;\n"
+        "   float currentDepth = projCoords.z;\n"
+        "   float bias = max(0.05 * (1.0 - normalLight), 0.005);\n"
+        "   float shadow = 0.0;\n"
+        "   vec2 texelSize = 1.0 / textureSize(shadowMap, 0);\n"
+        "   for (int x = -1; x <= 1; ++x) {\n"
+        "       for (int y = -1; y <= 1; ++y) {\n"
+        "           float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;\n"
+        "           shadow += currentDepth - bias > pcfDepth? 1.0 : 0.0;\n"
+        "       }\n"
+        "   }\n"
+        "   return shadow / 9.0;\n"
+        "}\n"
         "void main() {\n"
         "   vec3 L = normalize(lightPos - vertexPosition);\n"
         "   float NL = max(dot(normalize(vertexNormal), L), 0.0);\n"
         "   vec3 color = vertexColor.rgb;\n"
-        "   vec3 clColor = clamp(color * 0.2 + color * 0.8 * NL, 0.0, 1.0);\n"
+        "   float shadow = shadowCalc(fragPosLightSpace, NL);\n"
+        "   vec3 clColor = clamp(color * 0.2 + color * 0.8 * NL * (1.0 - shadow), 0.0, 1.0);\n"
         "   fragColor = vec4(clColor, vertexColor.a);\n"
+        "}\n";
+static const char *depthQuadVertSource =
+        "#version 330\n"
+        "layout (location = 0) in vec3 vertexPos;\n"
+        "layout (location = 1) in vec2 texCoords;\n"
+        "out vec2 textureCoords;\n"
+        ""
+        "void main() {\n"
+        "   textureCoords = texCoords;\n"
+        "   gl_Position = vec4(vertexPos, 1.0);\n"
+        "}\n";
+static const char *depthQuadFragSource =
+        "#version 330\n"
+        "out vec4 fragColor;\n"
+        "in vec2 textureCoords;\n"
+        "uniform sampler2D depthMap;\n"
+        "uniform float near_plane;\n"
+        "uniform float far_plane;\n"
+        ""
+        "float LinearizeDepth(float depth) {\n"
+        "   float z = depth * 2.0 - 1.0;\n"
+        "   return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));\n"
+        "}\n\n"
+        "void main() {\n"
+        "   float depthValue = texture(depthMap, textureCoords).r;\n"
+        "   fragColor = vec4(vec3(depthValue), 1.0);\n"
         "}\n";
 
 
@@ -156,6 +211,20 @@ void DesignViewer::initShader() {
     GUtils::initOneColorShaderProgram(guideShaderProgram, 3);
     guideShaderProgram->link();
 
+    // Depth shader
+    depthShaderProgram = new QOpenGLShaderProgram;
+    depthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":resources/shaders/depth.vert");
+    depthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":resources/shaders/depth.frag");
+    depthShaderProgram->bindAttributeLocation("vertexPos", 0);
+    depthShaderProgram->link();
+
+    depthQuadProgram = new QOpenGLShaderProgram;
+    depthQuadProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, depthQuadVertSource);
+    depthQuadProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, depthQuadFragSource);
+    depthQuadProgram->bindAttributeLocation("vertexPos", 0);
+    depthQuadProgram->bindAttributeLocation("texCoords", 1);
+    depthQuadProgram->link();
+
     // Bind uniform value locations
     shaderProgram->bind();
     projMatrixLoc = shaderProgram->uniformLocation("projMatrix");
@@ -164,7 +233,7 @@ void DesignViewer::initShader() {
     lightPosLoc = shaderProgram->uniformLocation("lightPos");
 
     // Set light position
-    shaderProgram->setUniformValue(lightPosLoc, 0, 0, 70);
+    shaderProgram->setUniformValue(lightPosLoc, 2, 2, 2);
     shaderProgram->release();
 
 
@@ -213,6 +282,22 @@ void DesignViewer::initBuffers() {
 
     // Axes buffer
     GUtils::createMainAxes(axesBuff_id, 10.0f);
+
+    GUtils::initShadowBuffers(depthFrameBuff_id, depthTexBuff_id, 2048, 2048);
+
+
+    float quadVertices[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+    };
+    GLuint quadBuffer;
+    glGenBuffers(1, &quadBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    quadBuff_id = quadBuffer;
 }
 
 
@@ -229,16 +314,46 @@ void DesignViewer::updateShader() {
 
     normals = world.normalMatrix();
 
+    QVector3D lightPos = QVector3D(2,2,2);
+    QMatrix4x4 lightProj;
+    lightProj.ortho(-10, 10, -10, 10, nearPlane, farPlane);
+    QMatrix4x4 lightView;
+    lightView.lookAt(lightPos, QVector3D(0, 0, 0), QVector3D(0, 1, 0));
+    QMatrix4x4 lightSpaceMatrix;
+    lightSpaceMatrix = lightProj * lightView * world;
+    QMatrix4x4 scaleBias;
+    scaleBias = QMatrix4x4(0.5f, 0.0f, 0.0f, 0.0f,
+                           0.0f, 0.5f, 0.0f, 0.0f,
+                           0.0f, 0.0f, 0.5f, 0.0f,
+                           0.5f, 0.5f, 0.5f, 1.0f);
+    QMatrix4x4 shadowMatrix;
+    shadowMatrix = scaleBias * lightSpaceMatrix;
+
+
     shaderProgram->bind();
     shaderProgram->setUniformValue(projMatrixLoc, projection);
     shaderProgram->setUniformValue(mvMatrixLoc, camera * world);
     shaderProgram->setUniformValue(normalMatrixLoc, normals);
+    shaderProgram->setUniformValue("shadowMap", 0);
+    shaderProgram->setUniformValue("viewPos", eye);
+    shaderProgram->setUniformValue("lightSpaceMatrix", lightSpaceMatrix);
+    shaderProgram->setUniformValue("lightPos", lightPos);
     shaderProgram->release();
 
     guideShaderProgram->bind();
     guideShaderProgram->setUniformValue(guideProjMatrixLoc, projection);
     guideShaderProgram->setUniformValue(guideMVProjMatrixLoc, camera * world);
     guideShaderProgram->release();
+
+    depthShaderProgram->bind();
+    depthShaderProgram->setUniformValue("lightSpaceMatrix", lightSpaceMatrix);
+    depthShaderProgram->release();
+
+    depthQuadProgram->bind();
+    depthQuadProgram->setUniformValue("depthMap", 0);
+    depthQuadProgram->setUniformValue("near_plane", nearPlane);
+    depthQuadProgram->setUniformValue("far_plane", farPlane);
+    depthQuadProgram->release();
 }
 
 
@@ -284,15 +399,73 @@ void DesignViewer::updateBuffers() {
 //
 void DesignViewer::drawVertexArray() {
 
+    // DRAW SHADOW MAP
+    depthShaderProgram->bind();
+    glViewport(0, 0, 2048, 2048);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthFrameBuff_id);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+
+    glEnableVertexAttribArray(0);
+    glCullFace(GL_FRONT);
+    drawModels();
+    glCullFace(GL_BACK);
+    glDisableVertexAttribArray(0);
+
+    depthShaderProgram->release();
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+
     // DRAW MODELS
+    glViewport(0, 0, frameWidth, frameHeight);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     shaderProgram->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depthTexBuff_id);
+
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+
+    drawModels();
+
+    glDisableVertexAttribArray(2);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+
+    shaderProgram->release();
+
+    // DRAW DEBUGGER
+    depthQuadProgram->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depthTexBuff_id);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBuff_id);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    depthQuadProgram->release();
+
+    // DRAW AXES
+    guideShaderProgram->bind();
+    GUtils::drawMainAxes(3, axesBuff_id);
+    guideShaderProgram->release();
+}
+
+//  ----- drawModels
+//  Calls draw commands after vertex attributes haves been bound
+//
+void DesignViewer::drawModels() {
     for (uint m = 0; m < uint(n_models); m++) {
 
         if (activateModel[m]) {
-
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
-            glEnableVertexAttribArray(2);
 
             glBindBuffer(GL_ARRAY_BUFFER, vertexBuff_ids[m]);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
@@ -312,33 +485,23 @@ void DesignViewer::drawVertexArray() {
                     glClearColor(0, 0, 0, 0);
                     glDisable(GL_BLEND);
                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                break;
+                    break;
                 case R_ALPHA:
                     glClearColor(1, 1, 1, 0);
                     glEnable(GL_BLEND);
                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                break;
+                    break;
                 case R_WIRE:
                     glClearColor(0, 0, 0, 0);
                     glDisable(GL_BLEND);
                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                break;
+                    break;
             }
 
             glDrawArrays(GL_TRIANGLES, 0, GLsizei(n_modelVertices[m]));
 
-            glDisableVertexAttribArray(2);
-            glDisableVertexAttribArray(1);
-            glDisableVertexAttribArray(0);
-
         }
     }
-    shaderProgram->release();
-
-    // DRAW AXES
-    guideShaderProgram->bind();
-    GUtils::drawMainAxes(3, axesBuff_id);
-    guideShaderProgram->release();
 }
 
 
@@ -357,6 +520,7 @@ void DesignViewer::cleanUp() {
         glDeleteBuffers(1, &colorBuff_ids[m]);
     }
     glDeleteBuffers(1, &axesBuff_id);
+    glDeleteFramebuffers(1, &depthFrameBuff_id);
 
     delete vertexBuff_ids;
     delete colorBuff_ids;
@@ -429,6 +593,8 @@ void DesignViewer::initializeGL() {
 
     camera.setToIdentity();
     camera.translate(0, 0, -1);
+    eye = QVector3D(0, 0, 1);
+    camera.lookAt(eye, QVector3D(0, 0, 0), QVector3D(0, 1, 0));
 }
 
 
@@ -457,7 +623,9 @@ void DesignViewer::paintGL() {
 //
 void DesignViewer::resizeGL(int width, int height) {
     projection.setToIdentity();
-    projection.perspective(45.0f, GLfloat(width) / height, 0.01f, 100.0f);
+    projection.perspective(45.0f, GLfloat(width) / height, nearPlane, farPlane);
+    frameWidth = width;
+    frameHeight = height;
 }
 
 

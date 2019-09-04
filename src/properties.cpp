@@ -105,7 +105,7 @@ void PropertiesTable::displayLoadcase(QString id) {
     objectIndex = load->index;
     this->title->setText(QString("Loadcase (%1)").arg(load->index));
 
-    this->setRowCount(1 + 2*load->anchors.size() + 5 *load->forces.size());
+    this->setRowCount(1 + 2*load->anchors.size() + 5 *load->forces.size() + 4*load->actuations.size());
     this->setColumnCount(3);
 
     QStringList headerLabels = QStringList();
@@ -133,7 +133,16 @@ void PropertiesTable::displayLoadcase(QString id) {
         createPropertyItem(++rowCount, 1, "duration");
         createValueItem(rowCount, 2, f->duration > 0 ? QString::number(f->duration) : "");
         createPropertyItem(++rowCount, 1, "vary");
-        createVecValueItem(rowCount, 2, f->vary);
+        createVecValueItem(rowCount++, 2, f->vary);
+    }
+    for (Actuation *a : load->actuations) {
+        createNodeItem(rowCount, 0, "actuation");
+        createPropertyItem(++rowCount, 1, "id");
+        createValueItem(rowCount, 2, a->id);
+        createPropertyItem(++rowCount, 1, "wave");
+        createValueItem(rowCount, 2, a->waveName());
+        createPropertyItem(++rowCount, 1, "magnitude");
+        createVecValueItem(rowCount, 2, a->magnitude);
     }
     connect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
 }
@@ -156,7 +165,7 @@ void PropertiesTable::displaySimulation(QString id) {
     headerLabels.append("");
     headerLabels.append("");
 
-    this->setRowCount(21 + 3 * int(simConfig->stops.size()));
+    this->setRowCount(12 + 11 * int(simConfig->lattices.size()) + 3 * int(simConfig->stops.size()));
     this->setColumnCount(3);
 
     this->setHorizontalHeaderLabels(headerLabels);
@@ -186,6 +195,10 @@ void PropertiesTable::displaySimulation(QString id) {
         createValueItem(rowCount, 2, lattice->material->id);
         createPropertyItem(++rowCount, 1, "jiggle");
         createVecValueItem(rowCount, 2, lattice->jiggle);
+        createPropertyItem(++rowCount, 1, "hull");
+        createValueItem(rowCount, 2, QString::number(simConfig->lattice.hull));
+        createPropertyItem(++rowCount, 1, "structure");
+        createValueItem(rowCount, 2, simConfig->lattice.structureName());
     }
 
     createNodeItem(++rowCount, 0, "damping");
@@ -383,6 +396,12 @@ void PropertiesTable::updateProp(int row, int col) {
                 }
                 if(property->text() == "velocity") {
                     simConfig->damping.velocity = item->text().toDouble();
+                }
+                if (property->text() == "hull") {
+                    simConfig->lattice.hull = item->text().toInt();
+                }
+                if (property->text() == "structure") {
+                    simConfig->lattice.structure = item->text() == "bars" ? LatticeConfig::BARS : LatticeConfig::FULL;
                 }
                 break;
             }

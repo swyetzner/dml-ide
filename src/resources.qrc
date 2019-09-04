@@ -8,6 +8,8 @@
         <file>../resources/shaders/lineCylinders.vert</file>
         <file>../resources/shaders/lineCylinders.geom</file>
         <file>../resources/shaders/lineCylinders.frag</file>
+        <file>../resources/shaders/depth.vert</file>
+        <file>../resources/shaders/depth.frag</file>
         <file>../resources/shaders/arrows.vert</file>
         <file>../resources/shaders/arrows.geom</file>
         <file>../resources/shaders/arrows.frag</file>

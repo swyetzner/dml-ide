@@ -197,6 +197,7 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
     Vec bardiam = parseVec(dml_lat.attribute("bardiam").value());
     QString material = dml_lat.attribute("material").value();
     bool hull = dml_lat.attribute("hull").as_bool(true);
+    QString structure = dml_lat.attribute("structure").value();
 
     if (fill == "cubic")
         lattice.fill = LatticeConfig::CUBIC_FILL;
@@ -208,6 +209,11 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
     lattice.barDiameter = bardiam;
     lattice.material = design->materialMap[material];
     lattice.hull = hull;
+    if (structure == "bars")
+        lattice.structure = LatticeConfig::BARS;
+    else
+        lattice.structure = LatticeConfig::FULL;
+
     if (!(lattice.material)) {
         cerr << "Material '" << material.toStdString() << "' not found.";
         exit(EXIT_FAILURE);

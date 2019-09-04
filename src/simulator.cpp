@@ -24,6 +24,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     springInserter = nullptr;
     springRemover = nullptr;
     massDisplacer = nullptr;
+    OPTIMIZER = optConfig != nullptr;
 
     double pi = atan(1.0)*4;
     for (Spring *s : sim->springs) {
@@ -46,7 +47,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     relaxation = 3000;
 
-    loadOptimizers();
+    if (OPTIMIZER) loadOptimizers();
     //optimizer = new MassDisplacer(sim, 0.2);
     //springInserter = new SpringInserter(sim, 0.001);
     //springInserter->cutoff = 3.5 * config->lattice.unit[0];
@@ -142,7 +143,7 @@ void Simulator::getSimMetrics(sim_metrics &metrics) {
     metrics.deflection = calcDeflection();
     metrics.relaxation_interval = relaxation;
     metrics.optimize_iterations = optimized;
-    metrics.optimize_rule = (!optConfig->rules.empty())? optConfig->rules.front() : OptimizationRule();
+    metrics.optimize_rule = (OPTIMIZER && !optConfig->rules.empty())? optConfig->rules.front() : OptimizationRule();
     metrics.displacement = massDisplacer? massDisplacer->dx : 0;
 }
 
@@ -209,13 +210,19 @@ void Simulator::loadSimDump(std::string sp) {
                     sim->masses[i]->pos = p;
                     sim->masses[i]->m = m;
                     sim->masses[i]->extforce = f;
-                    if (Utils::endsWith(line, "F")) sim->masses[i]->fix();
+                    sim->masses[i]->force = f;
+                    sim->masses[i]->extduration = FLT_MAX;
+                    sim->masses[i]->vel = Vec(0,0,0);
+                    (Utils::endsWith(line, "F"))? sim->masses[i]->fix() : sim->masses[i]->unfix();
                 } else {
-                    qDebug() << "Creating mass" << i;
                     sim->createMass(p);
                     sim->masses[i]->m = m;
                     sim->masses[i]->extforce = f;
+                    sim->masses[i]->extduration = FLT_MAX;
                     if (Utils::endsWith(line, "F")) sim->masses[i]->fix();
+                    if (f.norm() > 0) {
+                        qDebug() << "Force on" << sim->masses[i]->pos[0];
+                    }
                 }
             }
             if (Utils::startsWith(line, "Spring")) {
@@ -237,7 +244,6 @@ void Simulator::loadSimDump(std::string sp) {
                     sim->springs[i]->_rest = rest;
 
                 } else {
-                    qDebug() << "Creating spring" << i;
                     Spring *spring = new Spring(m1, m2, k, rest, d);
                     int unit = 1;
                     if (config->lattice.material->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
@@ -249,7 +255,16 @@ void Simulator::loadSimDump(std::string sp) {
         }
         n_springs = sim->springs.size();
         n_masses = sim->masses.size();
-        sim->setAll();
+        //sim->setAll();
+        // DAMPING
+        for (Mass *m : sim->masses) {
+            m->damping = 1.0 - config->damping.velocity;
+        }
+        qDebug() << "Damping" << config->damping.velocity;
+
+        // GLOBAL
+        qDebug() << "Global" << config->global.acceleration[0];
+        sim->global = config->global.acceleration;
         loadOptimizers();
         optimized = 0;
     } else {
@@ -484,7 +499,9 @@ void Simulator::loadOptimizers() {
                         minUnitDist = fmin(minUnitDist, t->_rest);
                     }
 
-                    massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold);
+                    double mf = 3.14159 * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
+                            config->lattice.material->density * ((config->lattice.material->dUnits == "gcc")? 1000 : 1);
+                    massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold, mf);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;
@@ -551,20 +568,22 @@ void Simulator::equilibriate() {
 
 bool Simulator::stopCriteriaMet() {
     bool stopReached = false;
-    for (auto s : optConfig->stopCriteria) {
-        switch (s.metric) {
-            case OptimizationStop::ENERGY:
-                stopReached = totalEnergy / totalEnergy_start <= s.threshold;
-                break;
-            case OptimizationStop::WEIGHT:
-                stopReached = totalLength / totalLength_start <= s.threshold;
-                break;
-            case OptimizationStop::DEFLECTION:
-                stopReached = calcDeflection() >= s.threshold;
-                break;
-            case OptimizationStop::NONE:
-                stopReached = false;
-                break;
+    if (OPTIMIZER) {
+        for (auto s : optConfig->stopCriteria) {
+            switch (s.metric) {
+                case OptimizationStop::ENERGY:
+                    stopReached = totalEnergy / totalEnergy_start <= s.threshold;
+                    break;
+                case OptimizationStop::WEIGHT:
+                    stopReached = totalLength / totalLength_start <= s.threshold;
+                    break;
+                case OptimizationStop::DEFLECTION:
+                    stopReached = calcDeflection() >= s.threshold;
+                    break;
+                case OptimizationStop::NONE:
+                    stopReached = false;
+                    break;
+            }
         }
     }
     return stopReached;
@@ -572,33 +591,35 @@ bool Simulator::stopCriteriaMet() {
 
 bool Simulator::dumpCriteriaMet() {
     bool dump = false;
-    for (auto s : optConfig->stopCriteria) {
-        double interval = (1 - s.threshold) / 10;
-        switch (s.metric) {
-            case OptimizationStop::ENERGY:
-                for (int i = 0; i < 10; i++) {
-                    double marker = 1 - (i *interval);
-                    if ((totalEnergy / totalEnergy_start) <= marker
+    if (OPTIMIZER) {
+        for (auto s : optConfig->stopCriteria) {
+            double interval = (1 - s.threshold) / 10;
+            switch (s.metric) {
+                case OptimizationStop::ENERGY:
+                    for (int i = 0; i < 10; i++) {
+                        double marker = 1 - (i * interval);
+                        if ((totalEnergy / totalEnergy_start) <= marker
                             && (totalEnergy_prev / totalEnergy_start) > marker) {
-                        return true;
+                            return true;
+                        }
                     }
-                }
-                break;
-            case OptimizationStop::WEIGHT:
-                for (int i = 0; i < 10; i++) {
-                    double marker = 1 - (i *interval);
-                    if ((totalLength / totalLength_start) <= marker
-                           && (totalLength_prev / totalLength_start) > marker) {
-                        return true;
+                    break;
+                case OptimizationStop::WEIGHT:
+                    for (int i = 0; i < 10; i++) {
+                        double marker = 1 - (i * interval);
+                        if ((totalLength / totalLength_start) <= marker
+                            && (totalLength_prev / totalLength_start) > marker) {
+                            return true;
+                        }
                     }
-                }
-                break;
-            case OptimizationStop::DEFLECTION:
-                dump = false;
-                break;
-            case OptimizationStop::NONE:
-                dump = false;
-                break;
+                    break;
+                case OptimizationStop::DEFLECTION:
+                    dump = false;
+                    break;
+                case OptimizationStop::NONE:
+                    dump = false;
+                    break;
+            }
         }
     }
     return dump;
@@ -616,7 +637,6 @@ double Simulator::calcDeflection() {
         }
         deflection /= points.size();
     }
-
     return deflection;
 }
 
