@@ -234,7 +234,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         m->density = density ? density->text(1).split(" ")[0].toDouble() : 0;
         if (density) { m->dUnits = density->text(1).split(" ")[1].size() > 1 ? density->text(1).split(" ")[1] : nullptr; }
         m->expansion = expansion ? expansion->text(1).split(",")[0] : nullptr;
-        if (expansion) { m->expansionCoeff = expansion->text(1).split(",")[1].trimmed().toDouble(); }
+        m->expansionCoeff = expansion ? expansion->text(1).split(",")[1].trimmed().toDouble() : 0;
 
         m->index = design_ptr->materials.size();
         design_ptr->materials.push_back(*m);
@@ -350,29 +350,30 @@ void DMLTree::parseExpandElement(const QDomElement &element,
 
         qDebug() << "Loading lattice config";
 
-        LatticeConfig *l = new LatticeConfig();
-        l->fill = fill ? (fill->text(1) == "cubic"?
-                             LatticeConfig::CUBIC_FILL :
-
-        l.unit = unit ? parseVec(unit->text(1)) : Vec(0, 0, 0);
-        l.display = display ? display->text(1) : nullptr;
-        l.conform = conform ? conform->text(1).toInt() : false;
-        l.offset = offset ? parseVec(offset->text(1)) : Vec(0, 0, 0);
-        l.barDiameter = bardiam ? parseVec(bardiam->text(1)) : Vec(0, 0, 0);
-        l.material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
-        l.jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
-        l.hull = hull ? hull->text(1).toInt() : true;
-        l.structure = structure ? (structure->text(1) == "bars"?
-                            LatticeConfig::BARS :
-                            LatticeConfig::FULL) : LatticeConfig::FULL;
-
-        if (!l.material)
-            qDebug() << "Material" << material->text(1) << "not found";
-
         QString simConfigId = parentItem->child(0)->text(1);
 
+        LatticeConfig *l = new LatticeConfig();
+        l->fill = fill ? (fill->text(1) == "cubic"?
+                             LatticeConfig::CUBIC_FILL : LatticeConfig::SPACE_FILL) : LatticeConfig::SPACE_FILL;
+
+        l->unit = unit ? parseVec(unit->text(1)) : Vec(0, 0, 0);
+        l->display = display ? display->text(1) : nullptr;
+        l->conform = conform ? conform->text(1).toInt() : false;
+        l->offset = offset ? parseVec(offset->text(1)) : Vec(0, 0, 0);
+        l->barDiameter = bardiam ? parseVec(bardiam->text(1)) : Vec(0, 0, 0);
+        l->material = material ? design_ptr->materialMap[material->text(1)] : nullptr;
+        l->jiggle = jiggle ? parseVec(jiggle->text(1)) : Vec(0, 0, 0);
+        l->hull = hull ? hull->text(1).toInt() : true;
+        l->structure = structure ? (structure->text(1) == "bars"?
+                            LatticeConfig::BARS :
+                            LatticeConfig::FULL) : LatticeConfig::FULL;
         l->volume = volume ? design_ptr->volumeMap[volume->text(1)] : design_ptr->simConfigMap[simConfigId]->volume;
+
+        if (!l->material)
+            qDebug() << "Material" << material->text(1) << "not found";
+
         design_ptr->simConfigMap[simConfigId]->lattices.push_back(l);
+        design_ptr->simConfigMap[simConfigId]->latticeMap[l->volume->id] = l;
     }
 
     // ---- <damping> ----

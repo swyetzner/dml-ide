@@ -305,70 +305,72 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
 
     // MATERIAL
-    if (simConfig->lattices[0]->material != nullptr) {
-        Material *mat = simConfig->lattices[0]->material;
+    for (LatticeConfig *lat : simConfig->lattices) {
+        if (simConfig->lattices[0]->material != nullptr) {
+            Material *mat = lat->material;
 
-        // TODO: get correct bardiam dimension
-        double maxK = 0;
-        for (Spring *s : sim->springs) {
+            // TODO: get correct bardiam dimension
+            double maxK = 0;
+            for (Spring *s : sim->springs) {
 
-            // ELASTICITY -- SPRING CONSTANT
-            if (mat->eUnits != nullptr) {
-                double pi = atan(1.0)*4;
-                double a = pi * (simConfig->lattices[0]->barDiameter[1] / 2) * (simConfig->lattices[0]->barDiameter[1] / 2);
-                double unit = 1;
+                // ELASTICITY -- SPRING CONSTANT
+                if (mat->eUnits != nullptr) {
+                    double pi = atan(1.0) * 4;
+                    double a = pi * (simConfig->lattices[0]->barDiameter[1] / 2) *
+                               (simConfig->lattices[0]->barDiameter[1] / 2);
+                    double unit = 1;
 
-                if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
-                if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
+                    if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+                    if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
 
-                double k = mat->elasticity * unit * a / s->_rest;
-                s->_k = k;
-                maxK = std::max(k, maxK);
+                    double k = mat->elasticity * unit * a / s->_rest;
+                    s->_k = k;
+                    maxK = std::max(k, maxK);
+                }
+
             }
 
-        }
-
-        // YIELD
-        double unit = 1;
-        if (mat->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
-        if (mat->yUnits == "MPa") { unit *= 1000 * 1000; }
-        for (Spring *s : sim->springs) {
-            s->_break_force = 5 * mat->yield * unit;
-        }
-
-        // DENSITY -- MASS VALUES
-        if (mat->dUnits != nullptr) {
-            // Note that this is an approximation for volume governed up by a single mass
-            double v = pow(simConfig->lattices[0]->unit[0],3);
-            double d = mat->density;
+            // YIELD
             double unit = 1;
-            if (mat->dUnits == "gcc") { unit *= 1000; }
-
-
-            switch (simConfig->lattice.structure) {
-                case LatticeConfig::FULL:
-                    qDebug() << v * d * unit;
-                    sim->setAllMassValues(v * d * unit);
-                    qDebug() << sim->masses.front()->m;
-                    break;
-                case LatticeConfig::BARS:
-                    for (Mass *m : sim->masses) {
-                        m->m = 0;
-                    }
-                    double totalM = 0;
-                    for (Spring *s : sim->springs) {
-                        // get volume for half
-                        double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
-                        qDebug() << vol << s->_rest / 2 << s->_diam / 2;
-                        double m = vol * d * unit;
-                        s->_left->m += m;
-                        s->_right->m += m;
-                        totalM += 2 * m;
-                    }
-                    qDebug() << "Total mass" << totalM << "kg";
-                    break;
+            if (mat->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+            if (mat->yUnits == "MPa") { unit *= 1000 * 1000; }
+            for (Spring *s : sim->springs) {
+                s->_break_force = 5 * mat->yield * unit;
             }
-        }
+
+            // DENSITY -- MASS VALUES
+            if (mat->dUnits != nullptr) {
+                // Note that this is an approximation for volume governed up by a single mass
+                double v = pow(simConfig->lattices[0]->unit[0], 3);
+                double d = mat->density;
+                double unit = 1;
+                if (mat->dUnits == "gcc") { unit *= 1000; }
+
+                switch (simConfig->lattices[0]->structure) {
+                    case LatticeConfig::FULL:
+                        qDebug() << v * d * unit;
+                        sim->setAllMassValues(v * d * unit);
+                        qDebug() << sim->masses.front()->m;
+                        break;
+                    case LatticeConfig::BARS:
+                        for (Mass *m : sim->masses) {
+                            m->m = 0;
+                        }
+                        double totalM = 0;
+                        for (Spring *s : sim->springs) {
+                            // get volume for half
+                            double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
+                            qDebug() << vol << s->_rest / 2 << s->_diam / 2;
+                            double m = vol * d * unit;
+                            s->_left->m += m;
+                            s->_right->m += m;
+                            totalM += 2 * m;
+                        }
+                        qDebug() << "Total mass" << totalM << "kg";
+                        break;
+                }
+            }
+    }
 
         // TIMESTEP
         double maxNatFreq = 0;
@@ -380,6 +382,18 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
         qDebug() << maxNatFreq << timestepLimit;
         //sim->masses.front()->extforce = Vec(-100, 0, 0);
         //sim->masses.front()->extduration = 0.1;
+
+        // ACTUATION
+        for (Spring *s : sim->springs) {
+            if (s->_left->pos[0] < -0.01 && s->_right->pos[0] < -0.01) {
+                s->_type = 1;
+                s->_omega = 10;
+            }
+            if (s->_left->pos[0] > 0.01 && s->_right->pos[0] > 0.01) {
+                s->_type = 0;
+                s->_omega = 10;
+            }
+        }
     }
 
     // TIMESTEP

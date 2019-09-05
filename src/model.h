@@ -804,6 +804,7 @@ public:
     }
 
     vector<Vec> vertices;
+    vector<Spring *> simSprings;
 };
 
 class Damping
@@ -878,6 +879,7 @@ public:
     QString id;
     Volume * volume;
     vector <LatticeConfig *> lattices;
+    map <QString, LatticeConfig *> latticeMap;
 
     Damping damping;
     Global global;

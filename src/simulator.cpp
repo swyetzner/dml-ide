@@ -246,9 +246,9 @@ void Simulator::loadSimDump(std::string sp) {
                 } else {
                     Spring *spring = new Spring(m1, m2, k, rest, d);
                     int unit = 1;
-                    if (config->lattice.material->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
-                    if (config->lattice.material->yUnits == "MPa") { unit *= 1000 * 1000; }
-                    spring->_break_force = 5 * config->lattice.material->yield * unit;
+                    if (config->lattices[0]->material->yUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+                    if (config->lattices[0]->material->yUnits == "MPa") { unit *= 1000 * 1000; }
+                    spring->_break_force = 5 * config->lattices[0]->material->yield * unit;
                     sim->createSpring(spring);
                 }
             }
@@ -500,8 +500,8 @@ void Simulator::loadOptimizers() {
                     }
 
                     double mf = 3.14159 * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
-                            config->lattice.material->density * ((config->lattice.material->dUnits == "gcc")? 1000 : 1);
-                    massDisplacer = new MassDisplacer(sim, config->lattice.unit[0] * 0.2, r.threshold, mf);
+                            config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
+                    massDisplacer = new MassDisplacer(sim, config->lattices[0]->unit[0] * 0.2, r.threshold, mf);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;

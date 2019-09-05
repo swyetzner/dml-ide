@@ -68,7 +68,7 @@ void PropertiesTable::displayMaterial(QString id) {
     objectIndex = material->index;
     this->title->setText(QString("Material (%1)").arg(material->index));
 
-    this->setRowCount(5);
+    this->setRowCount(7);
     this->setColumnCount(2);
 
     this->horizontalHeader()->setStretchLastSection(true);
@@ -89,6 +89,12 @@ void PropertiesTable::displayMaterial(QString id) {
 
     createPropertyItem(rowCount, 0, "density");
     createValueItem(rowCount++, 1, QString::number(material->density));
+
+    createPropertyItem(rowCount, 0, "expansion");
+    createValueItem(rowCount++, 1, material->expansion);
+
+    createPropertyItem(rowCount, 0, "expansion coefficient");
+    createValueItem(rowCount++, 1, QString::number(material->expansionCoeff));
 
     connect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
 }
@@ -179,6 +185,8 @@ void PropertiesTable::displaySimulation(QString id) {
 
     for (LatticeConfig *lattice : simConfig->lattices) {
         createNodeItem(rowCount, 0, "lattice");
+        createPropertyItem(++rowCount, 1, "inner volume");
+        createValueItem(rowCount, 2, lattice->volume->id);
         createPropertyItem(++rowCount, 1, "fill");
         createValueItem(rowCount, 2, lattice->fillName());
         createPropertyItem(++rowCount, 1, "unit");
@@ -196,9 +204,9 @@ void PropertiesTable::displaySimulation(QString id) {
         createPropertyItem(++rowCount, 1, "jiggle");
         createVecValueItem(rowCount, 2, lattice->jiggle);
         createPropertyItem(++rowCount, 1, "hull");
-        createValueItem(rowCount, 2, QString::number(simConfig->lattice.hull));
+        createValueItem(rowCount, 2, QString::number(lattice->hull));
         createPropertyItem(++rowCount, 1, "structure");
-        createValueItem(rowCount, 2, simConfig->lattice.structureName());
+        createValueItem(rowCount, 2, lattice->structureName());
     }
 
     createNodeItem(++rowCount, 0, "damping");
@@ -374,35 +382,49 @@ void PropertiesTable::updateProp(int row, int col) {
             }
             case SIMULATION: {
                 SimulationConfig *simConfig = &design->simConfigs[objectIndex];
-                qDebug() << "Changing" << property->text() << "property";
+                QString volId = "";
+                if (parentProperty != nullptr && parentProperty->text() == "lattice") {
+                    for (int r = row -1 ; r >= 0; r--) {
+                        if (this->item(r, col-1) != nullptr) {
+                            if (this->item(r, col-1)->text() == "inner volume") {
+                                volId = this->item(r, col)->text();
+                                break;
+                            }
+                        }
+                    }
+                }
                 if (parentProperty != nullptr) qDebug() << "Parent:" << parentProperty->text();
-                if (property->text() == "volume") {
-                    simConfig->volume = design->volumeMap[item->text()];
+                    if (property->text() == "volume") {
+                        simConfig->volume = design->volumeMap[item->text()];
+                    }
+                    if (parentProperty != nullptr && parentProperty->text() == "load" && property->text() == "id") {
+                        simConfig->load = design->loadcaseMap[item->text()];
+                    }
+                if (!volId.isEmpty()) {
+                    if (property->text() == "fill") {
+                        simConfig->latticeMap[volId]->fill =
+                                item->text() == "cubic" ? LatticeConfig::CUBIC_FILL : LatticeConfig::SPACE_FILL;
+                    }
+                    if (property->text() == "unit") {
+                        simConfig->latticeMap[volId]->unit = parseVecInput(item->text());
+                    }
+                    if (property->text() == "bar diameter") {
+                        simConfig->latticeMap[volId]->barDiameter = parseVecInput(item->text());
+                    }
+                    if (property->text() == "material") {
+                        simConfig->latticeMap[volId]->material = design->materialMap[item->text()];
+                    }
+                    if (property->text() == "hull") {
+                        simConfig->latticeMap[volId]->hull = item->text().toInt();
+                    }
+                    if (property->text() == "structure") {
+                        simConfig->latticeMap[volId]->structure =
+                                item->text() == "bars" ? LatticeConfig::BARS : LatticeConfig::FULL;
+                    }
                 }
-                if (parentProperty != nullptr && parentProperty->text() == "load" && property->text() == "id") {
-                    simConfig->load = design->loadcaseMap[item->text()];
-                }
-                if (property->text() == "fill") {
-                    simConfig->lattices[0]->fill = item->text() == "cubic" ? LatticeConfig::CUBIC_FILL : LatticeConfig::SPACE_FILL;
-                }
-                if (property->text() == "unit") {
-                    simConfig->lattices[0]->unit = parseVecInput(item->text());
-                }
-                if (property->text() == "bar diameter") {
-                    simConfig->lattices[0]->barDiameter = parseVecInput(item->text());
-                }
-                if (property->text() == "material") {
-                    simConfig->lattices[0]->material = design->materialMap[item->text()];
-                }
-                if(property->text() == "velocity") {
-                    simConfig->damping.velocity = item->text().toDouble();
-                }
-                if (property->text() == "hull") {
-                    simConfig->lattice.hull = item->text().toInt();
-                }
-                if (property->text() == "structure") {
-                    simConfig->lattice.structure = item->text() == "bars" ? LatticeConfig::BARS : LatticeConfig::FULL;
-                }
+                    if (property->text() == "velocity") {
+                        simConfig->damping.velocity = item->text().toDouble();
+                    }
                 break;
             }
             case OPTIMIZATION: {
