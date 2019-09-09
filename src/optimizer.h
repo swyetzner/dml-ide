@@ -118,6 +118,8 @@ public:
     float maxAvgSuccessRate;
     int lastTune;
 
+    double lastMetric;
+
     int order;
     double chunkSize;
     double maxLocalization;

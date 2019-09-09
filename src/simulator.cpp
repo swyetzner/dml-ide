@@ -364,6 +364,7 @@ void Simulator::run() {
 
                 if (optimizer != nullptr) {
                     if (!optimized) {
+                        massDisplacer->lastMetric = totalLength * totalEnergy;
                         writeMetricHeader(metricFile);
                         writeCustomMetricHeader(customMetricFile);
                     }

@@ -448,6 +448,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
     this->prevAttemptNums = vector<int>();
     this->maxAvgSuccessRate = 0;
     this->lastTune = 0;
+    this->lastMetric = 0;
     test = new Simulation();
     start = new Simulation();
 
@@ -834,10 +835,14 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
             double origLen = s->_rest;
             s->_rest = (s->_right->origpos - orig).norm();
             // Check for merge
-            if (s->_rest < maxLocalization / 10) {
+            /**if (s->_rest < maxLocalization / 10) {
                 mergeMasses(sim, s->_right, mt, s);
                 merged.push_back(s->_right);
                 return 2;
+            }**/
+            if (s->_rest < 0.001) {
+                s->_rest = origLen;
+                return 0;
             }
             s->_k *= origLen / s->_rest;
 
@@ -850,10 +855,14 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
             double origLen = s->_rest;
             s->_rest = (s->_left->origpos - orig).norm();
             // Check for merge
-            if (s->_rest < maxLocalization / 10) {
+            /**if (s->_rest < maxLocalization / 10) {
                 mergeMasses(sim, s->_left, mt, s);
                 merged.push_back(s->_left);
                 return 2;
+            }**/
+            if (s->_rest < 0.001) {
+                s->_rest = origLen;
+                return 0;
             }
             s->_k *= origLen / s->_rest;
 
@@ -995,30 +1004,30 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         t->_broken = false;
     }
 
-    sim->setAll();
+    //sim->setAll();
 
     // Equilibrate simulation
-    if (relaxation == 0) {
-        settleSim(sim, 1E-6);
-    } else {
-        relaxSim(sim, relaxation);
-    }
+    //if (relaxation == 0) {
+    //    settleSim(sim, 1E-6);
+    //} else {
+    //    relaxSim(sim, relaxation);
+    //}
 
     // Record start metrics
-    double totalMetricSim = 0;
-    double totalLengthSim = 0;
-    double totalEnergySim = 0;
+    //double totalMetricSim = 0;
+    //double totalLengthSim = 0;
+    //double totalEnergySim = 0;
 
-    if (metricOrder > 0)  {
+    /**if (metricOrder > 0)  {
         totalLengthSim = calcOrderLength(sim, orderGroup);
         totalEnergySim = calcOrderEnergy(sim, orderGroup);
     }
     else {
         totalLengthSim = calcTotalLength(sim);
         totalEnergySim = calcTotalEnergy(sim);
-    }
+    }**/
 
-    if (isnan(totalEnergySim)) {
+    if (isnan(lastMetric)) {
         for (Mass *m : sim->masses) {
             std::cout << "Mass " << m->index << " m " << m->m << " pos " << m->pos[0] << "," << m->pos[1] << "," << m->pos[2] << std::endl;
         }
@@ -1078,12 +1087,11 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         exit(1);
     }
 
-    totalMetricSim = totalEnergySim * totalLengthSim ;
     totalMetricTest = totalEnergyTest * totalLengthTest ;
 
-    qDebug() << "Total lengths Sim" << totalLengthSim << " Test" << totalLengthTest;
-    qDebug() << "Total energies Sim" << totalEnergySim << " Test" << totalEnergyTest;
-    qDebug() << "Total metrics Sim" << totalMetricSim << " Test" << totalMetricTest;
+    qDebug() << "Total lengths Test" << totalLengthTest;
+    qDebug() << "Total energies Test" << totalEnergyTest;
+    qDebug() << "Total metrics Sim" << lastMetric << " Test" << totalMetricTest;
 
     for (int e = 0; e < edgeGroup.size(); e++) {
         Mass *m = edgeGroup[e];
@@ -1095,7 +1103,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         //m->unfix();
     }
 
-    if (isnan(totalMetricTest) || totalMetricTest >= totalMetricSim) {
+    if (isnan(totalMetricTest) || totalMetricTest >= lastMetric) {
         setMassState(startPos, startMass);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
@@ -1127,12 +1135,11 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
             s->_max_stress = 0;
         }
 
-        localEnergy = totalEnergySim;
         sim->setAll();
     } else {
         sim->setAll();
         qDebug() << "Moved" << i;
-        localEnergy = totalEnergyTest;
+        lastMetric = totalMetricTest;
         return 1;
     }
 
