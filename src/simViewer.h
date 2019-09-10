@@ -34,11 +34,34 @@ public:
 
     Simulator *simulator;
 
+    struct SpringVisual {
+        enum ColorScheme {
+            NOTHING,
+            MAX_STRESS,
+            FORCES,
+            ACTUATION
+        } colorScheme;
+
+        static QString colorSchemeName(ColorScheme cs) {
+            switch (cs) {
+                case NOTHING:
+                    return "Nothing";
+                case MAX_STRESS:
+                    return "Max Stress";
+                case FORCES:
+                    return "Forces";
+                case ACTUATION:
+                    return "Actuation";
+            }
+        }
+    };
+
 signals:
     double getTimestep();
     double getRenderUpdate();
     void reloadSimulation();
-    bool getShowStress();
+    bool getShowText();
+    int getVisualizeScheme();
     void stopCriteriaSat();
     void timeChange(double time);
     void log(const QString message);
@@ -94,6 +117,7 @@ private:
     void updateShaders();
     void updateBuffers();
     void drawVertexArray();
+    void drawSolids();
 
     void cleanUp();
 
@@ -107,6 +131,7 @@ private:
     void panCameraBy(int x, int y, int z);
 
     void renderText(const QString &text, int flags);
+    void clearTextPanel();
     void updateTextPanel();
 
     // --------------------------------------------------------------------
@@ -116,6 +141,10 @@ private:
     int n_springs;
     int n_masses;
     int n_planes;
+    int frame_width;
+    int frame_height;
+    int near_plane;
+    int far_plane;
 
     GLfloat *pairVertices = nullptr;
     GLfloat *anchorVertices = nullptr;
@@ -129,6 +158,9 @@ private:
     QOpenGLShaderProgram *axesShaderProgram;
     QOpenGLShaderProgram *anchorShaderProgram;
     QOpenGLShaderProgram *forceShaderProgram;
+    QOpenGLShaderProgram *barDepthShaderProgram;
+    QOpenGLShaderProgram *defaultDepthShaderProgram;
+    QOpenGLShaderProgram *depthQuadShaderProgram;
     QOpenGLVertexArrayObject vertexArray;
     QOpenGLFramebufferObject *frameBuffer;
 
@@ -140,9 +172,14 @@ private:
     GLuint axesVertexBuff_id;
     GLuint anchorVertexBuff_id;
     GLuint forceVertexBuff_id; // (pos[3], force[3], ...)
+    GLuint depthMapFrameBuff_id;
+    GLuint depthMapTexBuff_id;
+    GLuint depthQuadBuff_id;
 
-    bool showStress;
+    bool showText;
     bool showOverlays;
+
+    SpringVisual springVisual;
 
     vector<QVector3D> bounds;
     int verticesCount;
@@ -175,11 +212,16 @@ private:
     int centerLoc;
     float scale;
     QMatrix4x4 projection;
+    QMatrix4x4 shadowProjection;
     QMatrix4x4 camera;
     QMatrix4x4 world;
     QMatrix3x3 normal;
     QMatrix4x4 ortho;
     QVector4D center;
+    QVector3D eye;
+    QVector3D light;
+    QMatrix4x4 lightProjection, lightView;
+    QMatrix4x4 lightSpace;
 };
 
 

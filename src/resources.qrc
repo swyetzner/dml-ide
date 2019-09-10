@@ -3,11 +3,12 @@
         <file>../resources/icons/model.png</file>
         <file>../resources/icons/solid.png</file>
         <file>../resources/icons/wireframe.png</file>
-        <file>../resources/shaders/bars.vert</file>
-        <file>../resources/shaders/bars.frag</file>
         <file>../resources/shaders/lineCylinders.vert</file>
         <file>../resources/shaders/lineCylinders.geom</file>
         <file>../resources/shaders/lineCylinders.frag</file>
+        <file>../resources/shaders/depthCylinders.vert</file>
+        <file>../resources/shaders/depthCylinders.geom</file>
+        <file>../resources/shaders/depthCylinders.frag</file>
         <file>../resources/shaders/depth.vert</file>
         <file>../resources/shaders/depth.frag</file>
         <file>../resources/shaders/arrows.vert</file>

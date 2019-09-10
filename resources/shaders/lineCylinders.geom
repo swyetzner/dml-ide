@@ -6,6 +6,7 @@ layout (lines) in;
 layout (triangle_strip, max_vertices = 32) out;
 uniform mat4 projMatrix;
 uniform mat4 mvMatrix;
+uniform mat4 lightSpaceMatrix;
 
 in VertexOut {
     float diam;
@@ -14,6 +15,7 @@ in VertexOut {
 out vec4 fColor;
 out vec4 vPosition;
 out vec3 vNormal;
+out vec4 vLight;
 
 // Takes radius of each end and a resolution
 void createCylinders(float r1, float r2, int res) {
@@ -45,12 +47,14 @@ void createCylinders(float r1, float r2, int res) {
         vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
         vPosition = projMatrix * mvMatrix * q1;
         vNormal = normalize(q1.xyz - p1);
+        vLight = lightSpaceMatrix * vPosition;
         gl_Position = vPosition;
         EmitVertex();
 
         vec4 q2 = vec4(p2 + r2*cos(theta)*a + r2*sin(theta)*b, 1.0);
         vPosition = projMatrix * mvMatrix * q2;
         vNormal = normalize(q2.xyz - p2);
+        vLight = lightSpaceMatrix * vPosition;
         gl_Position = vPosition;
         EmitVertex();
     }
@@ -64,11 +68,13 @@ void createCylinders(float r1, float r2, int res) {
         vec4 q1 = vec4(p1 + r1*cos(theta)*a + r1*sin(theta)*b, 1.0);
         vPosition = projMatrix * mvMatrix * q1;
         vNormal = normalize(q1.xyz - p1);
+        vLight = lightSpaceMatrix * vPosition;
         gl_Position = vPosition;
         EmitVertex();
 
         vPosition = projMatrix * mvMatrix * vec4(p3, 1.0);
         vNormal = p;
+        vLight = lightSpaceMatrix * vPosition;
         gl_Position = vPosition;
         EmitVertex();
     }
@@ -82,11 +88,13 @@ void createCylinders(float r1, float r2, int res) {
         vPosition = projMatrix * mvMatrix * q2;
         vNormal = normalize(q2.xyz - p2);
         gl_Position = vPosition;
+        vLight = lightSpaceMatrix * vPosition;
         EmitVertex();
 
         vPosition = projMatrix * mvMatrix * vec4(p4, 1.0);
         vNormal = p;
         gl_Position = vPosition;
+        vLight = lightSpaceMatrix * vPosition;
         EmitVertex();
     }
     EndPrimitive();

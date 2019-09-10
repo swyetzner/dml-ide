@@ -68,6 +68,7 @@ public:
     void getSimMetrics(sim_metrics &metrics);
     void loadSimDump(std::string sp);
     void exportSimulation();
+    void dumpSpringData();
 
 private:
 
@@ -137,7 +138,6 @@ private:
     void createDataDir();
     QString metricFile;
     QString customMetricFile;
-    void dumpSpringData();
     void writeMetricHeader(const QString &outputFile);
     void writeCustomMetricHeader(const QString &outputFile);
     void writeMetric(const QString &outputFile);

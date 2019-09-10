@@ -11,6 +11,8 @@ SimViewer::SimViewer(Simulator *simulator, QWidget *parent)
           anchorShaderProgram(nullptr),
           forceShaderProgram(nullptr),
           frameBuffer(nullptr),
+          near_plane(1.0),
+          far_plane(7.5),
           m_frame(0),
           m_xRot(0),
           m_yRot(0),
@@ -21,13 +23,15 @@ SimViewer::SimViewer(Simulator *simulator, QWidget *parent)
     this->simulator = simulator;
 
     resizeBuffers = true;
-    showStress = false;
+    showText = true;
     showOverlays = true;
+
+    springVisual.colorScheme = SpringVisual::NOTHING;
 
     RECORDING = false;
     outputDir = "output";
     sampleDir = "output/sample";
-    framerate = 500;
+    framerate = 50;
     renderNumber = 0;
     simFrameInterval = 0;
     sampleNumber = 0;
@@ -126,7 +130,7 @@ void SimViewer::saveVideo() {
         QString fps = QString::number(int(framerate));
         qDebug() << "Outputting video:" <<  fileName << " FPS" << fps;
         QString createVideoProgram = "ffmpeg -framerate " + fps + " -y -i " + outputPrefix +
-                                     "dmlFrame_%d.png -vf \"eq=saturation=2.0, pad=ceil(iw/2)*2:ceil(ih/2)*2\" -vcodec libx264 -crf 25 -pix_fmt yuv420p ";
+                                     "dmlFrame_%d.png -vf \"eq=saturation=2.0, pad=ceil(iw/2)*2:ceil(ih/2)*2\" -vcodec libx264 -crf 18 -pix_fmt yuv420p ";
 
         createVideoProgram += fileName;
         QProcess *process = new QProcess(this);
@@ -144,12 +148,15 @@ static const char *vertexShaderPlaneSource =
         "layout (location = 3) in vec3 vertexPos;\n"
         "out vec4 vertPos;\n"
         "out vec4 vertexColor;\n"
+        "out vec4 fragPosLightSpace;\n"
         "uniform mat4 projMatrix;\n"
         "uniform mat4 mvMatrix;\n"
+        "uniform mat4 lightSpaceMatrix;\n"
         "void main() {\n"
         "   vertPos = projMatrix * mvMatrix * vec4(vertexPos, 1.0);\n"
         "   gl_Position = vertPos;\n"
-        "   vertexColor = vec4(0.8, 0.8, 0.8, 1.0);\n"
+        "   vertexColor = vec4(0.6, 0.6, 0.6, 0.9);\n"
+        "   fragPosLightSpace = lightSpaceMatrix * vec4(vertexPos, 1.0);\n"
         "}\n";
 
 static const char *fragmentShaderPlaneSource =
@@ -157,14 +164,38 @@ static const char *fragmentShaderPlaneSource =
         "out vec4 fragColor;\n"
         "in vec4 vertPos;\n"
         "in vec4 vertexColor;\n"
+        "in vec4 fragPosLightSpace;\n"
+        "uniform sampler2D shadowMap;\n"
         "uniform mat3 normMatrix;\n"
         "uniform vec3 normal;\n"
         "uniform vec3 lightPos;\n"
+        "uniform vec3 viewPos;\n"
+        "float shadowCalc(vec4 posLight, float normalLight) {\n"
+        "   vec3 projCoords = posLight.xyz / posLight.w;\n"
+        "   projCoords = projCoords * 0.5 + 0.5;\n"
+        "   float closestDepth = texture(shadowMap, projCoords.xy).r;\n"
+        "   float currentDepth = projCoords.z;\n"
+        "   float bias = max(0.05 * (1.0 - normalLight), 0.005);\n"
+        "   float shadow = 0.0;\n"
+        "   vec2 texelSize = 1.0 / textureSize(shadowMap, 0);\n"
+        "   for (int x = -1; x <= 1; ++x) {\n"
+        "       for (int y = -1; y <= 1; ++y) {\n"
+        "           float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;\n"
+        "           shadow += currentDepth - bias > pcfDepth? 1.0 : 0.0;\n"
+        "       }\n"
+        "   }\n"
+        "   return shadow / 9.0;\n"
+        "}\n"
         "void main() {\n"
         "    vec3 L = normalize(lightPos - vertPos.xyz);\n"
-        "    float NL = max(dot(normalize(normMatrix * normal), L), 0.0);\n"
+        "    vec3 N = normalize(normMatrix * normal);\n"
+        "    vec3 V = normalize(viewPos - vertPos.xyz);\n"
+        "    vec3 R = reflect(-L, N);\n"
+        "    float S = 0.5 * pow(max(dot(V, R), 0.0), 32);\n"
+        "    float NL = max(dot(N, L), 0.0);\n"
+        "    float shadow = shadowCalc(fragPosLightSpace, NL);\n"
         "    vec4 clColor = clamp(vertexColor * 0.2 + vertexColor * 0.8 * NL, 0.0, 1.0);\n"
-        "    fragColor = vec4(clColor.xyz, 1.0);\n"
+        "    fragColor = vec4(clColor.xyz, vertexColor.a);\n"
         "}\n";
 
 
@@ -187,6 +218,32 @@ static const char *fragmentShaderAnchorSource =
         "   fragColor = vertexColor;\n"
         "}\n";
 
+static const char *depthQuadVertSource =
+        "#version 330\n"
+        "layout (location = 0) in vec3 vertexPos;\n"
+        "layout (location = 1) in vec2 texCoords;\n"
+        "out vec2 textureCoords;\n"
+        ""
+        "void main() {\n"
+        "   textureCoords = texCoords;\n"
+        "   gl_Position = vec4(vertexPos, 1.0);\n"
+        "}\n";
+static const char *depthQuadFragSource =
+        "#version 330\n"
+        "out vec4 fragColor;\n"
+        "in vec2 textureCoords;\n"
+        "uniform sampler2D depthMap;\n"
+        "uniform float near_plane;\n"
+        "uniform float far_plane;\n"
+        ""
+        "float LinearizeDepth(float depth) {\n"
+        "   float z = depth * 2.0 - 1.0;\n"
+        "   return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));\n"
+        "}\n\n"
+        "void main() {\n"
+        "   float depthValue = texture(depthMap, textureCoords).r;\n"
+        "   fragColor = vec4(vec3(depthValue), 1.0);\n"
+        "}\n";
 
 //  ----- Color constants
 static const GLfloat defaultMassColor[] = { 0.2f, 5.0f, 0.0f, 1.0f };
@@ -195,6 +252,7 @@ static const GLfloat forceMassColor[] = { 0.0f, 0.0f, 1.0f, 1.0f };
 static const GLfloat defaultSpringColor[] = { 0.5, 1.0, 0.0, 0.1 };
 static const GLfloat expandSpringColor[] = { 0.5, 1.0, 0.0, 1.0 };
 static const GLfloat contractSpringColor[] = { 0.7, 0.0, 1.0, 1.0 };
+static const GLfloat actuatedSpringColor[] = { 0.3, 1.0, 0.9, 1.0 };
 static const GLfloat brokenSpringColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
 
 // --------------------------------------------------------------------
@@ -337,31 +395,64 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
 
         addColor(buffer, brokenSpringColor, count);
         addColor(buffer, brokenSpringColor, count);
-
-    } else if (showStress) {
-
-
-        GLfloat *stressColor = new GLfloat[4];
-        //for (uint i = 0; i < 3; i++) {
-        //    stressColor[i] = defaultSpringColor[i] * float(spring->_max_stress / totalStress);
-        //}
-        GUtils::interpolateColors(contractSpringColor, expandSpringColor, -totalForce, totalForce,
-                                  spring->_curr_force, stressColor);
-
-        // Set alpha to max stress value
-        stressColor[3] = GUtils::interpolate(0.01, 1.0, 0.0, 1.0, fabs(spring->_curr_force) / totalForce);
-        //stressColor[3] = float(abs(spring->_curr_force) / totalForce);
-
-        addColor(buffer, stressColor, count);
-        addColor(buffer, stressColor, count);
-
-        delete[] stressColor;
-    } else {
-
-        addColor(buffer, defaultSpringColor, count);
-        addColor(buffer, defaultSpringColor, count);
+        return;
 
     }
+
+
+    GLfloat  * springColor = new GLfloat[4];
+    switch (springVisual.colorScheme) {
+        case SpringVisual::NOTHING:
+
+            addColor(buffer, defaultSpringColor, count);
+            addColor(buffer, defaultSpringColor, count);
+            return;
+
+        case SpringVisual::FORCES:
+
+            GUtils::interpolateColors(contractSpringColor, expandSpringColor, -totalForce, totalForce,
+                                      spring->_curr_force, springColor);
+            // Interpolate alpha
+            springColor[3] = GUtils::interpolate(0.01, 1.0, 0.0, 1.0, fabs(spring->_curr_force) / totalForce);
+
+            addColor(buffer, springColor, count);
+            addColor(buffer, springColor, count);
+
+            break;
+
+        case SpringVisual::MAX_STRESS:
+
+            for (uint i = 0; i < 3; i++) {
+                springColor[i] = defaultSpringColor[i] * float(spring->_max_stress / totalStress);
+            }
+            GUtils::interpolateColors(contractSpringColor, expandSpringColor, -totalForce, totalForce,
+                                      spring->_curr_force, springColor);
+
+            // Set alpha to max stress value
+            springColor[3] = float(abs(spring->_curr_force) / totalForce);
+
+            addColor(buffer, springColor, count);
+            addColor(buffer, springColor, count);
+
+            break;
+
+        case SpringVisual::ACTUATION:
+
+            for (uint i = 0; i < 3; i++) {
+                springColor[i] = defaultSpringColor[i] * float(spring->_max_stress / totalStress);
+            }
+            GUtils::interpolateColors(defaultSpringColor, actuatedSpringColor, 0, 1,
+                                      spring->_actuation, springColor);
+
+            springColor[3] = 1.0f;
+
+            addColor(buffer, springColor, count);
+            addColor(buffer, springColor, count);
+
+            break;
+
+    }
+    delete[] springColor;
 }
 
 //  ----- updateColors()
@@ -388,7 +479,7 @@ void SimViewer::updateColors() {
 
     double totalStress = 0;
     double totalForce = 0;
-    if (showStress) {
+    if (springVisual.colorScheme != SpringVisual::NOTHING) {
         for (Spring *s: simulator->sim->springs) {
             totalStress = fmax(totalStress, s->_max_stress);
             totalForce = fmax(totalForce, fabs(s->_curr_force));
@@ -503,6 +594,27 @@ void SimViewer::initShaders() {
     anchorShaderProgram->bindAttributeLocation("vertexPos", 0);
     anchorShaderProgram->link();
 
+    barDepthShaderProgram = new QOpenGLShaderProgram;
+    barDepthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/resources/shaders/depthCylinders.vert");
+    barDepthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Geometry, ":/resources/shaders/depthCylinders.geom");
+    barDepthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/resources/shaders/depthCylinders.frag");
+    barDepthShaderProgram->bindAttributeLocation("vertexPos", 0);
+    barDepthShaderProgram->bindAttributeLocation("diameter", 1);
+    barDepthShaderProgram->link();
+
+    defaultDepthShaderProgram = new QOpenGLShaderProgram;
+    defaultDepthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/resources/shaders/depth.vert");
+    defaultDepthShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/resources/shaders/depth.frag");
+    defaultDepthShaderProgram->bindAttributeLocation("vertexPos", 0);
+    defaultDepthShaderProgram->link();
+
+    depthQuadShaderProgram = new QOpenGLShaderProgram;
+    depthQuadShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, depthQuadVertSource);
+    depthQuadShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, depthQuadFragSource);
+    depthQuadShaderProgram->bindAttributeLocation("vertexPos", 0);
+    depthQuadShaderProgram->bindAttributeLocation("texCoords", 1);
+    depthQuadShaderProgram->link();
+
     // Bind uniform matrix locations
 
     springShaderProgram->bind();
@@ -597,6 +709,20 @@ void SimViewer::initBuffers() {
     glBufferData(GL_ARRAY_BUFFER, 3 * anchors.size() * long(sizeof(GLfloat)), anchorVertices, GL_DYNAMIC_DRAW);
     anchorVertexBuff_id = anchorBuffer;
 
+    // SHADOWS
+    GUtils::initShadowBuffers(depthMapFrameBuff_id, depthMapTexBuff_id, 1024, 1024);
+    float quadVertices[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+    };
+    GLuint quadBuffer;
+    glGenBuffers(1, &quadBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    depthQuadBuff_id = quadBuffer;
     qDebug() << "Initialized buffers";
 }
 
@@ -620,13 +746,21 @@ void SimViewer::updateShaders() {
         Vec pn = simulator->sim->planes[0]->_normal;
         pnq = QVector3D(pn[0], pn[1], pn[2]);
     }
-    QVector3D light = QVector3D(0, 0, 70);
+
+    lightSpace = lightProjection * lightView;
+    QMatrix4x4 scaleBias = QMatrix4x4(0.5, 0, 0, 0,
+                                      0, 0.5, 0, 0,
+                                      0, 0, 0.5, 0,
+                                      0.5, 0.5, 0.5, 1);
 
     springShaderProgram->bind();
     springShaderProgram->setUniformValue("projMatrix", projection);
     springShaderProgram->setUniformValue("mvMatrix", camera * world);
     springShaderProgram->setUniformValue("normMatrix", normal);
     springShaderProgram->setUniformValue("lightPos", light);
+    springShaderProgram->setUniformValue("viewPos", eye);
+    springShaderProgram->setUniformValue("shadowMap", depthMapTexBuff_id);
+    springShaderProgram->setUniformValue("lightSpaceMatrix", lightSpace * world);
     springShaderProgram->release();
 
     planeShaderProgram->bind();
@@ -635,6 +769,9 @@ void SimViewer::updateShaders() {
     planeShaderProgram->setUniformValue("normMatrix", normal);
     planeShaderProgram->setUniformValue("normal", pnq);
     planeShaderProgram->setUniformValue("lightPos", light);
+    planeShaderProgram->setUniformValue("viewPos", eye);
+    planeShaderProgram->setUniformValue("shadowMap", depthMapTexBuff_id);
+    planeShaderProgram->setUniformValue("lightSpaceMatrix", lightSpace * world);
     planeShaderProgram->release();
 
     axesShaderProgram->bind();
@@ -653,6 +790,20 @@ void SimViewer::updateShaders() {
     anchorShaderProgram->setUniformValue(projMatrixLoc, projection);
     anchorShaderProgram->setUniformValue(mvMatrixLoc, camera * world);
     anchorShaderProgram->release();
+
+    barDepthShaderProgram->bind();
+    barDepthShaderProgram->setUniformValue("lightSpaceMatrix", lightSpace * world);
+    barDepthShaderProgram->release();
+
+    defaultDepthShaderProgram->bind();
+    defaultDepthShaderProgram->setUniformValue("lightSpaceMatrix", lightSpace * world);
+    defaultDepthShaderProgram->release();
+
+    defaultDepthShaderProgram->bind();
+    defaultDepthShaderProgram->setUniformValue("depthMap", 0);
+    defaultDepthShaderProgram->setUniformValue("near_plane", 1.0f);
+    defaultDepthShaderProgram->setUniformValue("far_plane", 7.5f);
+    defaultDepthShaderProgram->release();
 }
 
 
@@ -684,19 +835,15 @@ void SimViewer::updateBuffers() {
 
 }
 
-
-//  ----- drawVertexArray()
-//  Bind buffers and draws the vertex array object
+//  ----- drawSolids()
+//  Draws planes and bars
 //
-void SimViewer::drawVertexArray() {
-
-    // DRAW AXES
-    axesShaderProgram->bind();
-    GUtils::drawMainAxes(4, axesVertexBuff_id);
-    axesShaderProgram->release();
-
+void SimViewer::drawSolids() {
     //  DRAW PLANES
     planeShaderProgram->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexBuff_id);
+
     glEnableVertexAttribArray(3);
     glBindBuffer(GL_ARRAY_BUFFER, planeVertexBuff_id);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
@@ -709,6 +856,9 @@ void SimViewer::drawVertexArray() {
 
     //  DRAW SPRINGS
     springShaderProgram->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexBuff_id);
+
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
@@ -723,12 +873,88 @@ void SimViewer::drawVertexArray() {
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+
     glDrawArrays(GL_LINES, 0, GLsizei(verticesCount / 3));
 
     glDisableVertexAttribArray(3);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(0);
     springShaderProgram->release();
+}
+
+//  ----- drawVertexArray()
+//  Bind buffers and draws the vertex array object
+//
+void SimViewer::drawVertexArray() {
+
+    //  DRAW SHADOWS
+    glViewport(0, 0, 1024, 1024);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuff_id);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+
+    defaultDepthShaderProgram->bind();
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, planeVertexBuff_id);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4 * GLsizei(n_planes));
+
+    glDisableVertexAttribArray(0);
+    defaultDepthShaderProgram->release();
+
+    barDepthShaderProgram->bind();
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, pairVertexBuff_id);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    glBindBuffer(GL_ARRAY_BUFFER, diameterBuff_id);
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    glCullFace(GL_FRONT);
+    glDrawArrays(GL_LINES, 0, GLsizei(verticesCount / 3));
+    glCullFace(GL_BACK);
+
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    barDepthShaderProgram->release();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    glViewport(0, 0, frame_width, frame_height);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+
+    //  DRAW AXES
+    axesShaderProgram->bind();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    GUtils::drawMainAxes(4, axesVertexBuff_id);
+    axesShaderProgram->release();
+
+
+    //  DRAW MAIN
+    drawSolids();
+
+    // DRAW DEBUGGER
+    depthQuadShaderProgram->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexBuff_id);
+    glBindBuffer(GL_ARRAY_BUFFER, depthQuadBuff_id);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    depthQuadShaderProgram->release();
 
     //  DRAW OVERLAYS
     forceShaderProgram->bind();
@@ -780,6 +1006,7 @@ void SimViewer::cleanUp() {
     delete planeShaderProgram;
     delete forceShaderProgram;
     delete anchorShaderProgram;
+    delete barDepthShaderProgram;
     springShaderProgram = nullptr;
     planeShaderProgram = nullptr;
     forceShaderProgram = nullptr;
@@ -797,14 +1024,21 @@ void SimViewer::initCamera() {
     camera.setToIdentity();
     camera.translate(0, 0, -1);
 
+    light = QVector3D(5, 5, 5);
+    lightProjection.setToIdentity();
+    lightProjection.ortho(-1, 1, -1, 1, 0.1f, 2.5f);
+
     QVector3D up = QVector3D(-simulator->sim->global[0], -simulator->sim->global[1], -simulator->sim->global[2]);
     up.normalize();
     if (up == QVector3D(0, 0, 0)) { up = QVector3D(0, 0, 1); }
 
+    eye = QVector3D(4, 3, 3);
+
     float span = (bounds[0] - bounds[1]).length();
     m_zoom =  span > 1E-5? float(1/span) : 1.0f;
 
-    camera.lookAt(QVector3D(4, 3, 3), QVector3D(0, 0, 0), up);
+    camera.lookAt(eye, QVector3D(0, 0, 0), up);
+    lightView.lookAt(light, QVector3D(0, 1.0, 0), up);
 }
 
 
@@ -912,14 +1146,15 @@ void SimViewer::initializeGL() {
 void SimViewer::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_CLAMP);
+    glEnable(GL_MULTISAMPLE);
 
     glClearColor(0, 0, 0, 0);
 
     if (n_springs != int(simulator->sim->springs.size())) {
         resizeBuffers = true;
     }
-    if (showStress || getShowStress() != showStress || resizeBuffers) {
-        showStress = getShowStress();
+    if (springVisual.colorScheme != SpringVisual::NOTHING || getVisualizeScheme() != springVisual.colorScheme || resizeBuffers) {
+        springVisual.colorScheme = static_cast<SpringVisual::ColorScheme>(getVisualizeScheme());
         updateColors();
     }
     if (resizeBuffers) {
@@ -937,7 +1172,15 @@ void SimViewer::paintGL() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     vertexArray.release();
 
-    updateTextPanel();
+    if (showText != getShowText()) {
+        showText = getShowText();
+        if (!showText) {
+            clearTextPanel();
+        }
+    }
+    if (showText) {
+        updateTextPanel();
+    }
     m_frame++;
 
 }
@@ -949,9 +1192,13 @@ void SimViewer::paintGL() {
 //  Called for window resizing
 //
 void SimViewer::resizeGL(int width, int height) {
+    frame_width = width;
+    frame_height = height;
     glViewport(0, 0, width, height);
     projection.setToIdentity();
     projection.perspective(45.0f, GLfloat(width) / height, 0.1f, 20.0f);
+    shadowProjection.setToIdentity();
+    shadowProjection.perspective(90.0f, GLfloat(frame_width) / frame_height, 0.1f, 20.0f);
 }
 
 
@@ -965,7 +1212,13 @@ void SimViewer::renderText(const QString &text, int flags) {
     painter.drawText(rect(), flags, text);
 }
 
-
+//  ----- clearTextPanel()
+//  Clears text panel
+//
+void SimViewer::clearTextPanel() {
+    renderText("", Qt::AlignLeft | Qt::AlignTop);
+    renderText("", Qt::AlignLeft | Qt::AlignBottom);
+}
 
 //  ----- updateTextPanel()
 //  Updates text panel with current stats about the simulation
@@ -1144,6 +1397,7 @@ void SimViewer::panCameraBy(int x, int y, int z)
 // --------------------------------------------------------------------
 void SimViewer::saveImage(const QImage &image) {
 
+    qDebug() << "In save image";
     QString outputFile;
     getImageFileName(outputFile);
     image.save(outputFile);
@@ -1230,7 +1484,9 @@ void SimViewer::getImageFileName(QString &outputFile) {
 // simFrameInterval = renders per second (sim time)
 // framerate = desired images per second (sim time)
 bool SimViewer::doRecord() {
+    qDebug() << simFrameInterval << renderNumber << framerate << int(simFrameInterval / framerate);
     return (renderNumber % int(simFrameInterval / framerate) == 0);
+    qDebug() << "finished do record";
 }
 
 // Saves image into sample folder

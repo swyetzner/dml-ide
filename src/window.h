@@ -68,7 +68,8 @@ public slots:
     void setRenderUpdate(double dt);
     double getSpringConst();
     void setSpringConst(double k);
-    bool getShowStress();
+    int getVisualizeScheme();
+    bool getShowText();
     void reloadSimulation();
 
 private slots:

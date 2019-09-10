@@ -136,6 +136,7 @@ void Window::load() {
     dirName.truncate(dirName.lastIndexOf("/"));
     qDebug() << "About to read simulation dump file";
 
+    simulation = new Simulation();
     simulator->loadSimDump(fileName.toStdString());
 }
 
@@ -212,8 +213,12 @@ void Window::setSpringConst(double k) {
     ui->springConstEdit->setText(QString::number(k));
 }
 
-bool Window::getShowStress() {
-    return ui->stressCheckBox->isChecked();
+int Window::getVisualizeScheme() {
+    return ui->colorComboBox->currentIndex();
+}
+
+bool Window::getShowText() {
+    return ui->textCheckBox->isChecked();
 }
 
 void Window::reloadSimulation() {
@@ -438,6 +443,8 @@ void Window::on_actionSaveSim_triggered()
     }
     log(tr("Saved %1 bars from simulation.").arg(arrays_bars->bars.size()));
     log(tr("X Bounds: (%1, %2)").arg(arrays_bars->bounds.minCorner[0]).arg(arrays_bars->bounds.maxCorner[0]));
+
+    simulator->dumpSpringData();
 }
 
 void Window::setUpSimulationOptions() {
@@ -464,10 +471,17 @@ void Window::setUpSimulationOptions() {
     }
     ui->renderUpdateEdit->setText(QString::number(defaultRenderPeriod));
 
+    ui->colorComboBox->clear();
+    for (int vis = SimViewer::SpringVisual::NOTHING; vis <= SimViewer::SpringVisual::ACTUATION; vis++) {
+        SimViewer::SpringVisual::ColorScheme type = static_cast<SimViewer::SpringVisual::ColorScheme>(vis);
+        ui->colorComboBox->addItem(SimViewer::SpringVisual::colorSchemeName(type));
+    }
+
     connect(simWidget, &SimViewer::timeChange, this, &Window::updateTimeLCD);
     connect(simWidget, &SimViewer::getTimestep, this, &Window::getTimestep);
     connect(simWidget, &SimViewer::getRenderUpdate, this, &Window::getRenderUpdate);
-    connect(simWidget, &SimViewer::getShowStress, this, &Window::getShowStress);
+    connect(simWidget, &SimViewer::getVisualizeScheme, this, &Window::getVisualizeScheme);
+    connect(simWidget, &SimViewer::getShowText, this, &Window::getShowText);
     connect(simWidget, &SimViewer::reloadSimulation, this, &Window::reloadSimulation);
 }
 
