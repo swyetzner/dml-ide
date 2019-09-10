@@ -190,7 +190,7 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
     QString volume = dml_sim.attribute("volume").value();
 
     // LATTICE
-    LatticeConfig lattice;
+    LatticeConfig *lattice = new LatticeConfig();
     auto dml_lat = dml_sim.child("lattice");
     QString fill = dml_lat.attribute("fill").value();
     Vec unit = parseVec(dml_lat.attribute("unit").value());
@@ -198,24 +198,25 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
     QString material = dml_lat.attribute("material").value();
     bool hull = dml_lat.attribute("hull").as_bool(true);
     QString structure = dml_lat.attribute("structure").value();
+    QString latvol = dml_lat.attribute("volume").value();
 
     if (fill == "cubic")
-        lattice.fill = LatticeConfig::CUBIC_FILL;
+        lattice->fill = LatticeConfig::CUBIC_FILL;
     else if (fill == "space")
-        lattice.fill = LatticeConfig::SPACE_FILL;
+        lattice->fill = LatticeConfig::SPACE_FILL;
     else
-        lattice.fill = LatticeConfig::CUBIC_FILL;
-    lattice.unit = unit;
-    lattice.barDiameter = bardiam;
-    lattice.material = design->materialMap[material];
-    lattice.hull = hull;
+        lattice->fill = LatticeConfig::CUBIC_FILL;
+    lattice->unit = unit;
+    lattice->barDiameter = bardiam;
+    lattice->material = design->materialMap[material];
+    lattice->hull = hull;
     if (structure == "bars")
-        lattice.structure = LatticeConfig::BARS;
+        lattice->structure = LatticeConfig::BARS;
     else
-        lattice.structure = LatticeConfig::FULL;
+        lattice->structure = LatticeConfig::FULL;
 
-    if (!(lattice.material)) {
-        cerr << "Material '" << material.toStdString() << "' not found.";
+    if (!(lattice->material)) {
+        cerr << "Material '" << material.toStdString() << "' not found.\n";
         exit(EXIT_FAILURE);
     }
 
@@ -301,7 +302,15 @@ void Parser::parseSimulation(pugi::xml_node dml_sim, SimulationConfig *simConfig
         cerr << "Volume '" << volume.toStdString() << "' not found for <simulation><volume>.\n";
         exit(EXIT_FAILURE);
     }
-    simConfig->lattices.push_back(&lattice);
+
+    lattice->volume = latvol.isEmpty() ? simConfig->volume : design->volumeMap[latvol];
+    if (!(lattice->volume)) {
+        cerr << "Volume '" << latvol.toStdString() << "' not found.\n";
+        exit(EXIT_FAILURE);
+    }
+
+    simConfig->lattices.push_back(lattice);
+    simConfig->latticeMap[lattice->volume->id] = lattice;
     simConfig->damping = damping;
     simConfig->global = global;
     simConfig->repeat = repeat;
