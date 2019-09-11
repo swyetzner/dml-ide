@@ -339,7 +339,6 @@ void Simulator::run() {
             totalLength += s->_rest;
         }
 
-        if (dumpCriteriaMet()) dumpSpringData();
         bool stopReached = stopCriteriaMet();
         qDebug() << "Evaluated stop criteria" << stopReached;
 
@@ -383,6 +382,8 @@ void Simulator::run() {
                     if (optimized == 0)
                         writeCustomMetric(customMetricFile);
                     optimized++;
+
+                    if (dumpCriteriaMet()) dumpSpringData();
                     cout << "Average iteration time (simulation): " << massDisplacer->totalTrialTime / optimized << "s \n";
                 }
 
@@ -425,6 +426,9 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
+
+                            if (dumpCriteriaMet()) dumpSpringData();
+
                         }
                     }
                 }
@@ -583,6 +587,9 @@ bool Simulator::stopCriteriaMet() {
                 case OptimizationStop::DEFLECTION:
                     stopReached = calcDeflection() >= s.threshold;
                     break;
+                case OptimizationStop::ITERATIONS:
+                    stopReached = optimized >= s.threshold;
+                    break;
                 case OptimizationStop::NONE:
                     stopReached = false;
                     break;
@@ -619,6 +626,14 @@ bool Simulator::dumpCriteriaMet() {
                 case OptimizationStop::DEFLECTION:
                     dump = false;
                     break;
+                case OptimizationStop::ITERATIONS:
+                    interval = s.threshold / 10;
+                    for (int i = 0; i < 10; i++) {
+                        double marker = i * interval;
+                        if ((optimized) <= marker && (optimized + 1) > marker) {
+                            return true;
+                        }
+                    }
                 case OptimizationStop::NONE:
                     dump = false;
                     break;
@@ -720,7 +735,7 @@ void Simulator::writeMetric(const QString &outputFile) {
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
             QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
-                    .arg(sim->time())
+                    .arg(optimized? massDisplacer->totalTrialTime / optimized : 0)
                     .arg(optimized)
                     .arg(calcDeflection())
                     .arg(massDisplacer->dx)
@@ -806,6 +821,7 @@ void Simulator::printStatus() {
 
     //printf("\033[2J");
     printf("\033[10;1f");
+    printf("\033[J");
     cout << "\033[0K" << "\n\n========================================" << std::endl;
     cout << "\033[0K" << "\033[92m" << "SIMULATING" << "\033[97m" << std::endl;
     cout << "\033[0K" << "========================================\n" << std::endl;

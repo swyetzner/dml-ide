@@ -362,6 +362,8 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
             stop.metric = OptimizationStop::ENERGY;
         } else if (metric == "deflection") {
             stop.metric = OptimizationStop::DEFLECTION;
+        } else if (metric == "iterations") {
+            stop.metric = OptimizationStop::ITERATIONS;
         } else {
             stop.metric = OptimizationStop::NONE;
         }

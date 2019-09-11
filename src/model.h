@@ -900,7 +900,7 @@ public:
     OptimizationStop() = default;
     ~OptimizationStop() = default;
 
-    enum Metric { WEIGHT, ENERGY, DEFLECTION, NONE };
+    enum Metric { WEIGHT, ENERGY, DEFLECTION, ITERATIONS, NONE };
 
     Metric metric;
     double threshold;
@@ -913,6 +913,8 @@ public:
                 return "ENERGY";
             case DEFLECTION:
                 return "DEFLECTION";
+            case ITERATIONS:
+                return "ITERATIONS";
             default:
                 return "NONE";
         }

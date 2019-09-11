@@ -500,6 +500,8 @@ void DMLTree::parseExpandElement(const QDomElement &element,
                     s.metric = OptimizationStop::ENERGY;
                 } else if (metric->text(1) == "deflection") {
                     s.metric = OptimizationStop::DEFLECTION;
+                } else if (metric->text(1) == "iterations") {
+                    s.metric = OptimizationStop::ITERATIONS;
                 } else {
                     log(tr("Invalid <stop> criteria in <optimization>: '%1'").arg(metric->text(1)));
                     s.metric = OptimizationStop::NONE;
