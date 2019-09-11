@@ -6,6 +6,7 @@
 #define DMLIDE_OPTIMIZER_H
 
 #include <QDebug>
+#include <chrono>
 
 #include <Titan/sim.h>
 
@@ -114,6 +115,8 @@ public:
 
     double localEnergy;
     int attempts;
+    int totalAttempts;
+    double totalTrialTime;
     vector<int> prevAttemptNums;
     float maxAvgSuccessRate;
     int lastTune;
@@ -130,10 +133,6 @@ public:
     QString customMetricHeader;
     QString customMetric;
 
-    void initializeClones(int n);
-    void mutateClones(double dx);
-    void incorporateClones();
-    void resetClones();
 
     // Struct holding the locality for a displaced mass
     // group -- surrounding masses within the locality
@@ -163,56 +162,12 @@ public:
         Vec dimension;
     } trenchGrid;
 
-    struct DisplacedMass {
-        DisplacedMass() {
-            index = -1;
-            displacement = Vec(0, 0, 0);
-        }
 
-        int index;
-        Vec displacement;
-    };
-
-    struct DisplacedSpring {
-        DisplacedSpring() {
-            index = -1;
-            rest = 0;
-            constant = 0;
-        }
-
-        DisplacedSpring(int i, double r, double k) {
-            index = i;
-            rest = r;
-            constant = k;
-        }
-
-        int index;
-        double rest;
-        double constant;
-    };
-
-    struct Clone {
-        Clone() {
-            sim = nullptr;
-            adjustedSprings = vector<DisplacedSpring>();
-        }
-
-        explicit Clone(Simulation *s) {
-            sim = s;
-            adjustedSprings = vector<DisplacedSpring>();
-        }
-
-        Simulation *sim;
-        DisplacedMass displacedMass;
-        vector<DisplacedSpring> adjustedSprings;
-    };
 
 protected:
     void optimize() override;
 
 private:
-
-    vector<Clone> clones;
 
     bool STARTED;
 
@@ -228,20 +183,16 @@ private:
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
-    void shiftCloneMass(Clone *clone, double dx);
-    vector<DisplacedSpring> shiftOrigPos(Simulation *sim, Mass * m, const Vec &p);
     double calcTotalLength(Simulation *sim);
     double calcTotalEnergy(Simulation *sim);
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
     double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
     void relaxSim(Simulation *sim, int steps, vector<Mass *> track=vector<Mass *>());
+    void setMassState(const vector<Vec> &pos, const vector<double> &mm);
 
-    int displaceParallelMasses(int copies, int n_copy);
     int displaceSingleMass(double displacement, double chunkSize, int metricOrder);
     int displaceGroupMass(double displacement);
-    int displaceManyMasses(double displacement, int metricOrder, int num);
-    void setMassState(const vector<Vec> &pos, const vector<double> &mm);
 };
 
 

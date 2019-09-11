@@ -373,6 +373,7 @@ void Simulator::run() {
                     optimizer->optimize();
                     equilibrium = false;
                     closeToPrevious = 0;
+                    cout << "Average trial time (simulation): " << massDisplacer->totalTrialTime / massDisplacer->totalAttempts << "s \n";
 
                     if (varyLoad) {
                         varyLoadDirection();
@@ -382,6 +383,7 @@ void Simulator::run() {
                     if (optimized == 0)
                         writeCustomMetric(customMetricFile);
                     optimized++;
+                    cout << "Average iteration time (simulation): " << massDisplacer->totalTrialTime / optimized << "s \n";
                 }
 
                 prevSteps = 0;

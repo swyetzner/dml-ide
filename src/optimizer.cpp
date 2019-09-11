@@ -445,6 +445,8 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
     this->maxLocalization = 0;
     this->iterations = 0;
     this->attempts = 0;
+    this->totalAttempts = 0;
+    this->totalTrialTime = 0;
     this->prevAttemptNums = vector<int>();
     this->maxAvgSuccessRate = 0;
     this->lastTune = 0;
@@ -499,13 +501,22 @@ void MassDisplacer::optimize() {
 
     int displaced = 0;
     attempts = 0;
+    double trialTime = 0;
+
 
     while (displaced == 0) {
         attempts ++;
+        auto pstart = std::chrono::system_clock::now();
         displaced = displaceSingleMass(dx, chunkSize, order);
         //displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
+        auto pend = std::chrono::system_clock::now();
+        std::chrono::duration<double> pduration = pend - pstart;
+        std::cout << "Trial " << attempts << " duration: " << pduration.count() << '\n';
+        trialTime += pduration.count();
     }
+    totalTrialTime += trialTime;
+    totalAttempts += attempts;
 
     /**prevAttemptNums.push_back(attempts);
     while (prevAttemptNums.size() > 100) {
@@ -534,6 +545,8 @@ void MassDisplacer::optimize() {
     if (!STARTED) STARTED = true;
     iterations++;
 
+    cout << "Iteration " << iterations << "\tAttempts: " << attempts << "\tAverage trial time: " << trialTime / attempts << "s \n";
+
     /**if (!STARTED) {
         initializeClones(100);
         STARTED = true;
@@ -546,150 +559,6 @@ void MassDisplacer::optimize() {
     //displaceParallelMasses(50, 1);
 }
 
-
-int MassDisplacer::displaceParallelMasses(int copies, int n_copy) {
-
-    test->copy(*sim);
-    qDebug() << "Copied sim" << test->masses.size() << test << sim;
-
-    vector<int> moved = vector<int>();
-    double totalEnergySim = 0;
-    double totalLengthSim = 0;
-    vector<double> totalEnergyTests = vector<double>();
-    vector<double> totalLengthTests = vector<double>();
-
-    // Calculate sim length
-    for (Spring *s : test->springs) {
-        totalLengthSim += s->_rest;
-    }
-
-    for (int n = 1; n < copies; n++) {
-
-        test->append(*sim);
-
-        // Pick a random mass
-        int i = rand() % n_masses;
-        bool underExternalForce = sim->masses[i]->extforce.norm() > 1E-6;
-        bool fixed = sim->masses[i]->constraints.fixed;
-        bool used = find(moved.begin(), moved.end(), i) != moved.end();
-
-        while (used || underExternalForce || fixed) {
-            i = rand() % n_masses;
-            underExternalForce = sim->masses[i]->extforce.norm() > 1E-6;
-            fixed = sim->masses[i]->constraints.fixed;
-            used = find(moved.begin(), moved.end(), i) == moved.end();
-        }
-        moved.push_back(i);
-        qDebug() << "Picked mass" << i << n_masses << test->masses.size();
-
-        Mass *mt = test->masses[i + test->masses.size() - n_masses];
-
-        // Pick a random direction
-        Vec dir = Utils::randDirectionVec();
-        dir = dir.normalized();
-        qDebug() << "Direction" << dir[0] << dir[1] << dir[2];
-        Vec dx = 0.002 * dir;
-
-        // Move mass
-        totalLengthTests.push_back(0);
-        for (int j = test->springs.size() - n_springs; j < test->springs.size(); j++) {
-            Spring *s = test->springs[j];
-            Vec orig = mt->origpos + dx;
-            if (s->_left == mt) {
-                double origLen = s->_rest;
-                s->_rest = (s->_right->origpos - orig).norm();
-                s->_k *= origLen / s->_rest;
-            }
-            if (s->_right == mt) {
-                double origLen = s->_rest;
-                s->_rest = (s->_left->origpos - orig).norm();
-                s->_k *= origLen / s->_rest;
-            }
-
-            // Calculate test length
-            totalLengthTests.back() += s->_rest;
-        }
-        mt->origpos += dx;
-        mt->pos += dx;
-    }
-
-    test->initCudaParameters();
-
-    qDebug() << "Parallel Masses" << test->masses.size() << "Springs" << test->springs.size();
-    qDebug() << "Time" << test->time();
-
-
-    // Run simulation
-    double totalEnergy = 0;
-    int steps = 0;
-    equilibrium = false;
-    prevEnergy.clear();
-    while (!equilibrium) {
-        totalEnergy = 0;
-        for (Spring *s : test->springs) {
-            totalEnergy += s->_curr_force * s->_curr_force / s->_k;
-        }
-        qDebug() << "ENERGY" << totalEnergy << prevEnergy.size();
-        if (prevEnergy.size() > 4) {
-            bool close = true;
-            for (int p = 0; p < 6; p++) {
-                int i = prevEnergy.size() - p - 1;
-                if (fabs(prevEnergy[i] - totalEnergy) > totalEnergy * 1E-4)
-                    close = false;
-            }
-            if (close) {
-                equilibrium = true;
-            }
-        }
-        prevEnergy.push_back(totalEnergy);
-        if (prevEnergy.size() > 100) {
-            prevEnergy.erase(prevEnergy.begin());
-        }
-
-        // Step simulation
-        test->step(sim->masses.front()->dt * 100);
-        test->getAll();
-        steps++;
-    }
-
-    // Record metrics
-    for (int j = 0; j < n_springs; j++) {
-        Spring *s = test->springs[j];
-        totalEnergySim += s->_curr_force * s->_curr_force / s->_k;
-    }
-    for (int n = 1; n < copies; n++) {
-        totalEnergyTests.push_back(0);
-        for (int j = n * n_springs; j < (n + 1) * n_springs; j++) {
-            Spring *s = test->springs[j];
-            totalEnergyTests.back() += s->_curr_force * s->_curr_force / s->_k;
-        }
-    }
-
-    // Add optimizations
-    int op = 0;
-    for (int n = 1; n < copies; n++) {
-        double simMetric = (totalEnergySim * totalLengthSim);
-        double testMetric = (totalEnergyTests[n-1] * totalLengthTests[n-1]);
-        double diff = simMetric - testMetric;
-        qDebug() << "Total" << simMetric << testMetric << n << "Energy" << totalEnergySim << totalEnergyTests[n-1] << "Length" << totalLengthSim << totalLengthTests[n-1];
-        if (diff > 0) {
-            Mass *m = sim->masses[moved[n-1]];
-            Vec dx = test->masses[moved[n-1] + n*n_masses]->origpos - m->origpos;
-            m->origpos += dx;
-            m->pos += dx;
-            for (Spring *s : sim->springs) {
-                if (s->_left == m || s->_right == m) {
-                    double origLen = s->_rest;
-                    s->_rest = (s->_left->origpos - s->_right->origpos).norm();
-                    s->_k *= origLen / s->_rest;
-                }
-            }
-            op++;
-        }
-    }
-    qDebug() << "Moved" << op << "Masses";
-    sim->setAll();
-}
 
 // Picks a random mass from a sim
 //---------------------------------------------------------------------------
@@ -1014,20 +883,20 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
     //}
 
     // Record start metrics
-    //double totalMetricSim = 0;
-    //double totalLengthSim = 0;
-    //double totalEnergySim = 0;
+    double totalMetricSim = 0;
+    double totalLengthSim = 0;
+    double totalEnergySim = 0;
 
-    /**if (metricOrder > 0)  {
+    if (metricOrder > 0)  {
         totalLengthSim = calcOrderLength(sim, orderGroup);
         totalEnergySim = calcOrderEnergy(sim, orderGroup);
     }
     else {
         totalLengthSim = calcTotalLength(sim);
         totalEnergySim = calcTotalEnergy(sim);
-    }**/
+    }
 
-    if (isnan(lastMetric)) {
+    if (isnan(totalEnergySim)) {
         for (Mass *m : sim->masses) {
             std::cout << "Mass " << m->index << " m " << m->m << " pos " << m->pos[0] << "," << m->pos[1] << "," << m->pos[2] << std::endl;
         }
@@ -1087,11 +956,12 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         exit(1);
     }
 
+    totalMetricSim = totalEnergySim * totalLengthSim ;
     totalMetricTest = totalEnergyTest * totalLengthTest ;
 
     qDebug() << "Total lengths Test" << totalLengthTest;
     qDebug() << "Total energies Test" << totalEnergyTest;
-    qDebug() << "Total metrics Sim" << lastMetric << " Test" << totalMetricTest;
+    qDebug() << "Total metrics Sim" << totalMetricSim << " Test" << totalMetricTest;
 
     for (int e = 0; e < edgeGroup.size(); e++) {
         Mass *m = edgeGroup[e];
@@ -1455,242 +1325,6 @@ void MassDisplacer::createMassGroupGrid(Simulation *sim, const TrenchGrid &grid,
 }
 
 
-// Moves num masses in random directions by displacement
-// Creates serial Simulations and compares output
-//---------------------------------------------------------------------------
-int MassDisplacer::displaceManyMasses(double displacement, int metricOrder, int num) {
-//---------------------------------------------------------------------------
-    qDebug() << "Displacing masses";
-    int displaced = 0;
-
-    if (num < 1) {
-        qDebug() << "Must run displaceManyMasses with more than one mass";
-        return -1;
-    }
-    sim->getAll();
-
-    n_springs = sim->springs.size();
-    n_masses = sim->masses.size();
-    for (Spring *t : sim->springs) {
-        t->_broken = false;
-    }
-    sim->setAll();
-
-    // Vectors with trial data
-    vector<int> chosenMasses = vector<int>();
-    vector<MassGroup> chosenLocalities = vector<MassGroup>();
-
-    // Pick an initial random mass
-    int i = pickRandomMass(sim);
-    chosenMasses.push_back(i);
-    qDebug() << "Chose mass" << i;
-
-    // Pick remaining Masses
-    for (int n = 1; n < num; n++) {
-        int j = getMassCandidate(sim, chosenMasses, maxLocalization * metricOrder * 2);
-        chosenMasses.push_back(j);
-    }
-
-    // Create mass groups
-    for (int m : chosenMasses) {
-        MassGroup mg;
-        createMassGroup(sim, maxLocalization * metricOrder, sim->getMassByIndex(m), mg);
-        chosenLocalities.push_back(mg);
-    }
-
-    // Record start values
-    vector<Vec> startPos = vector<Vec>();
-    vector<Vec> origPos = vector<Vec>();
-    vector<double> startRest = vector<double>();
-    for (Mass *m : sim->masses) {
-        startPos.push_back(m->pos);
-        origPos.push_back(m->origpos);
-    }
-    for (Spring *s : sim->springs) {
-        startRest.push_back(s->_rest);
-    }
-
-    // Equilibrate simulation
-    if (relaxation == 0) {
-        settleSim(sim, 1E-6);
-    } else {
-        relaxSim(sim, relaxation);
-    }
-
-    for (MassGroup &mg : chosenLocalities) {
-        // Record start metrics
-        mg.origLength = calcOrderLength(sim, mg.springs);
-        mg.origEnergy = calcOrderEnergy(sim, mg.springs);
-    }
-
-    // Displace masses
-    for (int m : chosenMasses) {
-        // Pick random directions
-        Vec dir = Utils::randDirectionVec();
-        qDebug() << "Direction" << dir[0] << dir[1] << dir[2];
-        Vec dvec = displacement * dir;
-
-        //shiftMassPos(sim, m, dvec);
-    }
-
-    // Equilibrate simulation
-    if (relaxation == 0) {
-        settleSim(sim, 1E-6);
-    } else {
-        relaxSim(sim, relaxation);
-    }
-
-    for (MassGroup &mg : chosenLocalities) {
-        // Calculate test metrics
-        mg.testLength = calcOrderLength(sim, mg.springs);
-        mg.testEnergy = calcOrderEnergy(sim, mg.springs);
-
-        double totalMetricOrig = mg.origEnergy * mg.origLength;
-        double totalMetricTest = mg.testEnergy * mg.testLength;
-
-        qDebug() << "---------------- Mass" << mg.displaced->index << "-------------";
-        qDebug() << "Total lengths Orig" << mg.origLength << " Test" << mg.testLength;
-        qDebug() << "Total energies Orig" << mg.origEnergy << " Test" << mg.testEnergy;
-        qDebug() << "Total metrics Orig" << totalMetricOrig << " Test" << totalMetricTest;
-
-
-        if (totalMetricTest >= totalMetricOrig) {
-            //setMassState(startPos);
-            for (int m = 0; m < sim->masses.size(); m++) {
-                sim->masses[m]->origpos = origPos[m];
-            }
-            for (int j = 0; j < n_springs; j++) {
-                Spring *s = sim->springs[j];
-
-                s->_k *= s->_rest / startRest[j];
-                s->_rest = startRest[j];
-                s->_max_stress = 0;
-            }
-            sim->setAll();
-
-        } else {
-            for (Spring *s : mg.springs) {
-                s->_broken = true;
-            }
-            sim->setAll();
-            qDebug() << "Moved" << mg.displaced->index;
-            displaced++;
-        }
-
-    }
-    return displaced;
-}
-
-
-// Initialize array of concurrent simulation clones
-//---------------------------------------------------------------------------
-void MassDisplacer::initializeClones(int n) {
-//---------------------------------------------------------------------------
-
-    clones.resize(n);
-    for (int i = 0; i < n; i++) {
-        clones[i] = Clone(new Simulation);
-        clones[i].sim->copy(*sim);
-        clones[i].sim->initCudaParameters();
-    }
-    qDebug() << "Initialized" << clones.size() << "Clones";
-
-}
-
-
-// Concurrently displace a single mass in each clone by dx
-//---------------------------------------------------------------------------
-void MassDisplacer::mutateClones(double dx) {
-//---------------------------------------------------------------------------
-
-#pragma omp parallel for
-    for (int i = 0; i < clones.size(); i++) {
-        qDebug() << "Mutating clone" << i;
-        shiftCloneMass(&clones[i], dx);
-        int steps = settleSim(clones[i].sim, 1E-4);
-        qDebug() << "Settled" << i << "in" << steps << "steps";
-    }
-
-}
-
-
-// Compare energy of clones to energy of sim
-// Add displacements from clones with lower energy
-//---------------------------------------------------------------------------
-void MassDisplacer::incorporateClones() {
-//---------------------------------------------------------------------------
-
-    double controlEnergy = calcTotalEnergy(sim);
-    for (Clone c : clones) {
-        if (calcTotalEnergy(c.sim) < controlEnergy) {
-            // Good displacement
-
-            // Incorporate displacement structs
-            for (auto ds : c.adjustedSprings) {
-                Spring *s = sim->springs[ds.index];
-                s->_rest = ds.rest;
-                s->_k = ds.constant;
-            }
-
-            Mass *m = sim->masses[c.displacedMass.index];
-            m->origpos += c.displacedMass.displacement;
-        }
-    }
-    sim->setAll();
-
-}
-
-
-
-// Resets clones to mirror sim
-//---------------------------------------------------------------------------
-void MassDisplacer::resetClones() {
-//---------------------------------------------------------------------------
-
-#pragma omp parallel for
-    for (int i = 0; i < clones.size(); i++) {
-        // Reset mass
-        int im = clones[i].displacedMass.index;
-        Mass *cm = clones[i].sim->masses[im];
-        Mass *sm = sim->masses[im];
-        cm->origpos = sm->origpos;
-
-        // Reset springs
-        for (auto ds : clones[i].adjustedSprings) {
-            int is = ds.index;
-            Spring *cs = clones[i].sim->springs[is];
-            Spring *ss = sim->springs[is];
-            cs->_rest = ss->_rest;
-            cs->_k = ss->_k;
-        }
-        clones[i].sim->setAll();
-    }
-}
-
-
-// Shifts a mass's original position and updates connected springs
-// Return structs with data of adjusted springs
-//---------------------------------------------------------------------------
-vector<MassDisplacer::DisplacedSpring> MassDisplacer::shiftOrigPos(Simulation *sim, Mass *m, const Vec &p) {
-//---------------------------------------------------------------------------
-
-    vector<DisplacedSpring> adjusted = vector<DisplacedSpring>();
-    m->origpos = p;
-    for (int i = 0; i < sim->springs.size(); i++)  {
-        Spring *s = sim->springs[i];
-        if (s->_right == m || s->_left == m) {
-
-            double oldRest = s->_rest;
-            s->_rest = (s->_left->origpos - s->_right->origpos).norm();
-            s->_k *= oldRest / s->_rest;
-
-            DisplacedSpring ds = DisplacedSpring(i, s->_rest, s->_k);
-            adjusted.push_back(ds);
-        }
-    }
-    return adjusted;
-
-}
 
 // Calculate total rest length of all springs in a simulation
 //---------------------------------------------------------------------------
@@ -1829,33 +1463,6 @@ void MassDisplacer::relaxSim(Simulation *sim, int steps, vector<Mass *> track) {
                 }
             }
         }
-}
-
-// Pick a random mass and shift in a random direction by dx
-// Record shift in clone struct
-//---------------------------------------------------------------------------
-void MassDisplacer::shiftCloneMass(MassDisplacer::Clone *clone, double dx){
-//---------------------------------------------------------------------------
-
-    int nm = clone->sim->masses.size();
-
-    // Pick random mass
-    int r = rand() % nm;
-    Mass *m = clone->sim->masses[r];
-
-    // Pick random direction and scale by dx
-    Vec d = dx * Utils::randDirectionVec();
-
-    // Shift mass
-    m->pos += d;
-    vector<DisplacedSpring> adjustedSprings = shiftOrigPos(clone->sim, m, m->origpos + d);
-
-    // Record shift
-    clone->displacedMass.index = r;
-    clone->displacedMass.displacement = d;
-    clone->adjustedSprings = adjustedSprings;
-
-    clone->sim->setAll();
 }
 
 
