@@ -153,7 +153,9 @@ public:
         double testEnergy = 0;
     } massGroup;
 
-    vector<MassGroup> massGroups;
+    vector<MassGroup *> massGroups;
+    map<Mass *, MassGroup *> massGroupMap;
+    vector<Spring *> trenchSprings;
 
     // Struct holding separation grid information
     struct TrenchGrid {
@@ -182,6 +184,8 @@ private:
     int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices, vector<Mass *> &merged);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
+    void createMassTiles(Simulation *sim, double unit, vector<MassGroup *> &massGroups,
+            map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
     double calcTotalLength(Simulation *sim);
     double calcTotalEnergy(Simulation *sim);

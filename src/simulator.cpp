@@ -45,7 +45,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     barData = nullptr;
     GRAPHICS = graphics;
 
-    relaxation = 3000;
+    relaxation = 4000;
 
     if (OPTIMIZER) loadOptimizers();
     //optimizer = new MassDisplacer(sim, 0.2);
