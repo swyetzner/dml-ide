@@ -151,6 +151,12 @@ public:
         double origEnergy = 0;
         double testLength = 0;
         double testEnergy = 0;
+
+        Vec displaceOrigPos;
+        vector<Vec> startPos;
+        vector<double> startMass;
+        vector<double> startRest;
+
     } massGroup;
 
     vector<MassGroup *> massGroups;
@@ -174,7 +180,7 @@ private:
     bool STARTED;
 
     int pickRandomMass(Simulation *sim);
-    int pickRandomMass(MassGroup &group);
+    int pickRandomMass(MassGroup &mg);
     int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
     bool springExists(Simulation *sim, Mass *m1, Mass *m2);
@@ -191,6 +197,8 @@ private:
     double calcTotalEnergy(Simulation *sim);
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
     double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
+    double calcMassGroupLength(MassGroup * massGroup);
+    double calcMassGroupEnergy(MassGroup * massGroup);
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
     void relaxSim(Simulation *sim, int steps, vector<Mass *> track=vector<Mass *>());
     void setMassState(const vector<Vec> &pos, const vector<double> &mm);
