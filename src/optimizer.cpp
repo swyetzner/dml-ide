@@ -466,11 +466,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
     createMassGroup(this->sim, Vec(-0.05, -0.05, -0.05), Vec(0.05, 0.05, 0.05), this->massGroup);
 
     createMassTiles(sim, 0.1, massGroups, massGroupMap, trenchSprings);
-    qDebug() << "Created mass tiles" << massGroups.size();
-    qDebug() << "Trench springs" << trenchSprings.size();
-    for (MassGroup *mg : massGroups) {
-        qDebug() << "Mass Group" << mg->group.size() << mg->springs.size();
-    }
+
 
     // Initialize connections
     /**springConns = map<Spring *, vector<Spring *>>();
@@ -1062,8 +1058,10 @@ int MassDisplacer::displaceGroupMass(double displacement) {
     }
     vector<Vec> disPos = vector<Vec>();
 
+    qDebug() << "Mass groups" << massGroups.size();
     for (MassGroup *mg : massGroups) {
         int i = pickRandomMass(*mg);
+        qDebug() << "Picked mass";
         Mass *mt = mg->group[i];
         mg->displaced = mt;
         mg->displaceOrigPos = mt->origpos;
@@ -1090,6 +1088,13 @@ int MassDisplacer::displaceGroupMass(double displacement) {
                 }
             }
             m->force = m->extforce;
+        }
+
+        for (Mass *m : mg->group) {
+            if (find(mg->edge.begin(), mg->edge.end(), m) == mg->edge.end() && !m->constraints.fixed) {
+                m->fix();
+                mg->fixed.push_back(m);
+            }
         }
     }
     for (Spring *s : trenchSprings) {
@@ -1182,6 +1187,8 @@ int MassDisplacer::displaceGroupMass(double displacement) {
     }
     for (int j = 0; j < sim->masses.size(); j++) {
         sim->masses[j]->extforce = startForces[j];
+        sim->masses[j]->pos = startPos[j];
+        sim->masses[j]->m = startMass[j];
     }
 
     int mgi = 0;
@@ -1194,10 +1201,8 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         qDebug() << "MG energy Sim" << mg->origEnergy << " Test" << mg->testEnergy;
         qDebug() << "MG metric Sim" << origMetric << " Test" << testMetric;
 
-
-        for (Mass *m : sim->masses) {
-            m->pos = m->origpos;
-            m->vel = Vec(0,0,0);
+        for (Mass *m : mg->fixed) {
+            m->unfix();
         }
 
         if (testMetric >= origMetric) {
@@ -1219,49 +1224,9 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         }
         mgi++;
     }
-    setMassState(startPos, startMass);
     sim->setAll();
     return result;
 
-
-    //if (totalMetricTest >= totalMetricSim && 0) {
-        setMassState(startPos, startMass);
-        for (int m = 0; m < sim->masses.size(); m++) {
-            sim->masses[m]->origpos = origPos[m];
-        }
-        for (int j = 0; j < n_springs; j++) {
-            Spring *s = sim->springs[j];
-
-            s->_k *= s->_rest / startRest[j];
-            s->_rest = startRest[j];
-            s->_max_stress = 0;
-        }
-
-        sim->setAll();
-   // } else {
-     //   for (Mass *m : massGroup.edge) {
-            //m->extforce = Vec(0,0,0);
-            //m->force = Vec(0,0,0);
-      //  }
-
-        /*Vec mtPos = mt->pos;
-        setMassState(startPos, startMass);
-        mt->pos = mtPos;
-
-        for (Mass *m : sim->masses) {
-            m->pos = m->origpos;
-            m->vel = Vec(0,0,0);
-        }
-        for (int s = 0; s < startBorder.size(); s++) {
-            Spring *n = new Spring(startBorder[s]);
-            n->setMasses(startMassSpan[s*2], startMassSpan[s*2+1]);
-            sim->createSpring(n);
-        }*/
-
-     //   sim->setAll();
-     //   lastMetric = totalMetricTest;
-      //  return 1;
-    //}
 
     return 0;
 
@@ -1375,14 +1340,14 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
 
 // Create cubic tiles of a lattice with springs in between
 //---------------------------------------------------------------------------
-void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGroup *> &massGroups,
-                                    map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings) {
+void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGroup *> &mgs,
+                                    map<Mass *, MassGroup *> &mgm, vector<Spring *> &ts) {
 //---------------------------------------------------------------------------
 
     int nx, ny, nz;
-    massGroups = vector<MassGroup *>();
-    massGroupMap = map<Mass *, MassGroup *>();
-    trenchSprings = vector<Spring *>();
+    mgs = vector<MassGroup *>();
+    mgm = map<Mass *, MassGroup *>();
+    ts = vector<Spring *>();
 
     Vec minPos = Vec(FLT_MAX, FLT_MAX, FLT_MAX);
     Vec maxPos = Vec(-FLT_MAX, -FLT_MAX, -FLT_MAX);
@@ -1395,10 +1360,13 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGro
         maxPos[1] = std::max(m->pos[1], maxPos[1]);
         maxPos[2] = std::max(m->pos[2], maxPos[2]);
     }
+    qDebug() << "Max position" << maxPos[0] << maxPos[1] << maxPos[2];
+    qDebug() << "Min position" << minPos[0] << minPos[1] << minPos[2];
 
     nx = ceil((maxPos[0] - minPos[0]) / unit);
     ny = ceil((maxPos[1] - minPos[1]) / unit);
     nz = ceil((maxPos[2] - minPos[2]) / unit);
+    qDebug() << "Grid" << nx << ny << nz;
 
     for (int x = 0; x < nx; x++) {
         for (int y = 0; y < ny; y++) {
@@ -1409,12 +1377,12 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGro
                 MassGroup *mg = new MassGroup();
                 createMassGroup(sim, st, end, *mg);
 
-                massGroups.push_back(mg);
+                mgs.push_back(mg);
                 for (Mass *m : mg->group) {
-                    massGroupMap[m] = mg;
+                    mgm[m] = mg;
                 }
                 for (Spring *s : mg->border) {
-                    trenchSprings.push_back(s);
+                    ts.push_back(s);
                 }
             }
         }
@@ -1422,14 +1390,20 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGro
 
     // Cull trench springs
     vector<Spring *> culledTrenchSprings = vector<Spring *>();
-    for (Spring *s1 : trenchSprings) {
+    for (Spring *s1 : ts) {
         bool duplicate = false;
         for (Spring *s2 : culledTrenchSprings) {
             if (s1 == s2) duplicate = true;
         }
         if (!duplicate) culledTrenchSprings.push_back(s1);
     }
-    trenchSprings = culledTrenchSprings;
+    ts = culledTrenchSprings;
+
+    qDebug() << "Created mass tiles" << mgs.size();
+    qDebug() << "Trench springs" << ts.size();
+    for (MassGroup *mg : mgs) {
+        qDebug() << "Mass Group" << mg->group.size() << mg->springs.size();
+    }
 }
 
 // Creates Mass Groups from global Trench Grid

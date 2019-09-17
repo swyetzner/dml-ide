@@ -156,6 +156,7 @@ public:
         vector<Vec> startPos;
         vector<double> startMass;
         vector<double> startRest;
+        vector<Mass *> fixed;
 
     } massGroup;
 
