@@ -1037,6 +1037,11 @@ int MassDisplacer::displaceGroupMass(double displacement) {
     n_springs = sim->springs.size();
     n_masses = sim->masses.size();
 
+    double totalMass = 0;
+    for (Mass *m : sim->masses) {
+        totalMass += m->m;
+    }
+    qDebug() << "Total Mass" << totalMass;
     // Pick a random mass
 
     // Record start positions
@@ -1058,6 +1063,8 @@ int MassDisplacer::displaceGroupMass(double displacement) {
     }
     vector<Vec> disPos = vector<Vec>();
 
+    splitMassTiles(sim, massGroups, trenchSprings, startBorder, startMassSpan);
+
     qDebug() << "Mass groups" << massGroups.size();
     for (MassGroup *mg : massGroups) {
         int i = pickRandomMass(*mg);
@@ -1066,47 +1073,9 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         mg->displaced = mt;
         mg->displaceOrigPos = mt->origpos;
         qDebug() << "Chose mass" << i;
-
-        for (Mass *m : mg->edge) {
-
-            for (Spring *s : sim->springs) {
-                if (s->_right == m) {
-                    m->extforce += s->getForce();
-                    m->extduration = DBL_MAX;
-                }
-                if (s->_left == m) {
-                    m->extforce -= s->getForce();
-                    m->extduration = DBL_MAX;
-                }
-            }
-            for (Spring *s : mg->springs) {
-                if (s->_right == m) {
-                    m->extforce -= s->getForce();
-                }
-                if (s->_left == m) {
-                    m->extforce += s->getForce();
-                }
-            }
-            m->force = m->extforce;
-        }
-
-        for (Mass *m : mg->group) {
-            if (find(mg->edge.begin(), mg->edge.end(), m) == mg->edge.end() && !m->constraints.fixed) {
-                m->fix();
-                mg->fixed.push_back(m);
-            }
-        }
-    }
-    for (Spring *s : trenchSprings) {
-        Spring t = Spring(*s);
-        startBorder.push_back(t);
-        startMassSpan.push_back(s->_left);
-        startMassSpan.push_back(s->_right);
-        sim->deleteSpring(s);
     }
 
     n_springs = sim->springs.size();
-
 
     sim->setAll();
 
@@ -1157,34 +1126,9 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         mg->testLength = calcMassGroupLength(mg);
         disPos.push_back(mg->displaced->pos);
     }
-    for (int s = 0; s < startBorder.size(); s++) {
-        Spring *n = new Spring(startBorder[s]);
-        n->setMasses(startMassSpan[s*2], startMassSpan[s*2+1]);
-        for (MassGroup *mg : massGroups) {
-            if (n->_left == mg->displaced) {
-                qDebug() << "Connected spring" << n->_rest;
-                double origLen = n->_rest;
-                n->_rest = (n->_right->origpos - mg->displaced->origpos).norm();
-                if (n->_rest < 0.001) {
-                    n->_rest = origLen;
-                    mg->testEnergy = FLT_MAX; // Automatically reject
-                }
-                n->_k *= origLen / n->_rest;
-                qDebug() << "Set" << n->_k << n->_rest;
-            }
-            if (n->_right == mg->displaced) {
-                qDebug() << "Connected spring" << n->_rest;
-                double origLen = n->_rest;
-                n->_rest = (n->_left->origpos - mg->displaced->origpos).norm();
-                if (n->_rest < 0.001) {
-                    n->_rest = origLen;
-                    mg->testEnergy = FLT_MAX; // Automatically reject
-                }
-                n->_k *= origLen / n->_rest;
-            }
-        }
-        sim->createSpring(n);
-    }
+
+    combineMassTiles(sim, massGroups, startBorder, startMassSpan);
+
     for (int j = 0; j < sim->masses.size(); j++) {
         sim->masses[j]->extforce = startForces[j];
         sim->masses[j]->pos = startPos[j];
@@ -1201,15 +1145,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         qDebug() << "MG energy Sim" << mg->origEnergy << " Test" << mg->testEnergy;
         qDebug() << "MG metric Sim" << origMetric << " Test" << testMetric;
 
-        for (Mass *m : mg->fixed) {
-            m->unfix();
-        }
-
         if (testMetric >= origMetric) {
-            for (int m = 0; m < mg->group.size(); m++) {
-                mg->group[m]->pos = mg->startPos[m];
-                mg->group[m]->m = mg->startMass[m];
-            }
             mg->displaced->origpos = mg->displaceOrigPos;
             for (int j = 0; j < mg->springs.size(); j++) {
                 Spring *s = mg->springs[j];
@@ -1225,10 +1161,8 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         mgi++;
     }
     sim->setAll();
+
     return result;
-
-
-    return 0;
 
 }
 
@@ -1433,6 +1367,87 @@ void MassDisplacer::createMassGroupGrid(Simulation *sim, const TrenchGrid &grid,
     }
 }
 
+
+// Split simulation into tiled chunks by deleting inbetween springs
+//---------------------------------------------------------------------------
+void MassDisplacer::splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, vector<Spring *> &tsSim,
+                                   vector<Spring> &tsSave, vector<Mass *> &massSpans) {
+//---------------------------------------------------------------------------
+
+    for (MassGroup *mg : mgs) {
+        for (Mass *m : mg->edge) {
+
+            for (Spring *s : sim->springs) {
+                if (s->_right == m) {
+                    m->extforce += s->getForce();
+                    m->extduration = DBL_MAX;
+                }
+                if (s->_left == m) {
+                    m->extforce -= s->getForce();
+                    m->extduration = DBL_MAX;
+                }
+            }
+            for (Spring *s : mg->springs) {
+                if (s->_right == m) {
+                    m->extforce -= s->getForce();
+                }
+                if (s->_left == m) {
+                    m->extforce += s->getForce();
+                }
+            }
+            m->force = m->extforce;
+        }
+
+    }
+    for (Spring *s : tsSim) {
+        Spring t = Spring(*s);
+        tsSave.push_back(t);
+        massSpans.push_back(s->_left);
+        massSpans.push_back(s->_right);
+        s->_left->m += s->_left->m / s->_left->ref_count;
+        s->_right->m += s->_right->m / s->_right->ref_count;
+        sim->deleteSpring(s);
+    }
+}
+
+// Combine simulation from tiled chunks by recreating inbetween springs
+//---------------------------------------------------------------------------
+void MassDisplacer::combineMassTiles(Simulation *sim, vector<MassGroup *> &massGroups, vector<Spring> &tsSave,
+                                     vector<Mass *> massSpans) {
+//---------------------------------------------------------------------------
+
+    for (int s = 0; s < tsSave.size(); s++) {
+        Spring *n = new Spring(tsSave[s]);
+        n->setMasses(massSpans[s*2], massSpans[s*2+1]);
+        for (MassGroup *mg : massGroups) {
+            if (n->_left == mg->displaced) {
+                qDebug() << "Connected spring" << n->_rest;
+                double origLen = n->_rest;
+                n->_rest = (n->_right->origpos - mg->displaced->origpos).norm();
+                if (n->_rest < 0.001) {
+                    n->_rest = origLen;
+                    mg->testEnergy = FLT_MAX; // Automatically reject
+                }
+                n->_k *= origLen / n->_rest;
+                qDebug() << "Set" << n->_k << n->_rest;
+            }
+            if (n->_right == mg->displaced) {
+                qDebug() << "Connected spring" << n->_rest;
+                double origLen = n->_rest;
+                n->_rest = (n->_left->origpos - mg->displaced->origpos).norm();
+                if (n->_rest < 0.001) {
+                    n->_rest = origLen;
+                    mg->testEnergy = FLT_MAX; // Automatically reject
+                }
+                n->_k *= origLen / n->_rest;
+            }
+        }
+        n->_left->m += n->_left->m / (n->_left->ref_count + 1);
+        n->_right->m += n->_right->m / (n->_right->ref_count + 1);
+
+        sim->createSpring(n);
+    }
+}
 
 
 // Calculate total rest length of all springs in a simulation

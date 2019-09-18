@@ -62,12 +62,14 @@ public:
     double stepRatio;
     double stopRatio;
     map<Mass *, vector<Spring *>> massToSpringMap;
+    double massFactor;
 
 protected:
     void optimize() override;
 
 private:
     void removeSpringFromMap(Spring *d);
+    void deleteSpring(Spring *d);
 };
 
 /**
@@ -194,6 +196,10 @@ private:
     void createMassTiles(Simulation *sim, double unit, vector<MassGroup *> &massGroups,
             map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
+    void splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, vector<Spring *> &tsSim, vector<Spring> &tsSave,
+            vector<Mass *> &massSpans);
+    void combineMassTiles(Simulation *sim, vector<MassGroup *> &massGroups, vector<Spring> &tsSave,
+            vector<Mass *> massSpans);
     double calcTotalLength(Simulation *sim);
     double calcTotalEnergy(Simulation *sim);
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
