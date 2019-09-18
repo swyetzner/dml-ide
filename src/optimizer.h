@@ -154,6 +154,9 @@ public:
         double testLength = 0;
         double testEnergy = 0;
 
+        Vec dx;
+        vector<Mass *> displacedList;
+        vector<Vec> displacements;
         Vec displaceOrigPos;
         vector<Vec> startPos;
         vector<double> startMass;
