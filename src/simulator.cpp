@@ -496,7 +496,10 @@ void Simulator::loadOptimizers() {
         for (OptimizationRule r : optConfig->rules) {
             switch(r.method) {
                 case OptimizationRule::REMOVE_LOW_STRESS:
-                    this->optimizer = new SpringRemover(sim, r.threshold);
+                    springRemover = new SpringRemover(sim, r.threshold);
+                    springRemover->massFactor = M_PI * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
+                                                config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
+                    this->optimizer = springRemover;
                     qDebug() << "Created SpringRemover" << r.threshold;
                     break;
 
@@ -506,13 +509,15 @@ void Simulator::loadOptimizers() {
                         minUnitDist = fmin(minUnitDist, t->_rest);
                     }
 
-                    double mf = 3.14159 * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
+                    double mf = M_PI * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
                             config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
                     massDisplacer = new MassDisplacer(sim, config->lattices[0]->unit[0] * 0.2, r.threshold, mf);
                     massDisplacer->maxLocalization = minUnitDist + 1E-4;
                     massDisplacer->order = 0;
                     massDisplacer->chunkSize = 0;
                     massDisplacer->relaxation = relaxation;
+                    massDisplacer->springUnit = config->lattices.front()->unit[0];
+                    massDisplacer->unit = massDisplacer->springUnit * 6;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;

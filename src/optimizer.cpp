@@ -451,6 +451,9 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
     this->maxAvgSuccessRate = 0;
     this->lastTune = 0;
     this->lastMetric = 0;
+    this->gridOffset = Vec(0,0,0);
+    this->dimensions = Vec(0,0,0);
+    this->unit = 0.1;
     test = new Simulation();
     start = new Simulation();
 
@@ -465,7 +468,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
 
     createMassGroup(this->sim, Vec(-0.05, -0.05, -0.05), Vec(0.05, 0.05, 0.05), this->massGroup);
 
-    createMassTiles(sim, 0.1, massGroups, massGroupMap, trenchSprings);
+    createMassTiles(sim, 0.1, Vec(0,0,0), massGroups, massGroupMap, trenchSprings);
 
 
     // Initialize connections
@@ -507,12 +510,22 @@ void MassDisplacer::optimize() {
     attempts = 0;
     double trialTime = 0;
 
+    if (gridOffset[2] + springUnit > unit) {
+        gridOffset = Vec(0,0,0);
+    } else if (gridOffset[1] + springUnit  > unit) {
+        gridOffset += Vec(0, 0, springUnit);
+    } else if (gridOffset[0] + springUnit  > unit) {
+        gridOffset += Vec(0, springUnit, 0);
+    } else {
+        gridOffset += Vec(springUnit, 0, 0);
+    }
+    qDebug() << "Grid Offset" << gridOffset[0] << gridOffset[1] << gridOffset[2];
 
     while (displaced == 0) {
         attempts ++;
         auto pstart = std::chrono::system_clock::now();
         //displaced = displaceSingleMass(dx, chunkSize, order);
-        createMassTiles(sim, 0.1, massGroups, massGroupMap, trenchSprings);
+        createMassTiles(sim, unit, gridOffset, massGroups, massGroupMap, trenchSprings);
         displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
         auto pend = std::chrono::system_clock::now();
@@ -591,20 +604,10 @@ int MassDisplacer::pickRandomMass(Simulation *sim) {
 int MassDisplacer::pickRandomMass(MassDisplacer::MassGroup &mg) {
 //---------------------------------------------------------------------------
 
-    int nm = mg.group.size();
+    int nm = mg.candidates.size() - 1;
 
     // Pick a random mass
     int i = round(Utils::randUnit() * nm);
-    bool underExternalForce = mg.group[i]->extforce.norm() > 1E-6;
-    bool fixed = mg.group[i]->constraints.fixed;
-    bool edge = find(mg.edge.begin(), mg.edge.end(), mg.group[i]) != mg.edge.end();
-
-    while (underExternalForce || fixed || edge) {
-        i = round(Utils::randUnit() * nm);
-        underExternalForce = mg.group[i]->extforce.norm() > 1E-6;
-        fixed = mg.group[i]->constraints.fixed;
-        edge = find(mg.edge.begin(), mg.edge.end(), mg.group[i]) != mg.edge.end();
-    }
 
     return i;
 
@@ -986,7 +989,6 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         setMassState(startPos, startMass);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
-            sim->masses[m]->vel = Vec(0,0,0);
         }
         // Reverse merges
         for (int m = 0; m < startSprings.size(); m+=2) {
@@ -1031,6 +1033,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
 //---------------------------------------------------------------------------
 
     int result = 0;
+    int attempts = 0;
     qDebug() << "Displacing mass";
     sim->getAll();
 
@@ -1093,12 +1096,12 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         }
     }
 
-    while (result <= 10) {
+    while (result <= 10 && attempts <= 50) {
         for (MassGroup *mg : massGroups) {
 
             int i = pickRandomMass(*mg);
             qDebug() << "Picked mass";
-            Mass *mt = mg->group[i];
+            Mass *mt = mg->candidates[i];
 
             mg->displaced = mt;
             mg->displaceOrigPos = mt->origpos;
@@ -1145,6 +1148,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
 
             for (int i = 0; i < mg->group.size(); i++) {
                 mg->group[i]->pos = mg->startPos[i];
+                mg->group[i]->vel = Vec(0,0,0);
             }
             mg->displaced->pos += mg->dx; // Set off following call
             shiftMassPos(sim, mg->displaced, -mg->dx);
@@ -1157,7 +1161,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
             }
             mgi++;
         }
-
+        attempts++;
     }
     for (Mass *m : sim->masses) {
         for (MassGroup *mg : massGroups) {
@@ -1242,6 +1246,7 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
 //---------------------------------------------------------------------------
 
     massGroup.group = vector<Mass *>();
+    massGroup.candidates = vector<Mass *>();
     massGroup.springs = vector<Spring *>();
     massGroup.outside = vector<Mass *>();
     massGroup.edge = vector<Mass *>();
@@ -1269,20 +1274,31 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
     }
 
     vector<Mass *> culledOrderGroup = vector<Mass *>();
+    vector<Mass *> culledCandidateGroup = vector<Mass *>();
     vector<Mass *> culledOutsideGroup = vector<Mass *>();
     vector<Mass *> culledEdgeGroup = vector<Mass *>();
     for (Mass *m : sim->masses) {
+        bool underExternalForce = m->extforce.norm() > 1E-6;
+        bool fixed = m->constraints.fixed;
+        bool edge = find(massGroup.edge.begin(), massGroup.edge.end(), m) != massGroup.edge.end();
+
         if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
             culledOrderGroup.push_back(m);
         }
         if (find(massGroup.outside.begin(), massGroup.outside.end(), m) != massGroup.outside.end()) {
             culledOutsideGroup.push_back(m);
         }
-        if (find(massGroup.edge.begin(), massGroup.edge.end(), m) != massGroup.edge.end()) {
+        if (edge) {
             culledEdgeGroup.push_back(m);
+        }
+        if (!underExternalForce && !fixed &&!edge) {
+            if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
+                culledCandidateGroup.push_back(m);
+            }
         }
     }
     massGroup.group = culledOrderGroup;
+    massGroup.candidates = culledCandidateGroup;
     massGroup.outside = culledOutsideGroup;
     massGroup.edge = culledEdgeGroup;
 
@@ -1291,7 +1307,7 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
 
 // Create cubic tiles of a lattice with springs in between
 //---------------------------------------------------------------------------
-void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGroup *> &mgs,
+void MassDisplacer::createMassTiles(Simulation *sim, double unit, Vec offset, vector<MassGroup *> &mgs,
                                     map<Mass *, MassGroup *> &mgm, vector<Spring *> &ts) {
 //---------------------------------------------------------------------------
 
@@ -1311,12 +1327,17 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGro
         maxPos[1] = std::max(m->pos[1], maxPos[1]);
         maxPos[2] = std::max(m->pos[2], maxPos[2]);
     }
+
+    this->dimensions = maxPos - minPos;
+
+    minPos -= offset + Vec(this->springUnit/2, this->springUnit/2, this->springUnit/2);
     qDebug() << "Max position" << maxPos[0] << maxPos[1] << maxPos[2];
     qDebug() << "Min position" << minPos[0] << minPos[1] << minPos[2];
 
     nx = ceil((maxPos[0] - minPos[0]) / unit);
     ny = ceil((maxPos[1] - minPos[1]) / unit);
     nz = ceil((maxPos[2] - minPos[2]) / unit);
+    qDebug() << "Unit cube" << unit;
     qDebug() << "Grid" << nx << ny << nz;
 
     for (int x = 0; x < nx; x++) {
@@ -1328,7 +1349,9 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, vector<MassGro
                 MassGroup *mg = new MassGroup();
                 createMassGroup(sim, st, end, *mg);
 
-                mgs.push_back(mg);
+                if (mg->candidates.size() > 0) {
+                    mgs.push_back(mg);
+                }
                 for (Mass *m : mg->group) {
                     mgm[m] = mg;
                 }
@@ -1393,26 +1416,27 @@ void MassDisplacer::splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, ve
 
     for (MassGroup *mg : mgs) {
         for (Mass *m : mg->edge) {
-
-            for (Spring *s : sim->springs) {
-                if (s->_right == m) {
-                    m->extforce += s->getForce();
-                    m->extduration = DBL_MAX;
+            if (!m->constraints.fixed) {
+                for (Spring *s : sim->springs) {
+                    if (s->_right == m) {
+                        m->extforce += s->getForce();
+                        m->extduration = DBL_MAX;
+                    }
+                    if (s->_left == m) {
+                        m->extforce -= s->getForce();
+                        m->extduration = DBL_MAX;
+                    }
                 }
-                if (s->_left == m) {
-                    m->extforce -= s->getForce();
-                    m->extduration = DBL_MAX;
+                for (Spring *s : mg->springs) {
+                    if (s->_right == m) {
+                        m->extforce -= s->getForce();
+                    }
+                    if (s->_left == m) {
+                        m->extforce += s->getForce();
+                    }
                 }
+                m->force = m->extforce;
             }
-            for (Spring *s : mg->springs) {
-                if (s->_right == m) {
-                    m->extforce -= s->getForce();
-                }
-                if (s->_left == m) {
-                    m->extforce += s->getForce();
-                }
-            }
-            m->force = m->extforce;
         }
 
     }
