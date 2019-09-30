@@ -136,7 +136,6 @@ void Window::load() {
     dirName.truncate(dirName.lastIndexOf("/"));
     qDebug() << "About to read simulation dump file";
 
-    simulation = new Simulation();
     simulator->loadSimDump(fileName.toStdString());
 }
 
