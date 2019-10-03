@@ -511,13 +511,15 @@ void MassDisplacer::optimize() {
     double trialTime = 0;
 
     if (gridOffset[2] + springUnit > unit) {
-        gridOffset = Vec(0,0,0);
-    } else if (gridOffset[1] + springUnit  > unit) {
-        gridOffset += Vec(0, 0, springUnit);
-    } else if (gridOffset[0] + springUnit  > unit) {
-        gridOffset += Vec(0, springUnit, 0);
+        gridOffset[1] += springUnit;
+        gridOffset[2] = 0;
+    } else if (gridOffset[1] + springUnit > unit) {
+        gridOffset[0] += springUnit;
+        gridOffset[1] = 0;
+    } else if (gridOffset[0] + springUnit > unit) {
+        gridOffset = Vec(0, 0, 0);
     } else {
-        gridOffset += Vec(springUnit, 0, 0);
+        gridOffset += Vec(0, 0, springUnit);
     }
     qDebug() << "Grid Offset" << gridOffset[0] << gridOffset[1] << gridOffset[2];
 
@@ -989,6 +991,7 @@ int MassDisplacer::displaceSingleMass(double displacement, double chunkCutoff, i
         setMassState(startPos, startMass);
         for (int m = 0; m < sim->masses.size(); m++) {
             sim->masses[m]->origpos = origPos[m];
+            sim->masses[m]->vel = Vec(0,0,0);
         }
         // Reverse merges
         for (int m = 0; m < startSprings.size(); m+=2) {
@@ -1096,7 +1099,12 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         }
     }
 
-    while (result <= 10 && attempts <= 50) {
+    while (result <= 10) {
+        if (attempts > 50){
+            result++;
+            break;
+        }
+
         for (MassGroup *mg : massGroups) {
 
             int i = pickRandomMass(*mg);
