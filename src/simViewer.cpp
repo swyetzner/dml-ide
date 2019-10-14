@@ -425,11 +425,9 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
             for (uint i = 0; i < 3; i++) {
                 springColor[i] = defaultSpringColor[i] * float(spring->_max_stress / totalStress);
             }
-            GUtils::interpolateColors(contractSpringColor, expandSpringColor, -totalForce, totalForce,
-                                      spring->_curr_force, springColor);
 
             // Set alpha to max stress value
-            springColor[3] = float(abs(spring->_curr_force) / totalForce);
+            springColor[3] = float(abs(spring->_max_stress) / totalStress);
 
             addColor(buffer, springColor, count);
             addColor(buffer, springColor, count);
@@ -438,9 +436,6 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
 
         case SpringVisual::ACTUATION:
 
-            for (uint i = 0; i < 3; i++) {
-                springColor[i] = defaultSpringColor[i] * float(spring->_max_stress / totalStress);
-            }
             GUtils::interpolateColors(defaultSpringColor, actuatedSpringColor, 0, 1,
                                       spring->_actuation, springColor);
 
@@ -533,10 +528,10 @@ void SimViewer::updatePlaneVertices() {
         Vec temp = (dot(c->_normal, Vec(0, 1, 0)) < 0.8) ? Vec(0, 1, 0) : Vec(1, 0, 0);
         Vec u1 = cross(c->_normal, temp).normalized();
         Vec u2 = cross(c->_normal, u1).normalized();
-        Vec v1 = c->_offset * c->_normal - 1*u1 - 1*u2;
-        Vec v2 = c->_offset * c->_normal + 1*u1 - 1*u2;
-        Vec v3 = c->_offset * c->_normal + 1*u1 + 1*u2;
-        Vec v4 = c->_offset * c->_normal - 1*u1 + 1*u2;
+        Vec v1 = c->_offset * c->_normal - 10*u1 - 10*u2;
+        Vec v2 = c->_offset * c->_normal + 10*u1 - 10*u2;
+        Vec v3 = c->_offset * c->_normal + 10*u1 + 10*u2;
+        Vec v4 = c->_offset * c->_normal - 10*u1 + 10*u2;
 
         *p++ = GLfloat(v1[0]); *p++ = GLfloat(v1[1]); *p++ = GLfloat(v1[2]);
         *p++ = GLfloat(v2[0]); *p++ = GLfloat(v2[1]); *p++ = GLfloat(v2[2]);
