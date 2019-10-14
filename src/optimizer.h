@@ -39,6 +39,7 @@ public:
     uint minSpringByStress();
     void sortSprings_stress(vector<uint> &output_indices);
     void sortMasses_stress(vector<uint> &output_indices);
+    int settleSim(double eps, bool use_cap=false, double cap=0);
 
     struct VolumeConstraint {
         double minX, minY, minZ;
@@ -62,12 +63,14 @@ public:
     double stepRatio;
     double stopRatio;
     map<Mass *, vector<Spring *>> massToSpringMap;
+    double massFactor;
 
 protected:
     void optimize() override;
 
 private:
     void removeSpringFromMap(Spring *d);
+    void deleteSpring(Spring *d);
 };
 
 /**
@@ -142,6 +145,7 @@ public:
     struct MassGroup {
         Mass *displaced;
         vector<Mass *> group;
+        vector<Mass *> candidates;
         vector<Spring *> springs;
         vector<Mass *> outside;
         vector<Mass *> edge;
@@ -151,9 +155,26 @@ public:
         double origEnergy = 0;
         double testLength = 0;
         double testEnergy = 0;
+
+        Vec dx;
+        vector<Mass *> displacedList;
+        vector<Vec> displacements;
+        Vec displaceOrigPos;
+        vector<Vec> startPos;
+        vector<double> startMass;
+        vector<double> startRest;
+        vector<Mass *> fixed;
+        vector<Spring> groupStart;
+
     } massGroup;
 
-    vector<MassGroup> massGroups;
+    vector<MassGroup *> massGroups;
+    map<Mass *, MassGroup *> massGroupMap;
+    vector<Spring *> trenchSprings;
+    Vec gridOffset; // Current mass group offset
+    Vec dimensions; // Dimensions of simulation
+    double unit; // Unit for mass group cubes
+    double springUnit; // Unit for mass separation
 
     // Struct holding separation grid information
     struct TrenchGrid {
@@ -172,7 +193,7 @@ private:
     bool STARTED;
 
     int pickRandomMass(Simulation *sim);
-    int pickRandomMass(MassGroup &group);
+    int pickRandomMass(MassGroup &mg);
     int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
     bool springExists(Simulation *sim, Mass *m1, Mass *m2);
@@ -182,11 +203,19 @@ private:
     int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices, vector<Mass *> &merged);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
+    void createMassTiles(Simulation *sim, double unit, Vec offset, vector<MassGroup *> &massGroups,
+            map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
+    void splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, vector<Spring *> &tsSim, vector<Spring> &tsSave,
+            vector<Mass *> &massSpans);
+    void combineMassTiles(Simulation *sim, vector<MassGroup *> &massGroups, vector<Spring> &tsSave,
+            vector<Mass *> massSpans);
     double calcTotalLength(Simulation *sim);
     double calcTotalEnergy(Simulation *sim);
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
     double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
+    double calcMassGroupLength(MassGroup * massGroup);
+    double calcMassGroupEnergy(MassGroup * massGroup);
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
     void relaxSim(Simulation *sim, int steps, vector<Mass *> track=vector<Mass *>());
     void setMassState(const vector<Vec> &pos, const vector<double> &mm);
