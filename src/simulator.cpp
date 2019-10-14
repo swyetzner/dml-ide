@@ -335,9 +335,16 @@ void Simulator::run() {
         qDebug() << "Synced to CPU" << sim->springs.size();
         totalLength_prev = totalLength;
         totalLength = 0;
+        double maxForce = 0;
+        Spring *maxForceSpring = nullptr;
         for (Spring *s: sim->springs) {
             totalLength += s->_rest;
+            if (maxForce < s->_curr_force) {
+                maxForce = s->_curr_force;
+                maxForceSpring = s;
+            }
         }
+        qDebug() << "MAX FORCE SPRING" << maxForce << maxForceSpring->_rest << maxForceSpring->_k;
 
         bool stopReached = stopCriteriaMet();
         qDebug() << "Evaluated stop criteria" << stopReached;
@@ -419,6 +426,7 @@ void Simulator::run() {
                             writeMetric(metricFile);
 
                             optimized++;
+                            n_repeats = 0;
 
 
                             n_masses = int(sim->masses.size());
@@ -483,9 +491,11 @@ void Simulator::repeatLoad() {
             m->vel = Vec(0, 0, 0);
             m->acc = Vec(0, 0, 0);
         }
+        qDebug() << "Center" << center[0] << center[1] << center[2];
 
         // Increase repeat time
         repeatTime += config->repeat.after;
+        sim->setAll();
 
         n_repeats++;
     }
@@ -544,10 +554,16 @@ Vec Simulator::getSimCenter() {
     for (Mass *m : sim->masses) {
         maxX = std::max(maxX, m->pos[0]);
         maxY = std::max(maxY, m->pos[1]);
+        maxZ = std::max(maxZ, m->pos[2]);
+        minX = std::min(minX, m->pos[0]);
+        minY = std::min(minY, m->pos[1]);
+        minZ = std::min(minZ, m->pos[2]);
     }
     minCorner = Vec(minX, minY, minZ);
     maxCorner = Vec(maxX, maxY, maxZ);
 
+    qDebug() << "Max Corner" << maxCorner[0] << maxCorner[1] << maxCorner[2];
+    qDebug() << "Min Corner" << minCorner[0] << minCorner[1] << minCorner[2];
     return 0.5 * (minCorner + maxCorner);
 }
 
