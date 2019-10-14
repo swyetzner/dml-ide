@@ -880,9 +880,10 @@ bool Polygonizer::writePolygonToSTL(string path){
             Tri triangle = *i;
 
             n = triangle.n;
-            p1 = triangle.v1->p;
-            p2 = triangle.v2->p;
-            p3 = triangle.v3->p;
+            // Convert to millimeters
+            p1 = triangle.v1->p * 1000;
+            p2 = triangle.v2->p * 1000;
+            p3 = triangle.v3->p * 1000;
 
             facet.x1 = float(p1[0]);
             facet.y1 = float(p1[1]);
