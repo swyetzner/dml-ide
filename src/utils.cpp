@@ -72,6 +72,13 @@ double Utils::clamp(double imin, double imax, double omin, double omax, double i
     return omin + (omax - omin) * (input - imin) / (imax - imin);
 }
 
+// Interpolates value i bounded by [imin, imax] to range [omin, omax]
+//---------------------------------------------------------------------------
+double Utils::interpolate(double omin, double omax, double imin, double imax, double i) {
+//---------------------------------------------------------------------------
+    return omin + ((omax - omin) * (i - imin) / (imax - imin));
+}
+
 bool Utils::getPlaneEquation(Vec normal, Vec pt, double &d) {
     d = -(normal[0] * pt[0] + normal[1] * pt[1] + normal[2] * pt[2]);
     return true;

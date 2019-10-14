@@ -31,6 +31,7 @@ public:
     static vec3 randPoint(vec3 lowBound, vec3 highBound);
     static Vec randPointVec(Vec lowBound, Vec highBound);
     static double clamp(double imin, double imax, double omin, double omax, double input);
+    static double interpolate(double omin, double omax, double imin, double imax, double i);
     static double getAngle(Vec v1, Vec v2);
     static bool isAcute(Vec v1, Vec v2);
     static Vec bisect(Vec p1, Vec p2);
