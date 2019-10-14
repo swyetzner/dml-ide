@@ -517,7 +517,7 @@ void Simulator::loadOptimizers() {
                     massDisplacer->chunkSize = 0;
                     massDisplacer->relaxation = relaxation;
                     massDisplacer->springUnit = config->lattices.front()->unit[0];
-                    massDisplacer->unit = massDisplacer->springUnit * 6;
+                    massDisplacer->unit = massDisplacer->springUnit * 8;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;

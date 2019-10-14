@@ -39,6 +39,7 @@ public:
     uint minSpringByStress();
     void sortSprings_stress(vector<uint> &output_indices);
     void sortMasses_stress(vector<uint> &output_indices);
+    int settleSim(double eps, bool use_cap=false, double cap=0);
 
     struct VolumeConstraint {
         double minX, minY, minZ;
@@ -163,6 +164,7 @@ public:
         vector<double> startMass;
         vector<double> startRest;
         vector<Mass *> fixed;
+        vector<Spring> groupStart;
 
     } massGroup;
 

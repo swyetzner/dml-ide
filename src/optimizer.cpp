@@ -87,6 +87,47 @@ void Optimizer::sortMasses_stress(vector<uint> &output_indices){
     qDebug() << "Sorted masses by stress";
 }
 
+// Run simulation until it reaches mechanical equilibrium within eps
+//---------------------------------------------------------------------------
+int Optimizer::settleSim(double eps, bool use_cap, double cap) {
+//---------------------------------------------------------------------------
+
+    bool equilibrium = false;
+    double totalEnergy = 0;
+    double prevTotalEnergy = 0;
+    int closeToPrevious = 0;
+    int steps = 0;
+    while (!equilibrium) {
+        totalEnergy = 0;
+        for (Spring *s : sim->springs) {
+            totalEnergy += s->_curr_force * s->_curr_force / s->_k;
+        }
+        qDebug() << "ENERGY" << totalEnergy << prevTotalEnergy << closeToPrevious;
+
+        if (prevTotalEnergy > 0 && fabs(prevTotalEnergy - totalEnergy) < totalEnergy * eps) {
+            closeToPrevious++;
+        } else {
+            closeToPrevious = 0;
+        }
+        if (closeToPrevious > 10) {
+            equilibrium = true;
+        }
+        if (use_cap) {
+            if (totalEnergy > cap && steps > 50) {
+                equilibrium = true;
+            }
+        }
+        prevTotalEnergy = totalEnergy;
+
+        // Step simulation
+        sim->step(sim->masses.front()->dt * 100);
+        sim->getAll();
+        steps++;
+    }
+
+    return steps;
+}
+
 
 //---------------------------------------------------------------------------
 //  SPRING REMOVER
@@ -723,6 +764,7 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
             }**/
             if (s->_rest < 0.001) {
                 s->_rest = origLen;
+                qDebug() << "SMALL REST";
                 return 0;
             }
             s->_k *= origLen / s->_rest;
@@ -743,6 +785,7 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
             }**/
             if (s->_rest < 0.001) {
                 s->_rest = origLen;
+                qDebug() << "SMALL REST";
                 return 0;
             }
             s->_k *= origLen / s->_rest;
@@ -765,6 +808,9 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
 void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
 //---------------------------------------------------------------------------
 
+    for (Mass *m : sim->masses) {
+        m->m = 0; // Reset masses
+    }
     for (Spring *s : sim->springs) {
         Vec orig = mt->origpos + dx;
         if (s->_left == mt) {
@@ -777,9 +823,7 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
                 return;
             }
             s->_k *= origLen / s->_rest;
-            double lenDiff = 0.5 * s->_rest / origLen;
-            //s->_left->m *= lenDiff;
-            //s->_right->m *= lenDiff;
+            s->_mass *= s->_rest / origLen;
         }
         if (s->_right == mt) {
             double origLen = s->_rest;
@@ -791,10 +835,10 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
                 return;
             }
             s->_k *= origLen / s->_rest;
-            double lenDiff = 0.5 * s->_rest / origLen;
-            //s->_left->m *= lenDiff;
-            //s->_right->m *= lenDiff;
+            s->_mass *= s->_rest / origLen;
         }
+        s->_left->m += s->_mass / 2;
+        s->_right->m += s->_mass / 2;
     }
 
     mt->origpos += dx;
@@ -1207,6 +1251,7 @@ void MassDisplacer::createMassGroup(Simulation *sim, double cutoff, Mass *center
         massGroup.outside = vector<Mass *>();
         massGroup.edge = vector<Mass *>();
         massGroup.border = vector<Spring *>();
+        massGroup.groupStart = vector<Spring>();
 
         for (Spring *s : sim->springs) {
             double ldist = calcOrigDist(s->_left, center);

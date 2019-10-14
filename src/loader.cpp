@@ -254,11 +254,94 @@ void Loader::readSTLFromFile(model_data *arrays, QString filePath, uint n_model)
 
 void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
+    int NUM_Y = 10, NUM_X = 10;
+    float SIZE = 0.05, SPACE = 0.01;
+    int DENSITY = 5;
+    Mass * m1, *m2, *m3;
+    Spring * s1, *s2;
+    Lattice * grid[NUM_Y][NUM_X];
+    int vs = simConfig->model->lattice.size();
+    int count = 20;
+
     // Reload sim volume
     switch(simConfig->lattices[0]->fill) {
         case LatticeConfig::CUBIC_FILL:
             //createGridLattice(simConfig->volume->geometry, simConfig->lattice, float(simConfig->lattice.unit[0]));
             createGridLattice(simConfig->model, simConfig);
+
+            //vs = simConfig->model->lattice.size();
+
+            /**for (int i = 0; i < NUM_Y; i++) {
+                for (int j = 0; j < NUM_X; j++) {
+                    grid[i][j] = sim->createLattice(Vec((SIZE + SPACE) * j + SIZE / 2, SIZE / 2, (SIZE + SPACE) * i + SIZE / 2), Vec(SIZE, SIZE, SIZE), DENSITY, DENSITY, DENSITY);
+                }
+            }
+
+            for (int i = 0; i < NUM_Y - 1; i++) {
+                for (int j = 0; j < NUM_X - 1; j++) {
+
+                    for (Mass *m1 : grid[i][j]->masses) {
+                        if (m1->origpos[1] == SIZE || m1->origpos[1] == 0) {
+                            for (Mass *m2 : grid[i + 1][j]->masses) {
+                                if ((m1->origpos - m2->origpos).norm() < SPACE + 1E-4) {
+                                    s1 = sim->createSpring(m1, m2);
+                                    s1->_diam = 0.0004;
+                                }
+                            }
+                        }
+                    }
+
+                    for (Mass *m1 : grid[i][j]->masses) {
+                        if (m1->origpos[1] == SIZE || m1->origpos[1] == 0) {
+                            for (Mass *m2 : grid[i][j + 1]->masses) {
+                                if ((m1->origpos - m2->origpos).norm() < SPACE + 1E-4) {
+                                    s1 = sim->createSpring(m1, m2);
+                                    s1->_diam = 0.0004;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < NUM_Y-1; i++) {
+                for (Mass *m1 : grid[i][NUM_X-1]->masses) {
+                    if (m1->origpos[1] == SIZE || m1->origpos[1] == 0) {
+                        for (Mass *m2 : grid[i + 1][NUM_X - 1]->masses) {
+                            if ((m1->origpos - m2->origpos).norm() < SPACE + 1E-4) {
+                                s1 = sim->createSpring(m1, m2);
+                                s1->_diam = 0.0004;
+                            }
+                        }
+                    }
+                }
+            }
+            for (int j = 0; j < NUM_X-1; j++) {
+                for (Mass *m1 : grid[NUM_Y-1][j]->masses) {
+                    if (m1->origpos[1] == SIZE || m1->origpos[1] == 0) {
+                        for (Mass *m2 : grid[NUM_Y-1][j+1]->masses) {
+                            if ((m1->origpos - m2->origpos).norm() < SPACE + 1E-4) {
+                                s1 = sim->createSpring(m1, m2);
+                                s1->_diam = 0.0004;
+                            }
+                        }
+                    }
+                }
+            }
+
+            sim->defaultRestLength();**/
+
+
+            /*for (int i = 0; i < count; i++) {
+                for (int j = 0; j < count; j++) {
+                    for (int v = 0; v < vs; v++) {
+                        if (i == 0 && j == 0) continue;
+                        simConfig->model->lattice.push_back(simConfig->model->lattice[v] + vec3(0.4 * i, 0.0, 0.2 * j));
+                        simConfig->model->pointOrigins.push_back(simConfig->model->pointOrigins[v]);
+                    }
+                }
+            }
+            qDebug() << vs << simConfig->model->lattice.size() << simConfig->model->pointOrigins.size();*/
+
             break;
         case LatticeConfig::SPACE_FILL:
             // TODO: add conform bool as includeHull
@@ -311,6 +394,13 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
             // TODO: get correct bardiam dimension
             double maxK = 0;
+            double minMassXVal = FLT_MAX;
+            double maxMassXVal = -FLT_MAX;
+            for (Mass *m : sim->masses) {
+                minMassXVal = std::min(minMassXVal, m->origpos[2]);
+                maxMassXVal = std::max(maxMassXVal, m->origpos[2]);
+            }
+            qDebug() << "Max X val" << maxMassXVal << minMassXVal;
             for (Spring *s : sim->springs) {
 
                 // ELASTICITY -- SPRING CONSTANT
@@ -323,7 +413,9 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
                     if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
 
+
                     double k = mat->elasticity * unit * a / s->_rest;
+                    //s->_k = Utils::interpolate(500, 2E5, minMassXVal, maxMassXVal, (s->_left->pos[2] + s->_right->pos[2])/2);
                     s->_k = k;
                     maxK = std::max(k, maxK);
                 }
@@ -349,6 +441,9 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                 switch (simConfig->lattices[0]->structure) {
                     case LatticeConfig::FULL:
                         qDebug() << v * d * unit;
+                        for (Spring *s : sim->springs) {
+                            s->_mass = v * d * unit / 27;
+                        }
                         sim->setAllMassValues(v * d * unit);
                         qDebug() << sim->masses.front()->m;
                         break;
@@ -362,6 +457,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                             double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
                             qDebug() << vol << s->_rest / 2 << s->_diam / 2;
                             double m = vol * d * unit;
+                            s->_mass = 2 * m;
                             s->_left->m += m;
                             s->_right->m += m;
                             totalM += 2 * m;
@@ -384,16 +480,16 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
         //sim->masses.front()->extduration = 0.1;
 
         // ACTUATION
-        for (Spring *s : sim->springs) {
-            if (s->_left->pos[0] < -0.01 && s->_right->pos[0] < -0.01) {
-                s->_type = 1;
-                s->_omega = 10;
-            }
-            if (s->_left->pos[0] > 0.01 && s->_right->pos[0] > 0.01) {
-                s->_type = 0;
-                s->_omega = 10;
-            }
+        /*double minMassXVal = FLT_MAX;
+        for (Mass *m : sim->masses) {
+            minMassXVal = std::min(minMassXVal, m->origpos[0]);
         }
+        for (Spring *s : sim->springs) {
+                s->_type = 4;
+                s->_omega = 20;
+                s->_period = 0.5;
+                s->_offset = (std::min(s->_left->origpos[0], s->_right->origpos[0]) - minMassXVal);
+        }*/
     }
 
     // TIMESTEP
