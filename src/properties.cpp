@@ -111,7 +111,7 @@ void PropertiesTable::displayLoadcase(QString id) {
     objectIndex = load->index;
     this->title->setText(QString("Loadcase (%1)").arg(load->index));
 
-    this->setRowCount(1 + 2*load->anchors.size() + 5 *load->forces.size() + 4*load->actuations.size());
+    this->setRowCount(1 + 2*load->anchors.size() + 5 *load->forces.size() + 6*load->actuations.size());
     this->setColumnCount(3);
 
     QStringList headerLabels = QStringList();
@@ -143,12 +143,16 @@ void PropertiesTable::displayLoadcase(QString id) {
     }
     for (Actuation *a : load->actuations) {
         createNodeItem(rowCount, 0, "actuation");
-        createPropertyItem(++rowCount, 1, "id");
-        createValueItem(rowCount, 2, a->id);
+        createPropertyItem(++rowCount, 1, "volume");
+        createValueItem(rowCount, 2, a->volume->id);
         createPropertyItem(++rowCount, 1, "wave");
         createValueItem(rowCount, 2, a->waveName());
-        createPropertyItem(++rowCount, 1, "magnitude");
-        createVecValueItem(rowCount, 2, a->magnitude);
+        createPropertyItem(++rowCount, 1, "period");
+        createValueItem(rowCount, 2, QString::number(a->period));
+        createPropertyItem(++rowCount, 1, "offset");
+        createValueItem(rowCount, 2, QString::number(a->offset));
+        createPropertyItem(++rowCount, 1, "omega");
+        createPropertyItem(rowCount, 2, QString::number(a->omega));
     }
     connect(this, &PropertiesTable::cellChanged, this, &PropertiesTable::updateProp);
 }

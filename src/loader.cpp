@@ -490,6 +490,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                 s->_period = 0.5;
                 s->_offset = (std::min(s->_left->origpos[0], s->_right->origpos[0]) - minMassXVal);
         }*/
+
     }
 
     // TIMESTEP
@@ -895,6 +896,48 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             cout << "Applied " << distributedForce.norm() << "N force to " << forceMasses << " masses with volume " << forceVol->id.toStdString() << ".\n";
         } else
             log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
+    }
+
+    for (Actuation *actuation : load->actuations) {
+        Volume *actVol = actuation->volume;
+
+        int actSprings = 0;
+        for (Spring *s : sim->springs) {
+            glm::vec3 massPos1 = glm::vec3(s->_left->pos[0], s->_left->pos[1], s->_left->pos[2]);
+            glm::vec3 massPos2 = glm::vec3(s->_right->pos[0], s->_right->pos[1], s->_right->pos[2]);
+
+            if (actVol->model != nullptr) {
+                if (actVol->model->isInside(massPos1, 0) && actVol->model->isInside(massPos2, 0)) {
+                    actuation->springs.push_back(s);
+                    actSprings++;
+                }
+            }
+        }
+        if (actSprings > 0) {
+            int type = 3;
+            switch(actuation->wave) {
+                case Actuation::SIN:
+                    type = 1;
+                    break;
+                case Actuation::EXPAND_SIN:
+                    type = 4;
+                    break;
+                case Actuation::CONTRACT_SIN:
+                    type = 5;
+                    break;
+                case Actuation::NONE:
+                    type = 3;
+                    break;
+            }
+
+            for (Spring *s : actuation->springs) {
+                s->_type = type;
+                s->_period = actuation->period;
+                s->_offset = actuation->offset;
+                s->_omega = actuation->omega;
+            }
+            cout << "Applied actuation " << type << " to " << actSprings << " springs with volume " << actVol->id.toStdString() << ".\n";
+        }
     }
 
     //sim->masses.front()->force = Vec(100, 0, 0);

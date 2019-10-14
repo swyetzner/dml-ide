@@ -47,6 +47,8 @@ static inline QString varyAttribute() { return QStringLiteral("vary"); }
 
 // Actuation attributes
 static inline QString waveAttribute() {return QStringLiteral("wave");}
+static inline QString periodAttribute() {return QStringLiteral("period");}
+static inline QString omegaAttribute() {return QStringLiteral("omega");}
 
 // Simulation elements
 static inline QString latticeElement() {return QStringLiteral("lattice"); }
@@ -299,19 +301,34 @@ void DMLTree::parseExpandElement(const QDomElement &element,
 
     // ---- <actuation> ----
     if (element.tagName() == actuationElement()) {
-        auto *id = createAttributeItem(item, attrMap, idAttribute());
         auto *wave = createAttributeItem(item, attrMap, waveAttribute());
-        auto *magnitude = createAttributeItem(item, attrMap, magnitudeAttribute());
+        auto *period = createAttributeItem(item, attrMap, periodAttribute());
+        auto *offset = createAttributeItem(item, attrMap, offsetAttribute());
+        auto *omega = createAttributeItem(item, attrMap, omegaAttribute());
+        auto *volume = createAttributeItem(item, attrMap, volumeAttribute());
 
         Actuation *a = new Actuation();
-        a->id = id ? id->text(1) : nullptr;
         a->wave = wave ? wave->text(1) == "sin"? Actuation::SIN : Actuation::NONE : Actuation::NONE;
-        a->magnitude = magnitude ? parseVec(magnitude->text(1)) : Vec(0,0,0);
+        if (wave) {
+            if (wave->text(1) == "sin") a->wave = Actuation::SIN;
+            else if (wave->text(1) == "expand_sin") a->wave = Actuation::EXPAND_SIN;
+            else if (wave->text(1) == "contract_sin") a->wave = Actuation::CONTRACT_SIN;
+            else a->wave = Actuation::NONE;
+        } else {
+            a->wave = Actuation::NONE;
+        }
+        a->period = period ? period->text(1).toDouble() : 0.5;
+        a->offset = offset ? offset->text(1).toDouble() : 0.0;
+        a->omega = omega ? omega->text(1).toDouble() : 20.0;
+        a->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
+
+        if (!(a->volume))
+            qDebug() << "Volume" << volume->text(1) << "not found";
 
         QString loadId = parentItem->child(0)->text(1);
         design_ptr->loadcaseMap[loadId]->actuations.push_back(a);
-        design_ptr->loadcaseMap[loadId]->actuationMap[a->id] = a;
-        log(QString("Loaded Actuation: '%1'").arg(a->id));
+        design_ptr->loadcaseMap[loadId]->actuationMap[a->volume->id] = a;
+        log(QString("Loaded Actuation: '%1'").arg(a->volume->id));
     }
 
     // ---- <simulation> ----

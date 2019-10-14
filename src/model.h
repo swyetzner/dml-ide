@@ -725,20 +725,28 @@ public:
     Actuation() = default;
     ~Actuation() = default;
 
-    enum ActuationWave { SIN, NONE };
+    enum ActuationWave { SIN, EXPAND_SIN, CONTRACT_SIN, NONE };
 
-    QString id;
+    Volume * volume;
     ActuationWave wave;
-    Vec magnitude;
+    double period;
+    double offset;
+    double omega;
 
     QString waveName() {
         switch(wave) {
         case SIN:
             return "sin";
+        case EXPAND_SIN:
+            return "expand_sin";
+        case CONTRACT_SIN:
+            return "contract_sin";
         default:
             return "none";
         }
     }
+
+    vector<Spring *> springs;
 };
 
 class Loadcase
