@@ -16,11 +16,12 @@ DML-IDE has the following dependencies. Download and setup them up individually 
 * [GLFW](https://www.glfw.org/)
 * [glm](https://github.com/g-truc/glm)
 * [args](https://taywee.github.io/args/)
+* [pugixml](https://github.com/zeux/pugixml)
 
 Download DML-IDE from the GitHub source along with its submodules. Once downloaded, move into the repository:
 ````
 $ git clone --recurse-submodules https://github.com/swyetzner/dml-ide
-$ cd DMLIDE
+$ cd dml-ide
 ````
 We are now going to create a build directory and use CMake to build into it:
 ````
