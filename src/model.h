@@ -923,7 +923,11 @@ public:
 
 class OptimizationRule {
 public:
-    OptimizationRule() = default;
+    OptimizationRule() {
+        method = NONE;
+        threshold = 0;
+        frequency = 0;
+    }
     ~OptimizationRule() = default;
 
     enum Method { REMOVE_LOW_STRESS, MASS_DISPLACE, NONE };
