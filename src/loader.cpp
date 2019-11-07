@@ -355,7 +355,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 
     // PLANE
     if (simConfig->plane != nullptr) {
-        sim->createPlane(simConfig->plane->normal, simConfig->plane->offset);
+        sim->createPlane(simConfig->plane->normal, simConfig->plane->offset, 0.8, 1.0);
     }
 
     // DAMPING
@@ -442,9 +442,11 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     case LatticeConfig::FULL:
                         qDebug() << v * d * unit;
                         for (Spring *s : sim->springs) {
-                            s->_mass = v * d * unit / 27;
+                            double m = v * d * unit / 8;
+                            //s->_mass = m;
+                            s->_left->m += m / 2;
+                            s->_right->m += m / 2;
                         }
-                        sim->setAllMassValues(v * d * unit);
                         qDebug() << sim->masses.front()->m;
                         break;
                     case LatticeConfig::BARS:
@@ -457,7 +459,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                             double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
                             qDebug() << vol << s->_rest / 2 << s->_diam / 2;
                             double m = vol * d * unit;
-                            s->_mass = 2 * m;
+                            //s->_mass = 2 * m;
                             s->_left->m += m;
                             s->_right->m += m;
                             totalM += 2 * m;
@@ -907,7 +909,11 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             glm::vec3 massPos2 = glm::vec3(s->_right->pos[0], s->_right->pos[1], s->_right->pos[2]);
 
             if (actVol->model != nullptr) {
-                if (actVol->model->isInside(massPos1, 0) && actVol->model->isInside(massPos2, 0)) {
+                glm::vec3 springMid = 0.5f * (massPos2 + massPos1);
+                bool leftInside = actVol->model->isInside(massPos1, 0);
+                bool rightInside = actVol->model->isInside(massPos2, 0);
+                bool midInside = actVol->model->isInside(springMid, 0);
+                if (midInside && (leftInside || rightInside)) {
                     actuation->springs.push_back(s);
                     actSprings++;
                 }

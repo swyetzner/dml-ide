@@ -334,7 +334,9 @@ void SpringRemover::optimize() {
             ms.second.erase(remove(ms.second.begin(), ms.second.end(), nullptr), ms.second.end());
         }
         qDebug() << "Deleted springs";
-
+        for (Spring *s : sim->springs) {
+            s->_max_stress *= 0.9;
+        }
 
         sim->setAll(); // Set spring stresses and mass value updates on GPU
 
@@ -547,21 +549,52 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
 void MassDisplacer::optimize() {
 //---------------------------------------------------------------------------
 
+START_OPTIMIZE:
     int displaced = 0;
     attempts = 0;
     double trialTime = 0;
 
-    if (gridOffset[2] + springUnit > unit) {
-        gridOffset[1] += springUnit;
-        gridOffset[2] = 0;
-    } else if (gridOffset[1] + springUnit > unit) {
-        gridOffset[0] += springUnit;
-        gridOffset[1] = 0;
-    } else if (gridOffset[0] + springUnit > unit) {
-        gridOffset = Vec(0, 0, 0);
-    } else {
-        gridOffset += Vec(0, 0, springUnit);
+    int nx = ceil(dimensions[0] / unit);
+    int ny = ceil(dimensions[1] / unit);
+    int nz = ceil(dimensions[2] / unit);
+
+    bool shiftx = nx > 3;
+    bool shifty = ny > 3;
+    bool shiftz = nz > 3;
+    bool dim [] = {shiftx, shifty, shiftz};
+    bool carry [] = {false, false, false};
+
+    int rightmost = -1;
+    for (int d = 2; d >= 0; d--) {
+        if (dim[d]) {
+            rightmost = d;
+        }
+        if (rightmost >= 0) continue;
     }
+
+    for (int d = 2; d >= 0; d--) {
+        if (rightmost == d) carry[d] = true;
+        if (dim[d]) {
+            if (carry[d]) {
+                gridOffset[d] += springUnit;
+                if (gridOffset[d] > unit) {
+                    for (int i = d; i < 3; i++) {
+                        gridOffset[i] = 0;
+                    }
+                    if (d > 0)
+                        carry[d - 1] = true;
+                }
+                carry[d] = false;
+            }
+        } else {
+            if (carry[d]) {
+                if (d > 0)
+                    carry[d-1] = true;
+            }
+            carry[d] = false;
+        }
+    }
+
     qDebug() << "Grid Offset" << gridOffset[0] << gridOffset[1] << gridOffset[2];
 
     while (displaced == 0) {
@@ -569,6 +602,7 @@ void MassDisplacer::optimize() {
         auto pstart = std::chrono::system_clock::now();
         //displaced = displaceSingleMass(dx, chunkSize, order);
         createMassTiles(sim, unit, gridOffset, massGroups, massGroupMap, trenchSprings);
+        if (massGroups.empty()) goto START_OPTIMIZE;
         displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
         auto pend = std::chrono::system_clock::now();
@@ -769,10 +803,10 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
             }
             s->_k *= origLen / s->_rest;
 
-            double massDiff = massFactor * (s->_rest - origLen);
-            s->_left->m += massDiff / 2;
-            s->_right->m += massDiff / 2;
-            qDebug() << massDiff / 2 << s->_left->m;
+            //double massDiff = massFactor * (s->_rest - origLen);
+            //s->_left->m += massDiff / 2;
+            //s->_right->m += massDiff / 2;
+            //qDebug() << massDiff / 2 << s->_left->m;
         }
         if (s->_right == mt) {
             double origLen = s->_rest;
@@ -790,9 +824,9 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
             }
             s->_k *= origLen / s->_rest;
 
-            double massDiff = massFactor * (s->_rest - origLen);
-            s->_left->m += massDiff / 2;
-            s->_right->m += massDiff / 2;
+            //double massDiff = massFactor * (s->_rest - origLen);
+            //s->_left->m += massDiff / 2;
+            //s->_right->m += massDiff / 2;
         }
     }
 
@@ -808,9 +842,9 @@ int MassDisplacer::shiftMassPos(Simulation *sim, int index, const Vec &dx, vecto
 void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
 //---------------------------------------------------------------------------
 
-    for (Mass *m : sim->masses) {
-        m->m = 0; // Reset masses
-    }
+    //for (Mass *m : sim->masses) {
+    //    m->m = 0; // Reset masses
+    //}
     for (Spring *s : sim->springs) {
         Vec orig = mt->origpos + dx;
         if (s->_left == mt) {
@@ -823,7 +857,7 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
                 return;
             }
             s->_k *= origLen / s->_rest;
-            s->_mass *= s->_rest / origLen;
+            //s->_mass *= s->_rest / origLen;
         }
         if (s->_right == mt) {
             double origLen = s->_rest;
@@ -835,10 +869,10 @@ void MassDisplacer::shiftMassPos(Simulation *sim, Mass *mt, const Vec &dx) {
                 return;
             }
             s->_k *= origLen / s->_rest;
-            s->_mass *= s->_rest / origLen;
+            //s->_mass *= s->_rest / origLen;
         }
-        s->_left->m += s->_mass / 2;
-        s->_right->m += s->_mass / 2;
+        //s->_left->m += s->_mass / 2;
+        //s->_right->m += s->_mass / 2;
     }
 
     mt->origpos += dx;
@@ -1166,7 +1200,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
             mg->dx = dx;
 
             // Move mass
-            qDebug() << "Shifting mass" << mg->displaced->index;
+            qDebug() << "Shifting mass" << mg->displaced->index << dx[0] << dx[1] << dx[2];
             shiftMassPos(sim, mg->displaced, dx);
         }
 
@@ -1358,6 +1392,41 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
 }
 
 
+// Create 1D tile from a span between minPos and maxPos
+// Minimum tile width is unit unless span < unit
+// Middle tiles will be offset to enable grid shifting
+// Outputs start and end values for tile
+// Returns 1 if tile is created, 0 if not
+//---------------------------------------------------------------------------
+int MassDisplacer::createTile(int n, int i, double width, double offset, double minPos, double &tileStart,
+                              double &tileEnd) {
+//---------------------------------------------------------------------------
+
+    if (n < 3) { // Small tile doesn't get split
+        if (i == 0) {
+            tileStart = minPos;
+            tileEnd = minPos + 3 * unit;
+        } else
+            return 0;
+
+    } else {
+        if (i == 0) { // Start tile begins at 2x length
+            tileStart = minPos;
+            tileEnd = minPos + 2 * unit - offset;
+        } else if (i == n - 1) // Throw out end tile
+            return 0;
+        else if (i == n - 2) { // Next end tile begins with remainder from split
+            tileStart = minPos + (i + 1) * unit - offset;
+            tileEnd = minPos + (i + 3) * unit;
+        } else { // Middle tiles are 1 unit length
+            tileStart = minPos + (i + 1) * unit - offset;
+            tileEnd = minPos + (i + 2) * unit - offset;
+        }
+    }
+    return 1;
+}
+
+
 // Create cubic tiles of a lattice with springs in between
 //---------------------------------------------------------------------------
 void MassDisplacer::createMassTiles(Simulation *sim, double unit, Vec offset, vector<MassGroup *> &mgs,
@@ -1382,35 +1451,48 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, Vec offset, ve
     }
 
     this->dimensions = maxPos - minPos;
+    nx = ceil(dimensions[0] / unit);
+    ny = ceil(dimensions[1] / unit);
+    nz = ceil(dimensions[2] / unit);
 
-    minPos -= offset + Vec(this->springUnit/2, this->springUnit/2, this->springUnit/2);
-    qDebug() << "Max position" << maxPos[0] << maxPos[1] << maxPos[2];
-    qDebug() << "Min position" << minPos[0] << minPos[1] << minPos[2];
-
-    nx = ceil((maxPos[0] - minPos[0]) / unit);
-    ny = ceil((maxPos[1] - minPos[1]) / unit);
-    nz = ceil((maxPos[2] - minPos[2]) / unit);
-    qDebug() << "Unit cube" << unit;
+    if (nx > 1) nx--;
+    if (ny > 1) ny--;
+    if (nz > 1) nz--;
     qDebug() << "Grid" << nx << ny << nz;
 
+    double xst, yst, zst;
+    double xen, yen, zen;
+    int tx, ty, tz;
+
     for (int x = 0; x < nx; x++) {
+
+        tx = createTile(nx, x, unit, offset[0], minPos[0], xst, xen);
+
         for (int y = 0; y < ny; y++) {
+
+            ty = createTile(ny, y, unit, offset[1], minPos[1], yst, yen);
+
             for (int z = 0; z < nz; z++) {
-                Vec st = minPos + Vec(x*unit, y*unit, z*unit);
-                Vec end = minPos + Vec((x+1)*unit, (y+1)*unit, (z+1)*unit);
 
-                MassGroup *mg = new MassGroup();
-                createMassGroup(sim, st, end, *mg);
+                tz = createTile(nz, z, unit, offset[2], minPos[2], zst, zen);
 
-                if (mg->candidates.size() > 0) {
-                    mgs.push_back(mg);
+                qDebug() << "Ts" << tx << ty << tz;
+                if (tx && ty && tz) {
+                    auto *mg = new MassGroup();
+                    createMassGroup(sim, Vec(xst, yst, zst), Vec(xen, yen, zen), *mg);
+                    qDebug() << "Created mass group" << mg->group.size();
+
+                    if (!mg->candidates.empty()) {
+                        mgs.push_back(mg);
+                    }
+                    for (Mass *m : mg->group) {
+                        mgm[m] = mg;
+                    }
+                    for (Spring *s : mg->border) {
+                        ts.push_back(s);
+                    }
                 }
-                for (Mass *m : mg->group) {
-                    mgm[m] = mg;
-                }
-                for (Spring *s : mg->border) {
-                    ts.push_back(s);
-                }
+
             }
         }
     }
@@ -1498,8 +1580,8 @@ void MassDisplacer::splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, ve
         tsSave.push_back(t);
         massSpans.push_back(s->_left);
         massSpans.push_back(s->_right);
-        s->_left->m += s->_left->m / s->_left->ref_count;
-        s->_right->m += s->_right->m / s->_right->ref_count;
+        //s->_left->m -= s->_left->m / s->_left->ref_count;
+        //s->_right->m -= s->_right->m / s->_right->ref_count;
         sim->deleteSpring(s);
     }
 }
@@ -1536,8 +1618,8 @@ void MassDisplacer::combineMassTiles(Simulation *sim, vector<MassGroup *> &massG
                 n->_k *= origLen / n->_rest;
             }
         }
-        n->_left->m += n->_left->m / (n->_left->ref_count + 1);
-        n->_right->m += n->_right->m / (n->_right->ref_count + 1);
+        //n->_left->m = n->_left->m / (1 - 1.0/(n->_left->ref_count + 1));
+        //n->_right->m = n->_right->m / (1 - 1.0/(n->_right->ref_count + 1));
 
         sim->createSpring(n);
     }

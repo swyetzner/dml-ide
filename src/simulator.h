@@ -106,6 +106,7 @@ private:
     double relaxation;
     int optimized;
     int closeToPrevious;
+    int stepsSinceEquil;
     double prevEnergy;
     int prevSteps;
     bool switched;

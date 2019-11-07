@@ -171,6 +171,7 @@ public:
     vector<MassGroup *> massGroups;
     map<Mass *, MassGroup *> massGroupMap;
     vector<Spring *> trenchSprings;
+    int gridSize[3];
     Vec gridOffset; // Current mass group offset
     Vec dimensions; // Dimensions of simulation
     double unit; // Unit for mass group cubes
@@ -205,6 +206,7 @@ private:
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
     void createMassTiles(Simulation *sim, double unit, Vec offset, vector<MassGroup *> &massGroups,
             map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings);
+    int createTile(int n, int i, double width, double offset, double minPos, double &tileStart, double &tileEnd);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
     void splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, vector<Spring *> &tsSim, vector<Spring> &tsSave,
             vector<Mass *> &massSpans);

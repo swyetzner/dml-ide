@@ -45,7 +45,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     barData = nullptr;
     GRAPHICS = graphics;
 
-    relaxation = 4000;
+    relaxation = 3000;
 
     if (OPTIMIZER) loadOptimizers();
     //optimizer = new MassDisplacer(sim, 0.2);
@@ -73,6 +73,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     equilibrium = false;
     optimized = 0;
     closeToPrevious = 0;
+    stepsSinceEquil = 0;
     prevEnergy = -1;
     prevSteps = 0;
     switched = false;
@@ -337,14 +338,17 @@ void Simulator::run() {
         totalLength = 0;
         double maxForce = 0;
         Spring *maxForceSpring = nullptr;
+        int i = 0, n = 0;
         for (Spring *s: sim->springs) {
             totalLength += s->_rest;
-            if (maxForce < s->_curr_force) {
-                maxForce = s->_curr_force;
+            if (maxForce < fabs(s->_curr_force)) {
+                maxForce = fabs(s->_curr_force);
                 maxForceSpring = s;
+                n = i;
             }
+            i++;
         }
-        qDebug() << "MAX FORCE SPRING" << maxForce << maxForceSpring->_rest << maxForceSpring->_k;
+        if (maxForceSpring != nullptr) qDebug() << "MAX FORCE SPRING" << n << maxForce << maxForceSpring->_rest << (maxForceSpring->_left->pos - maxForceSpring->_right->pos).norm();
 
         bool stopReached = stopCriteriaMet();
         qDebug() << "Evaluated stop criteria" << stopReached;
@@ -365,6 +369,23 @@ void Simulator::run() {
         if (equilibriumMetric) {
 
             equilibriate();
+            if (stepsSinceEquil > 1000) {
+                for (Mass *m : sim->masses) {
+                    m->pos = m->origpos;
+                    m->vel = Vec(0,0,0);
+                    m->acc = Vec(0,0,0);
+                    m->force = Vec(0,0,0);
+                }
+                for (Spring *s : sim->springs) {
+                    double l = (s->_left->pos - s->_right->pos).norm();
+                    assert(s->_rest <= l + 1E-6 && s->_rest >= l - 1E-6);
+                    s->_curr_force = 0;
+                }
+                //equilibrium = true;
+                sim->setAll();
+                stepsSinceEquil = 0;
+                equilibrium = true;
+            }
 
             if (optimizeAfter <= n_repeats && equilibrium && !stopReached) {
 
@@ -397,6 +418,7 @@ void Simulator::run() {
                 prevSteps = 0;
             }
             prevEnergy = totalEnergy;
+            if (optimized) stepsSinceEquil++;
 
         } else {
 
@@ -527,7 +549,7 @@ void Simulator::loadOptimizers() {
                     massDisplacer->chunkSize = 0;
                     massDisplacer->relaxation = relaxation;
                     massDisplacer->springUnit = config->lattices.front()->unit[0];
-                    massDisplacer->unit = massDisplacer->springUnit * 8;
+                    massDisplacer->unit = massDisplacer->springUnit * 6;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
@@ -578,7 +600,7 @@ void Simulator::equilibriate() {
     for (Spring *s : sim->springs) {
         totalEnergy += s->_curr_force * s->_curr_force / s->_k;
     }
-    qDebug() << "ENERGY" << totalEnergy << prevEnergy << closeToPrevious;
+    qDebug() << "ENERGY" << totalEnergy << prevEnergy << closeToPrevious << stepsSinceEquil;
     if (prevEnergy > 0 && fabs(prevEnergy - totalEnergy) < totalEnergy * 1E-6) {
         closeToPrevious++;
     } else {
@@ -586,6 +608,7 @@ void Simulator::equilibriate() {
     }
     if (closeToPrevious > 10) {
         equilibrium = true;
+        stepsSinceEquil = 0;
         if (!optimized) {
             totalEnergy_start = totalEnergy;
             writeMetricHeader(metricFile);
