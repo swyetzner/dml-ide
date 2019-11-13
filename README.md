@@ -1,5 +1,5 @@
 # Design Model Language IDE
-**DML** is an IDE for modeling, simulation, and optimizing physical structures. DML stands for **Design Model Language**, which is the udnerlying format read by the IDE software. DML is an xml-like schema that allows users to define designs and simulations.
+**DML** is an IDE for modeling, simulation, and optimizing physical structures. DML stands for **Design Model Language**, which is the underlying format read by the IDE software. DML is an xml-like schema that allows users to define designs and simulations.
 
 The DML-IDE utilizes [Titan](https://github.com/swyetzner/Titan) as its underlying physics engine. Titan provides a GPU-parallelized simulation library for near-real-time interaction.
 
