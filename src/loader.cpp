@@ -1213,19 +1213,34 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
 
-                glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
+            glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
+
+            float minCutoff = cutoff;
+            LatticeConfig *closeLattice = latticeBox;
+
+            // Find minimum relevant cutoff for the point
+            for(auto&& lat: latticeConfigs) {
+                if (lat != latticeBox && lat->volume->model->isCloseToEdge(newPoint, minCutoff, 0)) {
+                    closeLattice = lat;
+                    if (lat->unit[0] < minCutoff)
+                        minCutoff = lat->unit[0]
+                }
+            }
+
 
                 if (includeHull) {
-                    while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
+                    while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0) || closeLattice->volume->model->isCloseToEdge(newPoint, minCutoff*.25, 0)) {
                         // Generate a new point if its within the cutoff of the model edge
-                        //   or its not inside the model
+                        //   or it's not inside the model, or it is less than a quarter of the
+                        //   minimum point distance to the nearest other lattice
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 } else {
 
-                    while (!arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
+                    while (!arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0) || closeLattice->volume->model->isCloseToEdge(newPoint, minCutoff*.25, 0)) {
                         // Generate a new point if its within the cutoff of the model edge
-                        //   or its not inside the model
+                        //   or it's not inside the model,or it is less than a quarter of the
+                        //   minimum point distance to the nearest other lattice
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 }
