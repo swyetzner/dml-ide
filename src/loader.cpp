@@ -580,11 +580,13 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
 
     qDebug() << "Loading" << springCutoff;
     // Load hull first
+    sim->createContainer();
     for (ulong i = 0; i < arrays->lattice.size(); i++) {
         sim->createMass(Vec(arrays->lattice.at(i).x,
                             arrays->lattice.at(i).y ,
                             arrays->lattice.at(i).z));
         //sim->getMassByIndex(i)->damping = 0.9999;
+        sim->containers.front()->add(sim->masses.back());
     }
 
     for (int j = 0; j < sim->masses.size() - 1; j++) {
@@ -605,10 +607,11 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
             if (dist <= springCutoff) {
                 sim->createSpring(massj, massk);
                 sim->springs.back()->setRestLength(dist);
+                sim->containers.front()->add(sim->springs.back());
             }
         }
     }
-    qDebug() << sim->springs.size();
+    qDebug() << sim->springs.size() << sim->containers.size() << sim->containers.front()->springs.size();
 
 
     //int num_masses = int(sim->masses.size());

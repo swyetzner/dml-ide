@@ -85,6 +85,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
         printf("\033[10;1f");
     }
 
+    wallClockTime = 0;
     qDebug() << "Initialized Simulator";
 }
 
@@ -135,8 +136,13 @@ void Simulator::runStep() {
 }
 
 void Simulator::getSimMetrics(sim_metrics &metrics) {
+    if (sim->containers.size() > 1) {
+        Container *con = sim->containers.front();
+        metrics.nbars = con->springs.size();
+    } else {
+        metrics.nbars = sim->springs.size();
+    }
     metrics.time = sim->time();
-    metrics.nbars = sim->springs.size();
     metrics.totalLength = totalLength;
     metrics.totalEnergy = totalEnergy;
     metrics.totalLength_start = totalLength_start;
@@ -306,6 +312,8 @@ void Simulator::exportSimulation() {
 }
 
 void Simulator::run() {
+    auto pstart = std::chrono::system_clock::now();
+
     if (!sim->running()) {
         qDebug() << "Next Load" << currentLoad << "Queue size" << config->loadQueue.size() << "Switch at time" << pastLoadTime;
         bool loadQueueDone = false;
@@ -339,14 +347,27 @@ void Simulator::run() {
         double maxForce = 0;
         Spring *maxForceSpring = nullptr;
         int i = 0, n = 0;
-        for (Spring *s: sim->springs) {
-            totalLength += s->_rest;
-            if (maxForce < fabs(s->_curr_force)) {
-                maxForce = fabs(s->_curr_force);
-                maxForceSpring = s;
-                n = i;
+        if (sim->containers.size() <= 1) {
+            for (Spring *s: sim->springs) {
+                totalLength += s->_rest;
+                if (maxForce < fabs(s->_curr_force)) {
+                    maxForce = fabs(s->_curr_force);
+                    maxForceSpring = s;
+                    n = i;
+                }
+                i++;
             }
-            i++;
+        } else {
+            Container *con = sim->containers.front();
+            for (Spring *s: con->springs) {
+                totalLength += s->_rest;
+                if (maxForce < fabs(s->_curr_force)) {
+                    maxForce = fabs(s->_curr_force);
+                    maxForceSpring = s;
+                    n = i;
+                }
+                i++;
+            }
         }
         if (maxForceSpring != nullptr) qDebug() << "MAX FORCE SPRING" << n << maxForce << maxForceSpring->_rest << (maxForceSpring->_left->pos - maxForceSpring->_right->pos).norm();
 
@@ -378,7 +399,7 @@ void Simulator::run() {
                 }
                 for (Spring *s : sim->springs) {
                     double l = (s->_left->pos - s->_right->pos).norm();
-                    assert(s->_rest <= l + 1E-6 && s->_rest >= l - 1E-6);
+                    //assert(s->_rest <= l + 1E-6 && s->_rest >= l - 1E-6);
                     s->_curr_force = 0;
                 }
                 //equilibrium = true;
@@ -409,7 +430,7 @@ void Simulator::run() {
                     writeMetric(metricFile);
                     if (optimized == 0)
                         writeCustomMetric(customMetricFile);
-                    optimized++;
+                    optimized = massDisplacer->iterations;
 
                     if (dumpCriteriaMet()) dumpSpringData();
                     cout << "Average iteration time (simulation): " << massDisplacer->totalTrialTime / optimized << "s \n";
@@ -472,11 +493,21 @@ void Simulator::run() {
 
         if (stopReached) {
             simStatus = STOPPED;
+            if (sim->containers.size() > 1) {
+                for (int c = 1; c < sim->containers.size(); c++) {
+                    sim->deleteContainer(sim->containers[c]);
+                }
+            }
             dumpSpringData();
             exportSimulation();
             exit(0);
         }
     }
+    auto pend = std::chrono::system_clock::now();
+    std::chrono::duration<double> pduration = pend - pstart;
+    wallClockTime += pduration.count();
+
+    qDebug() << "WALL CLOCK TIME" << wallClockTime;
 }
 
 
@@ -595,18 +626,28 @@ Vec Simulator::getSimCenter() {
 }
 
 void Simulator::equilibriate() {
-    totalEnergy_prev = totalEnergy;
+
     totalEnergy = 0;
-    for (Spring *s : sim->springs) {
-        totalEnergy += s->_curr_force * s->_curr_force / s->_k;
+    qDebug() << "Containers" << sim->containers.size();
+    if (sim->containers.size() > 1) {
+        Container *con = sim->containers.front();
+        for (Spring *s : con->springs) {
+            totalEnergy += s->_curr_force * s->_curr_force / s->_k;
+        }
+    } else {
+        for (Spring *s : sim->springs) {
+            totalEnergy += s->_curr_force * s->_curr_force / s->_k;
+        }
     }
+
     qDebug() << "ENERGY" << totalEnergy << prevEnergy << closeToPrevious << stepsSinceEquil;
-    if (prevEnergy > 0 && fabs(prevEnergy - totalEnergy) < totalEnergy * 1E-6) {
+    if (prevEnergy > 0 && fabs(prevEnergy - totalEnergy) < totalEnergy * 1E-4) {
         closeToPrevious++;
     } else {
         closeToPrevious = 0;
     }
-    if (closeToPrevious > 10) {
+    if (closeToPrevious > 6) {
+        totalEnergy_prev = totalEnergy;
         equilibrium = true;
         stepsSinceEquil = 0;
         if (!optimized) {
@@ -749,9 +790,9 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            file.write("Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
+            file.write("Time,WCT,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
         } else {
-            file.write("Time,Iteration,Deflection,Total Weight,Bar Number\n");
+            file.write("Time,WCT,Iteration,Deflection,Total Weight,Bar Number\n");
         }
     }
 }
@@ -778,8 +819,9 @@ void Simulator::writeMetric(const QString &outputFile) {
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
+            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7,%8\n")
                     .arg(optimized? massDisplacer->totalTrialTime / optimized : 0)
+                    .arg(wallClockTime)
                     .arg(optimized)
                     .arg(calcDeflection())
                     .arg(massDisplacer->dx)
@@ -788,8 +830,9 @@ void Simulator::writeMetric(const QString &outputFile) {
                     .arg(totalLength);
             file.write(mLine.toUtf8());
         } else if (optConfig->rules.front().method == OptimizationRule::REMOVE_LOW_STRESS) {
-            QString mLine = QString("%1,%2,%3,%4,%5\n")
+            QString mLine = QString("%1,%2,%3,%4,%5,%6\n")
                     .arg(sim->time())
+                    .arg(wallClockTime)
                     .arg(optimized)
                     .arg(calcDeflection())
                     .arg(totalLength)

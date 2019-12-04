@@ -177,6 +177,9 @@ public:
     double unit; // Unit for mass group cubes
     double springUnit; // Unit for mass separation
 
+    int popSize;
+    vector<Container *> population;
+
     // Struct holding separation grid information
     struct TrenchGrid {
         Vec startCorner;
@@ -195,14 +198,18 @@ private:
 
     int pickRandomMass(Simulation *sim);
     int pickRandomMass(MassGroup &mg);
+    int pickRandomMass(Container *con);
     int getMassCandidate(Simulation *sim, vector<int> existingMasses, double cutoff);
     double calcOrigDist(Mass *m1, Mass *m2);
     bool springExists(Simulation *sim, Mass *m1, Mass *m2);
     void mergeMasses(Simulation *sim, Mass *m1, Mass *m2, Spring *c);
     int shiftMassPos(Simulation *sim, int index, const Vec &dx, vector<Mass *> &merged);
     void shiftMassPos(Simulation *sim, Mass *m, const Vec &dx);
+    void shiftMassPos(Container *con, int index, const Vec &dx);
     int shiftRandomChunk(Simulation *sim, const Vec &dx, vector<int> indices, vector<Mass *> &merged);
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
+    void createPopulation(Simulation *sim, Container *orig, int size, vector<Container *> &population);
+    void deletePopulation(Simulation *sim, vector<Container *> &population);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
     void createMassTiles(Simulation *sim, double unit, Vec offset, vector<MassGroup *> &massGroups,
             map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings);
@@ -212,8 +219,13 @@ private:
             vector<Mass *> &massSpans);
     void combineMassTiles(Simulation *sim, vector<MassGroup *> &massGroups, vector<Spring> &tsSave,
             vector<Mass *> massSpans);
+    void addBorders(vector<Spring *> &borders);
+    void eraseBorders(vector<Spring *> &borders);
+    void resetPopulation(Container *success, Container *orig, vector<Container *> &population);
     double calcTotalLength(Simulation *sim);
+    double calcTotalLength(Container *con);
     double calcTotalEnergy(Simulation *sim);
+    double calcTotalEnergy(Container *con);
     double calcOrderLength(Simulation *sim, vector<Spring *> group);
     double calcOrderEnergy(Simulation *sim, vector<Spring *> group);
     double calcMassGroupLength(MassGroup * massGroup);
@@ -221,9 +233,11 @@ private:
     int settleSim(Simulation *sim, double eps, bool use_cap=false, double cap=0);
     void relaxSim(Simulation *sim, int steps, vector<Mass *> track=vector<Mass *>());
     void setMassState(const vector<Vec> &pos, const vector<double> &mm);
+    void setMassStateCon(Container *con, const vector<Vec> &pos, const vector<double> &mm);
 
     int displaceSingleMass(double displacement, double chunkSize, int metricOrder);
     int displaceGroupMass(double displacement);
+    int displacePopMass(double displacement);
 };
 
 

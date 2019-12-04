@@ -265,7 +265,8 @@ static const GLfloat brokenSpringColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
 void SimViewer::updatePairVertices() {
 
     if (resizeBuffers) {
-        n_springs = simulator->sim->springs.size();
+        if (simulator->sim->containers.size() <= 1) n_springs = simulator->sim->springs.size();
+        else n_springs = simulator->sim->containers.front()->springs.size();
         delete pairVertices;
         pairVertices = new GLfloat[2 * 3 * n_springs];
     }
@@ -455,7 +456,9 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
 //
 void SimViewer::updateColors() {
     int colorsCount = 0;
-    int n_springs = simulator->sim->springs.size();
+    int n_springs;
+    if (simulator->sim->containers.size() <= 1) n_springs = simulator->sim->springs.size();
+    else n_springs = simulator->sim->containers.front()->springs.size();
     if (resizeBuffers) {
         delete colors;
         colors = new GLfloat[2 * 4 * (2 * n_springs)];
@@ -475,9 +478,17 @@ void SimViewer::updateColors() {
     double totalStress = 0;
     double totalForce = 0;
     if (springVisual.colorScheme != SpringVisual::NOTHING) {
-        for (Spring *s: simulator->sim->springs) {
-            totalStress = fmax(totalStress, s->_max_stress);
-            totalForce = fmax(totalForce, fabs(s->_curr_force));
+        if (simulator->sim->containers.size() <= 1) {
+            for (Spring *s: simulator->sim->springs) {
+                totalStress = fmax(totalStress, s->_max_stress);
+                totalForce = fmax(totalForce, fabs(s->_curr_force));
+            }
+        }
+        else {
+            for (Spring *s: simulator->sim->containers.front()->springs) {
+                totalStress = fmax(totalStress, s->_max_stress);
+                totalForce = fmax(totalForce, fabs(s->_curr_force));
+            }
         }
     }
 
@@ -494,8 +505,9 @@ void SimViewer::updateColors() {
 //
 void SimViewer::updateDiameters() {
     int diamCount = 0;
-    int n_springs = simulator->sim->springs.size();
-
+    int n_springs;
+    if (simulator->sim->containers.size() <= 1) n_springs = simulator->sim->springs.size();
+    else n_springs = simulator->sim->containers.front()->springs.size();
     if (resizeBuffers) {
         delete diameters;
         diameters = new GLfloat[2 * n_springs];
@@ -1145,7 +1157,10 @@ void SimViewer::paintGL() {
 
     glClearColor(0, 0, 0, 0);
 
-    if (n_springs != int(simulator->sim->springs.size())) {
+    int s_springs;
+    if (simulator->sim->containers.size() <= 1) s_springs = simulator->sim->springs.size();
+    else s_springs = simulator->sim->containers.front()->springs.size();
+    if (n_springs != s_springs) {
         resizeBuffers = true;
     }
     if (springVisual.colorScheme != SpringVisual::NOTHING || getVisualizeScheme() != springVisual.colorScheme || resizeBuffers) {
