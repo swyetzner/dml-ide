@@ -513,7 +513,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
 
     createMassTiles(sim, 0.1, Vec(0,0,0), massGroups, massGroupMap, trenchSprings);
 
-    this->popSize = 100;
+    this->popSize = 40;
     this->population = vector<Container *>();
 
 
@@ -712,13 +712,11 @@ int MassDisplacer::pickRandomMass(Container *con) {
     int i = round(Utils::randUnit() * nm);
     bool underExternalForce = con->masses[i]->extforce.norm() > 1E-6;
     bool fixed = con->masses[i]->constraints.fixed;
-    bool withinBounds = con->masses[i]->origpos[0] > 0;
 
-    while (underExternalForce || fixed || !withinBounds) {
+    while (underExternalForce || fixed) {
         i = round(Utils::randUnit() * nm);
         underExternalForce = con->masses[i]->extforce.norm() > 1E-6;
         fixed = con->masses[i]->constraints.fixed;
-        withinBounds = con->masses[i]->origpos[0] > 0;
     }
 
     qDebug() << "Picking " << i;
