@@ -1553,7 +1553,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      float epsilon = 0.1; // If next nat. period squared is 10x as excited as first, (nat. period is 100x), go to next
      int principalEig = 0;
      for (int i = 0; i < numEig-1; i++) {
-         float relModalForce = ((evecs.col(i).transpose()*f)/(evecs.col(i+1).transpose()*f))(0,0);
+         float relModalForce = fabs(((evecs.col(i).transpose()*f)/(evecs.col(i+1).transpose()*f))(0,0));
 
          qDebug() << "Modal Force" << i << ":" << (evecs.col(i).transpose()*f);
          qDebug() << "Relative Modal Force" << relModalForce;
