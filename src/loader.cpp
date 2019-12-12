@@ -1556,6 +1556,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          float relModalForce = ((evecs.col(i).transpose()*f)/(evecs.col(i+1).transpose()*f))(0,0);
 
          qDebug() << "Modal Force" << i << ":" << (evecs.col(i).transpose()*f);
+         qDebug() << "Relative Modal Force" << relModalForce;
 
          if (relModalForce < epsilon)
              principalEig = i+1;
