@@ -499,6 +499,8 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     //double timestep = std::min(1/pow(10, to_string(int(maxK)).length()-2), 0.0001);
     sim->setAllDeltaTValues(1e-4);
 
+    suggestParams(sim, simConfig);
+
     qDebug() << "Loaded simulation configuration";
 }
 
@@ -1445,3 +1447,118 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
     lattice.vertices = space;
     qDebug() << "Set lattice";
 }
+
+ // Calculates the largest natural period (smallest natural frequency) of the lattice
+ double Loader::calculateNaturalPeriod(Simulation *sim) {
+
+
+     int n_masses = sim->masses.size();
+
+     int mass_ind[n_masses] = {};
+
+     vector<Eigen::Triplet<double>> m_vals;
+     m_vals.reserve(n_masses);
+
+     vector<int> forceIndices;
+     forceIndices.reserve(n_masses/50); // A rough guess that about 2% of masses will have a force applied
+
+     int n = 0;
+
+     for (int i = 0; i < n_masses; i++) {
+         Mass *m_temp = sim->getMassByIndex(i);
+
+         if (m_temp->constraints.fixed) {
+             mass_ind[i] = -1;
+         } else {
+             mass_ind[i] = n;
+             m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
+
+             if (!(m_temp -> extforce == Vec(0,0,0)))
+                 forceIndices.push_back(n);
+             n++;
+         }
+     }
+
+     Eigen::SparseMatrix<double> m(n,n);
+     m.setFromTriplets(m_vals.begin(), m_vals.end());
+
+     Eigen::SparseVector<double> f = Eigen::SparseVector<double>(n);
+
+     for (int i : forceIndices) {
+         f.coeffRef(i) = 1.0;
+     }
+
+     vector<Eigen::Triplet<double>> k_vals;
+     k_vals.reserve(n_masses*4);
+
+     for (Spring * spring: sim->springs) {
+         double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
+         int mass_i = mass_ind[spring->getLeft()];
+         int mass_j = mass_ind[spring->getRight()];
+
+         if (mass_i >= 0) {
+             k_vals.push_back(Eigen::Triplet<double>(mass_i, mass_i, temp_k));
+         }
+
+         if (mass_j >= 0) {
+             k_vals.push_back(Eigen::Triplet<double>(mass_j, mass_j, temp_k));
+         }
+
+         // add the negative stiffness to the off diagonals connecting the two masses
+         if (mass_i >= 0 && mass_j >= 0) {
+             k_vals.push_back(Eigen::Triplet<double>(mass_i, mass_j, -temp_k));
+             k_vals.push_back(Eigen::Triplet<double>(mass_j, mass_i, -temp_k));
+         }
+     }
+
+     Eigen::SparseMatrix<double> k(n,n);
+     k.setFromTriplets(k_vals.begin(), k_vals.end());
+
+     // Set up the generalized eigenvalue solver
+     Spectra::SparseSymMatProd<double> op(m);
+     Spectra::SparseCholesky<double> Bop(k);
+
+     /* Creates the eigenvalue solver object
+      * This is the class to use, since our m matrix is symmetric (obv. since it's diagonal)
+      * and our k matrix is positive definite (because of theories too complicated for me to understand)
+      *
+      * We are solving this problem backwards. Normally, to find the natural frequencies squared, we would solve
+      * Kx=hMx, with h being the eigenvalues. However, we want to find the smallest natural frequencies
+      * (i.e. the largest period oscillations), so we want the largest 1/h. Since the solver finds larger eigenvalues
+      * faster, this actually works in our favor. So we solve Mx=zKx, where z = 1/h. Taking the square root of the result
+      * gives us our natural periods.
+      */
+     int numEig = 3;
+     Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double>,
+             Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY>
+             geigs(&op, &Bop, numEig, numEig*2);
+
+     geigs.init();
+     int nconv = geigs.compute();
+
+     Eigen::VectorXd evalues;
+     Eigen::MatrixXd evecs;
+
+     if(geigs.info() == Spectra::SUCCESSFUL)
+     {
+         evalues = geigs.eigenvalues();
+         evecs = geigs.eigenvectors();
+     } else {
+         qDebug() << "Eigenvalues not found";
+         return 0;
+     }
+
+     float epsilon = 0.001;
+     int principalEig = 0;
+     for (int i = 0; i < numEig-1; i++) {
+         float relModalForce = ((evecs.col(i).transpose()*f)/(evecs.col(i+1).transpose()*f))(0,0);
+         if (relModalForce < epsilon)
+             principalEig = i+1;
+         else
+             break;
+     }
+
+     qDebug() << "Generalized eigenvalues found";
+
+     return evalues[principalEig];
+ }
