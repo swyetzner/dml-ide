@@ -1562,3 +1562,32 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      return evalues[principalEig];
  }
+
+ 
+void Loader::suggestParams(Simulation *sim, SimulationConfig *simConfig) {
+    double natPer = calculateNaturalPeriod(sim);
+
+    glm::vec3 minCorner = simConfig->volume->model->bounds.minCorner;
+    glm::vec3 maxCorner = simConfig->volume->model->bounds.maxCorner;
+
+    // A very rough approximation of the longest path
+    glm::vec3 edges = maxCorner-minCorner;
+
+    double maxDist = 0;
+
+    for (int i=0; i<3; i++) {
+        maxDist += glm::abs(edges[i]);
+    }
+
+    float minSpringDist = std::numeric_limits<float>::max();
+
+    for (LatticeConfig *lattice : simConfig->lattices) {
+        if (lattice->unit[0] < minSpringDist)
+            minSpringDist = lattice->unit[0];
+    }
+
+    int maxPath = maxDist/minSpringDist;
+
+    log(tr("Render update time should be no less that %1 times GPU update time.\n"
+           "Lattice should be given %2 seconds to settle before changing forces.").arg(maxPath).arg(natPer));
+}
