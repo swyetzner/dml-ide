@@ -1548,7 +1548,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          return 0;
      }
 
-     qDebug() << "Max Natural Periods" << sqrt(evalues[0]) << sqrt(evalues[1]) << sqrt(evalues[2]);
+     qDebug() << "Max Natural Periods" << sqrt(evalues[0])*2*3.1416 << sqrt(evalues[1])*2*3.1416 << sqrt(evalues[2])*2*3.1416;
 
      float epsilon = 0.1; // If next nat. period squared is 10x as excited as first, (nat. period is 100x), go to next
      int principalEig = 0;
@@ -1566,7 +1566,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      qDebug() << "Generalized eigenvalues found";
 
-     return sqrt(evalues[principalEig]);
+     return sqrt(evalues[principalEig])*2*3.1416;
  }
 
 
