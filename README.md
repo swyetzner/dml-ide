@@ -1,5 +1,5 @@
 # Design Model Language IDE
-**DML** is an IDE for modeling, simulation, and optimizing physical structures. DML stands for **Design Model Language**, which is the udnerlying format read by the IDE software. DML is an xml-like schema that allows users to define designs and simulations.
+**DML** is an IDE for modeling, simulation, and optimizing physical structures. DML stands for **Design Model Language**, which is the underlying format read by the IDE software. DML is an xml-like schema that allows users to define designs and simulations.
 
 The DML-IDE utilizes [Titan](https://github.com/swyetzner/Titan) as its underlying physics engine. Titan provides a GPU-parallelized simulation library for near-real-time interaction.
 
@@ -9,7 +9,7 @@ The DML-IDE utilizes [Titan](https://github.com/swyetzner/Titan) as its underlyi
 * At least one CUDA-compataible GPU. See [here](https://developer.nvidia.com/cuda-gpus) for a list.
 
 ## Build
-DML-IDE has the following dependencies. Download and setup them up individually from the links below *OR* use a package manager; [vcpkg](https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=vs-2019) is highly recommended.
+DML-IDE has the following dependencies. Download and setup them up individually from the links below *OR* use a package manager (for everything but Qt); [vcpkg](https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=vs-2019) is highly recommended.
 * [Qt](https://www.qt.io/download)
 * [CUDA](https://developer.nvidia.com/cuda-toolkit)
 * [GLEW](http://glew.sourceforge.net/)
