@@ -45,7 +45,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     barData = nullptr;
     GRAPHICS = graphics;
 
-    relaxation = 3000;
+    relaxation = 4000;
 
     if (OPTIMIZER) loadOptimizers();
     //optimizer = new MassDisplacer(sim, 0.2);
@@ -139,12 +139,13 @@ void Simulator::getSimMetrics(sim_metrics &metrics) {
     if (sim->containers.size() > 1) {
         Container *con = sim->containers.front();
         metrics.nbars = con->springs.size();
+        metrics.totalEnergy = totalEnergy / sim->containers.size();
     } else {
         metrics.nbars = sim->springs.size();
+        metrics.totalEnergy = totalEnergy;
     }
     metrics.time = sim->time();
     metrics.totalLength = totalLength;
-    metrics.totalEnergy = totalEnergy;
     metrics.totalLength_start = totalLength_start;
     metrics.totalEnergy_start = totalEnergy_start;
     metrics.deflection = calcDeflection();
@@ -366,7 +367,7 @@ void Simulator::run() {
                     maxForceSpring = s;
                     n = i;
                 }
-                i++;
+            i++;
             }
         }
         if (maxForceSpring != nullptr) qDebug() << "MAX FORCE SPRING" << n << maxForce << maxForceSpring->_rest << (maxForceSpring->_left->pos - maxForceSpring->_right->pos).norm();
@@ -580,7 +581,7 @@ void Simulator::loadOptimizers() {
                     massDisplacer->chunkSize = 0;
                     massDisplacer->relaxation = relaxation;
                     massDisplacer->springUnit = config->lattices.front()->unit[0];
-                    massDisplacer->unit = massDisplacer->springUnit * 6;
+                    massDisplacer->unit = massDisplacer->springUnit * 16;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
                     break;
@@ -629,19 +630,19 @@ void Simulator::equilibriate() {
 
     totalEnergy = 0;
     qDebug() << "Containers" << sim->containers.size();
-    if (sim->containers.size() > 1) {
-        Container *con = sim->containers.front();
-        for (Spring *s : con->springs) {
-            totalEnergy += s->_curr_force * s->_curr_force / s->_k;
-        }
-    } else {
+    //if (sim->containers.size() > 1) {
+    //    Container *con = sim->containers.front();
+    //    for (Spring *s : con->springs) {
+    //        totalEnergy += s->_curr_force * s->_curr_force / s->_k;
+    //    }
+    //} else {
         for (Spring *s : sim->springs) {
             totalEnergy += s->_curr_force * s->_curr_force / s->_k;
         }
-    }
+    //}
 
     qDebug() << "ENERGY" << totalEnergy << prevEnergy << closeToPrevious << stepsSinceEquil;
-    if (prevEnergy > 0 && fabs(prevEnergy - totalEnergy) < totalEnergy * 1E-4) {
+    if (prevEnergy > 0 && fabs(prevEnergy - totalEnergy) < totalEnergy * 1E-6) {
         closeToPrevious++;
     } else {
         closeToPrevious = 0;
@@ -925,6 +926,22 @@ void Simulator::printStatus() {
     cout << std::setprecision(4) << ((metrics.totalEnergy_start > 0.0)? (100 * (metrics.totalEnergy / metrics.totalEnergy_start)) : 100.0) << "%" << std::endl;
     cout << "\033[0K" << "Deflection: " << metrics.deflection << std::endl;
     cout << "\n";
+}
+
+
+void Simulator::getGraphicsProperties(graphics_properties &prop) {
+    if (OPTIMIZER) {
+        prop.spring_colors = optimizer->springColors;
+        prop.spring_opacities = optimizer->springOpacities;
+    } else {
+        prop.spring_colors = vector<Vec>();
+        prop.spring_opacities = vector<float>();
+    }
+    if (prop.spring_opacities.empty()) {
+        for (int s = 0; s < sim->springs.size(); s++) {
+            prop.spring_opacities.push_back(1.0);
+        }
+    }
 }
 
 

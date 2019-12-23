@@ -29,6 +29,11 @@ struct sim_metrics {
     double displacement;
 };
 
+struct graphics_properties {
+    vector<Vec> spring_colors;
+    vector<float> spring_opacities;
+};
+
 
 class Simulator {
 public:
@@ -69,6 +74,7 @@ public:
     void loadSimDump(std::string sp);
     void exportSimulation();
     void dumpSpringData();
+    void getGraphicsProperties(graphics_properties &prop);
 
 private:
 

@@ -495,10 +495,17 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
     this->lastTune = 0;
     this->lastMetric = 0;
     this->gridOffset = Vec(0,0,0);
-    this->dimensions = Vec(0,0,0);
+    this->dimensions[0] = Vec(0,0,0);
+    this->dimensions[1] = Vec(0,0,0);
     this->unit = 0.1;
-    test = new Simulation();
-    start = new Simulation();
+    //test = new Simulation();
+    //start = new Simulation();
+
+    this->springColors = vector<Vec>();
+    this->springOpacities = vector<float>();
+    for (int s = 0; s < sim->springs.size(); s++) {
+        this->springOpacities.push_back(1.0);
+    }
 
     this->maxLocalization = 0;
 
@@ -515,6 +522,7 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
 
     this->popSize = 40;
     this->population = vector<Container *>();
+    this->blockPopulation = vector<MassContainerBlock *>();
 
 
     // Initialize connections
@@ -552,14 +560,14 @@ MassDisplacer::MassDisplacer(Simulation *sim, double dx, double displaceRatio, d
 void MassDisplacer::optimize() {
 //---------------------------------------------------------------------------
 
-START_OPTIMIZE:
     int displaced = 0;
     attempts = 0;
     double trialTime = 0;
 
-    int nx = ceil(dimensions[0] / unit);
-    int ny = ceil(dimensions[1] / unit);
-    int nz = ceil(dimensions[2] / unit);
+    Vec span = dimensions[1] - dimensions[0];
+    int nx = ceil(span[0] / unit);
+    int ny = ceil(span[1] / unit);
+    int nz = ceil(span[2] / unit);
 
     bool shiftx = nx > 3;
     bool shifty = ny > 3;
@@ -602,19 +610,34 @@ START_OPTIMIZE:
 
     if (!iterations) {
         createPopulation(sim, sim->containers.front(), popSize, population);
+        //createBlockPopulation(sim, sim->containers.front(), popSize, blockPopulation);
         sim->setAll();
-        qDebug() << "Created population" << sim->containers.size() - 1 << sim->springs.size();
+        qDebug() << "Created block population" << sim->containers.size() - 1 << sim->springs.size();
+    } else {
+        for (auto *block : blockPopulation) {
+            qDebug() << block->container->masses.front()->pos[0];
+            //createMassBlockTiles(block, dimensions[0], dimensions[1], unit, Vec(0, 0, 0));
+        }
     }
+
+    for (int s = 0; s < springOpacities.size(); s++) {
+        springOpacities[s] = 1.0;
+    }
+
+    //createMassClusters(sim, unit/2, massGroups, trenchSprings);
+    qDebug() << "Created Mass Clusters";
 
     while (displaced == 0) {
         attempts ++;
         auto pstart = std::chrono::system_clock::now();
         //displaced = displaceSingleMass(dx, chunkSize, order);
-        displaced = displacePopMass(dx);
         //createMassTiles(sim, unit, gridOffset, massGroups, massGroupMap, trenchSprings);
+        displaced = displacePopMass(dx);
+        //createMassClusters(sim, unit, massGroups, trenchSprings);
         //if (massGroups.empty()) goto START_OPTIMIZE;
         //displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
+        //displaced = displaceSplitPopMass(dx);
         auto pend = std::chrono::system_clock::now();
         std::chrono::duration<double> pduration = pend - pstart;
         std::cout << "Trial " << attempts << " duration: " << pduration.count() << '\n';
@@ -676,11 +699,13 @@ int MassDisplacer::pickRandomMass(Simulation *sim) {
     int i = round(Utils::randUnit() * nm);
     bool underExternalForce = sim->masses[i]->extforce.norm() > 1E-6;
     bool fixed = sim->masses[i]->constraints.fixed;
+    bool connected = sim->masses[i]->spring_count > 0;
 
-    while (underExternalForce || fixed) {
+    while (underExternalForce || fixed || !connected) {
         i = round(Utils::randUnit() * nm);
         underExternalForce = sim->masses[i]->extforce.norm() > 1E-6;
         fixed = sim->masses[i]->constraints.fixed;
+        connected = sim->masses[i]->spring_count > 0;
     }
 
     qDebug() << "Picking " << i;
@@ -1249,7 +1274,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
         }
     }
 
-    while (result <= 5) {
+    while (result <= 0) {
         if (attempts > 50){
             result++;
             break;
@@ -1257,13 +1282,16 @@ int MassDisplacer::displaceGroupMass(double displacement) {
 
         for (MassGroup *mg : massGroups) {
 
+            if (mg->candidates.empty())
+                continue;
+
             int i = pickRandomMass(*mg);
             qDebug() << "Picked mass";
             Mass *mt = mg->candidates[i];
 
             mg->displaced = mt;
             mg->displaceOrigPos = mt->origpos;
-            qDebug() << "Chose mass" << i;
+            qDebug() << "Chose mass" << mt->index;
 
             // Pick a random direction
             Vec dir = Utils::randDirectionVec();
@@ -1275,6 +1303,7 @@ int MassDisplacer::displaceGroupMass(double displacement) {
             qDebug() << "Shifting mass" << mg->displaced->index << dx[0] << dx[1] << dx[2];
             shiftMassPos(sim, mg->displaced, dx);
         }
+        sim->setAll();
 
         // Run simulation
         // Equilibrate simulation
@@ -1286,6 +1315,9 @@ int MassDisplacer::displaceGroupMass(double displacement) {
 
 
         for (MassGroup *mg : massGroups) {
+            if (mg->candidates.empty())
+                continue;
+
             // Calculate test metrics
             mg->testEnergy = calcMassGroupEnergy(mg);
             mg->testLength = calcMassGroupLength(mg);
@@ -1296,6 +1328,8 @@ int MassDisplacer::displaceGroupMass(double displacement) {
 
         int mgi = 0;
         for (MassGroup *mg : massGroups) {
+            if (mg->candidates.empty())
+                continue;
 
             double origMetric = mg->origLength * mg->origEnergy;
             double testMetric = mg->testLength * mg->testEnergy;
@@ -1323,6 +1357,9 @@ int MassDisplacer::displaceGroupMass(double displacement) {
     }
     for (Mass *m : sim->masses) {
         for (MassGroup *mg : massGroups) {
+            if (mg->candidates.empty())
+                continue;
+
             auto it = find(mg->displacedList.begin(), mg->displacedList.end(), m);
             if (it != mg->displacedList.end()) {
 
@@ -1462,6 +1499,238 @@ int MassDisplacer::displacePopMass(double displacement) {
 }
 
 
+//---------------------------------------------------------------------------
+int MassDisplacer::displaceSplitPopMass(double displacement) {
+//---------------------------------------------------------------------------
+
+    qDebug() << "Displacing mass";
+
+    n_springs = sim->springs.size();
+    n_masses = sim->masses.size();
+
+    Container * orig = sim->containers.front();
+
+    int n = 0;
+    int massGroupRows = massGroups.size() / population.size();
+    qDebug() << "Mass Group Rows" << massGroupRows;
+
+    vector<Spring> tSave;
+    vector<Mass *> ms;
+
+    int tsPerCon = trenchSprings.size() / popSize;
+    for (int t = 0; t < trenchSprings.size(); t++) {
+        int iCon = floor(float(t) / tsPerCon);
+        auto *con = population[iCon];
+        con->springs.resize(std::remove(con->springs.begin(), con->springs.end(), trenchSprings[t]) - con->springs.begin());
+    }
+    qDebug() << "Removed trenches from containers";
+
+    splitMassTiles(sim, massGroups, trenchSprings, tSave, ms);
+    sim->setAll();
+    qDebug() << "Split Tiles";
+
+
+    // Equilibrate simulation
+    if (relaxation == 0) {
+        settleSim(sim, 1E-6);
+    } else {
+        relaxSim(sim, relaxation);
+    }
+    qDebug() << "First Relax";
+
+    vector<double> metrics = vector<double>();
+    for (auto *mg : massGroups) {
+        metrics.push_back(calcMassGroupLength(mg) * calcMassGroupEnergy(mg));
+
+        // Pick a random mass
+        int i = pickRandomMass(*mg);
+        Mass *mt = mg->candidates[i];
+        mg->displaced = mt;
+        mg->di = i;
+
+        // Pick a random direction
+        Vec dir = Utils::randDirectionVec();
+        qDebug() << "Direction" << dir[0] << dir[1] << dir[2];
+        mg->dx = displacement * dir;
+
+        shiftMassPos(sim, mt, mg->dx);
+    }
+    sim->setAll();
+
+    // Equilibrate simulation
+    if (relaxation == 0) {
+        settleSim(sim, 1E-6);
+    } else {
+        relaxSim(sim, relaxation);
+    }
+
+    for (int row = 0; row < massGroupRows; row++) {
+        vector<int> moved;
+        vector<Vec> moves;
+        int p = 0;
+        for (auto *con : population) {
+            // Index into mass groups
+            int i = row * popSize + p;
+            MassGroup *mg = massGroups[i];
+
+            // Metrics
+            double testMetric = calcMassGroupLength(mg) * calcMassGroupEnergy(mg);
+            qDebug() << "Test Metrics" << metrics[i] << testMetric << i;
+            if (testMetric < metrics[i]) {
+                qDebug() << "Found Change row" << row << "pop" << p;
+
+                // Index moved mass
+                int mmi = 0;
+                for (Mass *m : con->masses) {
+                    if (m == mg->displaced) {
+                        moved.push_back(mmi);
+                        moves.push_back(mg->dx);
+                        break;
+                    }
+                    mmi++;
+                }
+            }
+
+            // Undo moves
+            shiftMassPos(sim, mg->displaced, -mg->dx);
+            p++;
+        }
+
+        if (!moved.empty()) {
+            shiftMassPos(orig, moved.front(), moves.front());
+            for (auto *con : population) {
+                shiftMassPos(con, moved.front(), moves.front());
+            }
+            n++;
+            qDebug() << "Moved mass" << moved.front();
+        }
+    }
+
+    for (int m = 0; m < orig->masses.size(); m++) {
+        for (auto *con : population) {
+            con->masses[m]->pos = orig->masses[m]->pos;
+            con->masses[m]->vel = orig->masses[m]->vel;
+            con->masses[m]->extforce = orig->masses[m]->extforce;
+        }
+    }
+    combineMassTiles(sim, massGroups, tSave, ms);
+    sim->setAll();
+    return n;
+
+    /*for (int p = 0; p < popSize; p++) {
+        MassContainerBlock *block = blockPopulation[p];
+
+        qDebug() << "Block groups created" << block->groups.size();
+        splitMassTiles(block);
+    }
+
+    sim->setAll();
+    qDebug() << "Containers" << blockPopulation.size();
+
+    while (n == 0) {
+
+        // Equilibrate simulation
+        if (relaxation == 0) {
+            settleSim(sim, 1E-6);
+        } else {
+            relaxSim(sim, relaxation);
+        }
+
+        // Record start metrics
+        for (auto *block : blockPopulation) {
+            int g = 0;
+            for (MassGroup *mg : block->groups) {
+                block->metrics[g] = calcMassGroupLength(mg) * calcMassGroupEnergy(mg);
+                qDebug() << "Metrics" << g << block->metrics[g];
+
+                // Pick a random mass
+                int i = pickRandomMass(*mg);
+                Mass *mt = mg->candidates[i];
+                mg->displaced = mt;
+                mg->di = i;
+
+                // Pick a random direction
+                Vec dir = Utils::randDirectionVec();
+                qDebug() << "Direction" << dir[0] << dir[1] << dir[2];
+                mg->dx = displacement * dir;
+
+                shiftMassPos(sim, mt, mg->dx);
+                qDebug() << "Shifted mass";
+                g++;
+            }
+        }
+        sim->setAll();
+
+        // Equilibrate simulation
+        if (relaxation == 0) {
+            settleSim(sim, 1E-6);
+        } else {
+            relaxSim(sim, relaxation);
+        }
+
+        vector<bool> rows;
+        vector<int> moved;
+        vector<Vec> moves;
+        int b = 0;
+        for (auto *block : blockPopulation) {
+            Container *copy = block->container;
+            for (int r = 0; r < block->groups.size(); r++) {
+                qDebug() << "Row" << r;
+                if (rows.size() <= r) {
+                    rows.push_back(false);
+                }
+                MassGroup *mg = block->groups[r];
+                double totalLengthTest = 0;
+                double totalEnergyTest = 0;
+
+                totalLengthTest = calcMassGroupLength(mg);
+                totalEnergyTest = calcMassGroupEnergy(mg);
+                double testMetric = totalLengthTest * totalEnergyTest;
+                qDebug() << "Total metrics Sim" << block->metrics[r] << " Test" << testMetric;
+
+                if (testMetric < block->metrics[r] && !rows[r]) {
+                    qDebug() << "Found change" << r << "Block" << b;
+                    Vec ddx = mg->dx;
+                    for (int m = 0; m < copy->masses.size(); m++) {
+                        if (copy->masses[m] == mg->displaced) {
+                            shiftMassPos(orig, m, ddx);
+                            moved.push_back(m);
+                            moves.push_back(ddx);
+                            rows[r] = true;
+                        }
+                    }
+                    n++;
+                }
+            }
+            b++;
+        }
+        for (int r = 0; r < rows.size(); r++) {
+            for (auto *block : blockPopulation) {
+                MassGroup *mg = block->groups[r];
+                shiftMassPos(sim, mg->displaced, -mg->dx);
+            }
+        }
+        for (int i = 0; i < moves.size(); i++) {
+            for (auto *block : blockPopulation) {
+                shiftMassPos(block->container, moved[i], moves[i]);
+
+            }
+        }
+    }
+
+    for (auto *block : blockPopulation) {
+        for (int m = 0; m <  block->container->masses.size(); m++) {
+            block->container->masses[m]->pos = orig->masses[m]->pos;
+            block->container->masses[m]->vel = orig->masses[m]->vel;
+        }
+        combineMassTiles(block);
+    }
+
+    sim->setAll();
+    return n;*/
+}
+
+
 // Creates arrays of surrounding masses around a center mass
 //---------------------------------------------------------------------------
 void MassDisplacer::createMassGroup(Simulation *sim, double cutoff, Mass *center,
@@ -1531,6 +1800,7 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
 
     minc -= Vec(1E-2, 1E-2, 1E-2);
     maxc -= Vec(1E-2, 1E-2, 1E-2);
+    int i = 0;
     for (Spring *s : sim->springs) {
         bool leftInBounds = Utils::inBounds(s->_left->pos, minc, maxc);
         bool rightInBounds = Utils::inBounds(s->_right->pos, minc, maxc);
@@ -1549,6 +1819,7 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
             massGroup.edge.push_back(s->_right);
             massGroup.border.push_back(s);
         }
+        i++;
     }
 
     vector<Mass *> culledOrderGroup = vector<Mass *>();
@@ -1579,7 +1850,141 @@ void MassDisplacer::createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGro
     massGroup.candidates = culledCandidateGroup;
     massGroup.outside = culledOutsideGroup;
     massGroup.edge = culledEdgeGroup;
+}
 
+
+// Creates arrays of surrounding masses within a bounding box defined by min and max corner
+//---------------------------------------------------------------------------
+void MassDisplacer::createMassGroup(Container *con, Vec minc, Vec maxc, MassGroup &massGroup) {
+//---------------------------------------------------------------------------
+
+    massGroup.group = vector<Mass *>();
+    massGroup.candidates = vector<Mass *>();
+    massGroup.springs = vector<Spring *>();
+    massGroup.outside = vector<Mass *>();
+    massGroup.edge = vector<Mass *>();
+    massGroup.border = vector<Spring *>();
+    massGroup.displacedList = vector<Mass *>();
+
+    minc -= Vec(1E-2, 1E-2, 1E-2);
+    maxc -= Vec(1E-2, 1E-2, 1E-2);
+    int i = 0;
+    qDebug() << "Bounds" << minc[0] << minc[1] << minc[2] << maxc[0] << maxc[1] << maxc[2];
+    for (Spring *s : con->springs) {
+        bool leftInBounds = Utils::inBounds(s->_left->pos, minc, maxc);
+        bool rightInBounds = Utils::inBounds(s->_right->pos, minc, maxc);
+        if (leftInBounds && rightInBounds) {
+            massGroup.springs.push_back(s);
+            massGroup.group.push_back(s->_left);
+            massGroup.group.push_back(s->_right);
+        } else if (leftInBounds) {
+            // Border spring: Left mass is within the order group, right mass is not
+            massGroup.outside.push_back(s->_right);
+            massGroup.edge.push_back(s->_left);
+            massGroup.border.push_back(s);
+        } else if (rightInBounds) {
+            // Border spring: Right mass is within the order group, left mass is not
+            massGroup.outside.push_back(s->_left);
+            massGroup.edge.push_back(s->_right);
+            massGroup.border.push_back(s);
+        }
+        i++;
+    }
+    qDebug() << "Mass Group springs" << massGroup.springs.size() << massGroup.border.size();
+
+    vector<Mass *> culledOrderGroup = vector<Mass *>();
+    vector<Mass *> culledCandidateGroup = vector<Mass *>();
+    vector<Mass *> culledOutsideGroup = vector<Mass *>();
+    vector<Mass *> culledEdgeGroup = vector<Mass *>();
+    for (Mass *m : con->masses) {
+        bool underExternalForce = m->extforce.norm() > 1E-6;
+        bool fixed = m->constraints.fixed;
+        bool edge = find(massGroup.edge.begin(), massGroup.edge.end(), m) != massGroup.edge.end();
+
+        if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
+            culledOrderGroup.push_back(m);
+        }
+        if (find(massGroup.outside.begin(), massGroup.outside.end(), m) != massGroup.outside.end()) {
+            culledOutsideGroup.push_back(m);
+        }
+        if (edge) {
+            culledEdgeGroup.push_back(m);
+        }
+        if (!underExternalForce && !fixed &&!edge) {
+            if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
+                culledCandidateGroup.push_back(m);
+            }
+        }
+    }
+    massGroup.group = culledOrderGroup;
+    massGroup.candidates = culledCandidateGroup;
+    massGroup.outside = culledOutsideGroup;
+    massGroup.edge = culledEdgeGroup;
+}
+
+
+//---------------------------------------------------------------------------
+void MassDisplacer::createBlockMassGroup(MassDisplacer::MassContainerBlock *block, Vec minc, Vec maxc,
+                                         MassDisplacer::MassGroup &massGroup) {
+//---------------------------------------------------------------------------
+    massGroup.group = vector<Mass *>();
+    massGroup.candidates = vector<Mass *>();
+    massGroup.springs = vector<Spring *>();
+    massGroup.outside = vector<Mass *>();
+    massGroup.edge = vector<Mass *>();
+    massGroup.border = vector<Spring *>();
+    massGroup.displacedList = vector<Mass *>();
+
+    minc -= Vec(1E-2, 1E-2, 1E-2);
+    maxc -= Vec(1E-2, 1E-2, 1E-2);
+    for (Spring *s : block->container->springs) {
+        bool leftInBounds = Utils::inBounds(s->_left->pos, minc, maxc);
+        bool rightInBounds = Utils::inBounds(s->_right->pos, minc, maxc);
+        if (leftInBounds && rightInBounds) {
+            massGroup.springs.push_back(s);
+            massGroup.group.push_back(s->_left);
+            massGroup.group.push_back(s->_right);
+        } else if (leftInBounds) {
+            // Border spring: Left mass is within the order group, right mass is not
+            massGroup.outside.push_back(s->_right);
+            massGroup.edge.push_back(s->_left);
+            massGroup.border.push_back(s);
+        } else if (rightInBounds) {
+            // Border spring: Right mass is within the order group, left mass is not
+            massGroup.outside.push_back(s->_left);
+            massGroup.edge.push_back(s->_right);
+            massGroup.border.push_back(s);
+        }
+    }
+
+    vector<Mass *> culledOrderGroup = vector<Mass *>();
+    vector<Mass *> culledCandidateGroup = vector<Mass *>();
+    vector<Mass *> culledOutsideGroup = vector<Mass *>();
+    vector<Mass *> culledEdgeGroup = vector<Mass *>();
+    for (Mass *m : block->container->masses) {
+        bool underExternalForce = m->extforce.norm() > 1E-6;
+        bool fixed = m->constraints.fixed;
+        bool edge = find(massGroup.edge.begin(), massGroup.edge.end(), m) != massGroup.edge.end();
+
+        if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
+            culledOrderGroup.push_back(m);
+        }
+        if (find(massGroup.outside.begin(), massGroup.outside.end(), m) != massGroup.outside.end()) {
+            culledOutsideGroup.push_back(m);
+        }
+        if (edge) {
+            culledEdgeGroup.push_back(m);
+        }
+        if (!underExternalForce && !fixed &&!edge) {
+            if (find(massGroup.group.begin(), massGroup.group.end(), m) != massGroup.group.end()) {
+                culledCandidateGroup.push_back(m);
+            }
+        }
+    }
+    massGroup.group = culledOrderGroup;
+    massGroup.candidates = culledCandidateGroup;
+    massGroup.outside = culledOutsideGroup;
+    massGroup.edge = culledEdgeGroup;
 }
 
 
@@ -1641,10 +2046,12 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, Vec offset, ve
         maxPos[2] = std::max(m->pos[2], maxPos[2]);
     }
 
-    this->dimensions = maxPos - minPos;
-    nx = ceil(dimensions[0] / unit);
-    ny = ceil(dimensions[1] / unit);
-    nz = ceil(dimensions[2] / unit);
+    this->dimensions[0] = minPos;
+    this->dimensions[1] = maxPos;
+    Vec span = maxPos - minPos;
+    nx = ceil(span[0] / unit);
+    ny = ceil(span[1] / unit);
+    nz = ceil(span[2] / unit);
 
     if (nx > 1) nx--;
     if (ny > 1) ny--;
@@ -1669,18 +2076,38 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, Vec offset, ve
 
                 qDebug() << "Ts" << tx << ty << tz;
                 if (tx && ty && tz) {
-                    auto *mg = new MassGroup();
-                    createMassGroup(sim, Vec(xst, yst, zst), Vec(xen, yen, zen), *mg);
-                    qDebug() << "Created mass group" << mg->group.size();
+                    if (population.empty()) {
+                        auto *mg = new MassGroup();
 
-                    if (!mg->candidates.empty()) {
-                        mgs.push_back(mg);
-                    }
-                    for (Mass *m : mg->group) {
-                        mgm[m] = mg;
-                    }
-                    for (Spring *s : mg->border) {
-                        ts.push_back(s);
+                        createMassGroup(sim, Vec(xst, yst, zst), Vec(xen, yen, zen), *mg);
+                        qDebug() << "Created mass group" << mg->group.size();
+
+                        if (!mg->candidates.empty()) {
+                            mgs.push_back(mg);
+                        }
+                        for (Mass *m : mg->group) {
+                            mgm[m] = mg;
+                        }
+                        for (Spring *s : mg->border) {
+                            ts.push_back(s);
+                        }
+                    } else {
+                        for (auto *con : population) {
+                            auto *mg = new MassGroup();
+
+                            createMassGroup(con, Vec(xst, yst, zst), Vec(xen, yen, zen), *mg);
+                            qDebug() << "Created mass group" << mg->group.size();
+
+                            if (!mg->candidates.empty()) {
+                                mgs.push_back(mg);
+                            }
+                            for (Mass *m : mg->group) {
+                                mgm[m] = mg;
+                            }
+                            for (Spring *s : mg->border) {
+                                ts.push_back(s);
+                            }
+                        }
                     }
                 }
 
@@ -1707,6 +2134,236 @@ void MassDisplacer::createMassTiles(Simulation *sim, double unit, Vec offset, ve
 }
 
 
+//---------------------------------------------------------------------------
+void MassDisplacer::createMassBlockTiles(MassDisplacer::MassContainerBlock *block, Vec minPos, Vec maxPos,
+        double unit, Vec offset) {
+//---------------------------------------------------------------------------
+
+    qDebug() << "Creating mass block tiles";
+    int nx, ny, nz;
+    block->groups = vector<MassGroup *>();
+    block->massToGroupMap = map<Mass *, MassGroup *>();
+    block->separate = vector<Spring *>();
+
+    Vec span = dimensions[1] - dimensions[0];
+    nx = ceil(span[0] / unit);
+    ny = ceil(span[1] / unit);
+    nz = ceil(span[2] / unit);
+
+    if (nx > 1) nx--;
+    if (ny > 1) ny--;
+    if (nz > 1) nz--;
+    qDebug() << "Grid" << nx << ny << nz;
+
+    double xst, yst, zst;
+    double xen, yen, zen;
+    int tx, ty, tz;
+
+    for (int x = 0; x < nx; x++) {
+
+        tx = createTile(nx, x, unit, offset[0], minPos[0], xst, xen);
+
+        for (int y = 0; y < ny; y++) {
+
+            ty = createTile(ny, y, unit, offset[1], minPos[1], yst, yen);
+
+            for (int z = 0; z < nz; z++) {
+
+                tz = createTile(nz, z, unit, offset[2], minPos[2], zst, zen);
+
+                qDebug() << "Ts" << tx << ty << tz;
+                if (tx && ty && tz) {
+                    auto *mg = new MassGroup();
+                    createBlockMassGroup(block, Vec(xst, yst, zst), Vec(xen, yen, zen), *mg);
+                    qDebug() << "Created mass group" << mg->group.size();
+
+                    if (!mg->candidates.empty()) {
+                        block->groups.push_back(mg);
+                    }
+                    for (Mass *m : mg->group) {
+                        block->massToGroupMap[m] = mg;
+                    }
+                    for (Spring *s : mg->border) {
+                        block->separate.push_back(s);
+                    }
+                }
+
+            }
+        }
+    }
+
+    // Cull trench springs
+    vector<Spring *> culledTrenchSprings = vector<Spring *>();
+    for (Spring *s1 : block->separate) {
+        bool duplicate = false;
+        for (Spring *s2 : culledTrenchSprings) {
+            if (s1 == s2) duplicate = true;
+        }
+        if (!duplicate) culledTrenchSprings.push_back(s1);
+    }
+    block->separate = culledTrenchSprings;
+
+    qDebug() << "Created mass tiles" << block->groups.size() << "Trench Springs" << block->separate.size();
+    for (MassGroup *mg : block->groups) {
+        qDebug() << "Mass Group" << mg->group.size() << mg->springs.size();
+    }
+
+}
+
+//---------------------------------------------------------------------------
+void MassDisplacer::createMassClusters(Simulation *sim, double unit, vector<MassGroup *> &groups,
+                                       vector<Spring *> &trenches) {
+//---------------------------------------------------------------------------
+
+    groups.clear();
+    trenches.clear();
+    vector<Vec> centers;
+    Vec minPos = Vec(FLT_MAX, FLT_MAX, FLT_MAX);
+    Vec maxPos = Vec(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    for (Mass *m : sim->masses) {
+        minPos[0] = std::min(m->pos[0], minPos[0]);
+        minPos[1] = std::min(m->pos[1], minPos[1]);
+        minPos[2] = std::min(m->pos[2], minPos[2]);
+        maxPos[0] = std::max(m->pos[0], maxPos[0]);
+        maxPos[1] = std::max(m->pos[1], maxPos[1]);
+        maxPos[2] = std::max(m->pos[2], maxPos[2]);
+    }
+    int kNewPoints = ceil((maxPos - minPos)[0] * (maxPos - minPos)[1] * (maxPos - minPos)[2] / (unit * unit * unit));
+    kNewPoints *= 3;
+    qDebug() << "Creating" << kNewPoints << "points" << (maxPos - minPos)[0] * (maxPos - minPos)[1] * (maxPos - minPos)[2];
+
+    vector<Vec> candidates = vector<Vec>();
+    // Add first point
+    centers.push_back(Utils::randPointVec(minPos, maxPos));
+    for (int i = 0; i < kNewPoints; i++) {
+        Vec point = Utils::randPointVec(minPos, maxPos);
+        candidates.push_back(point);
+    }
+
+    vector<double> sumDistsStore = vector<double>();
+    for (auto c : candidates) {
+        sumDistsStore.push_back(0.0f);
+    }
+
+    double minDist = FLT_MAX;
+    while (!candidates.empty() && minDist > unit) {
+
+        // Find furthest point
+        int iFurthest = 0;
+        double maxSumDist = 0;
+
+        for (int i = 0; i < candidates.size(); i++) {
+            double l = (centers.back() - candidates[i]).norm();
+
+            if (l < unit) {
+                candidates.erase(candidates.begin() + i);
+                sumDistsStore.erase(sumDistsStore.begin() + i);
+                i--;
+                if (candidates.empty())
+                    break;
+                continue;
+            }
+            sumDistsStore[i] += l;
+
+            if (sumDistsStore[i] > maxSumDist) {
+                maxSumDist = sumDistsStore[i];
+                iFurthest = i;
+            }
+        }
+        if (candidates.empty())
+            break;
+
+        for (Vec c : centers)
+            minDist = std::min(minDist, (candidates[iFurthest] - c).norm());
+
+        centers.push_back(candidates[iFurthest]);
+        candidates.erase(candidates.begin() + iFurthest);
+        sumDistsStore.erase(sumDistsStore.begin() + iFurthest);
+    }
+    qDebug() << "Found points";
+
+    for (auto c : centers) {
+        for (auto d : centers) {
+            if (!(c == d))
+                assert((c - d).norm() > unit);
+        }
+    }
+    qDebug() << "Centers" << centers.size();
+
+    // Sort masses by closest center and create mass groups
+    groups.clear();
+    trenches.clear();
+
+    map<Mass *, MassGroup *> massToGroupMap = map<Mass *, MassGroup *>();
+    for (Vec point : centers) {
+        MassGroup *mg = new MassGroup();
+        groups.push_back(mg);
+    }
+
+    for (Mass *m : sim->masses) {
+        double minDist = FLT_MAX;
+        int closestCenter = -1;
+        for (int i = 0; i < centers.size(); i++) {
+            double d = (centers[i] - m->pos).norm();
+            if (d < minDist) {
+                minDist = d;
+                closestCenter = i;
+            }
+        }
+        groups[closestCenter]->group.push_back(m);
+        massToGroupMap[m] = groups[closestCenter];
+    }
+
+    for (Spring *s : sim->springs) {
+        MassGroup *m1 = massToGroupMap[s->_left];
+        MassGroup *m2 = massToGroupMap[s->_right];
+
+        springColors.push_back(Vec(1.0, 1.0, 0.0));
+
+        if (m1 != m2) {
+            trenches.push_back(s);
+            if (find(m1->edge.begin(), m1->edge.end(), s->_left) == m1->edge.end()) {
+                m1->edge.push_back(s->_left);
+            }
+            if (find(m2->edge.begin(), m2->edge.end(), s->_right) == m2->edge.end()) {
+                m2->edge.push_back(s->_right);
+            }
+
+        } else {
+
+            if (find(m1->springs.begin(), m1->springs.end(), s) == m1->springs.end()) {
+                m1->springs.push_back(s);
+            }
+            if (find(m2->springs.begin(), m2->springs.end(), s) == m2->springs.end()) {
+                m2->springs.push_back(s);
+            }
+
+        }
+    }
+    for (Mass *m : sim->masses) {
+        MassGroup *mg = massToGroupMap[m];
+        bool edge = find(mg->edge.begin(), mg->edge.end(), m) != mg->edge.end();
+        bool underExternalForce = m->extforce.norm() > 1E-6;
+        bool fixed = m->constraints.fixed;
+        if (!(edge || underExternalForce || fixed)) {
+            mg->candidates.push_back(m);
+        }
+    }
+
+    for (int g = 0; g < groups.size(); g++) {
+        MassGroup *mg = groups[g];
+        if (mg->group.empty()) {
+            groups.erase(groups.begin() + g);
+            g--;
+            continue;
+        }
+        qDebug() << "Group" << mg->group.size() << "Edge" << mg->edge.size() << "Springs" << mg->springs.size()
+            << "Candidates" << mg->candidates.size();
+    }
+}
+
+
 // Creates a population of copies of the original Container
 //---------------------------------------------------------------------------
 void MassDisplacer::createPopulation(Simulation *sim, Container *orig, int size, vector<Container *> &population) {
@@ -1721,7 +2378,15 @@ void MassDisplacer::createPopulation(Simulation *sim, Container *orig, int size,
         }
         for (Spring *s : orig->springs) {
             Spring *s1 = new Spring(*s);
-            s1->setMasses(copy->masses[s->_left->index], copy->masses[s->_right->index]);
+
+            for (int m = 0; m < orig->masses.size(); m++) {
+                if (s->_left == orig->masses[m]) {
+                    s1->setLeft(copy->masses[m]);
+                }
+                if (s->_right == orig->masses[m]) {
+                    s1->setRight(copy->masses[m]);
+                }
+            }
             copy->add(sim->createSpring(s1));
         }
     }
@@ -1733,12 +2398,70 @@ void MassDisplacer::createPopulation(Simulation *sim, Container *orig, int size,
 // Deletes copies of original Container
 //---------------------------------------------------------------------------
 void MassDisplacer::deletePopulation(Simulation *sim, vector<Container *> &population) {
+//---------------------------------------------------------------------------
 
     for (Container *c : population) {
         sim->deleteContainer(c);
     }
 
 }
+
+
+//---------------------------------------------------------------------------
+void MassDisplacer::createBlockPopulation(Simulation *sim, Container *orig, int size,
+                                          vector<MassContainerBlock *> &population) {
+//---------------------------------------------------------------------------
+
+    Vec minPos = Vec(FLT_MAX, FLT_MAX, FLT_MAX);
+    Vec maxPos = Vec(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    qDebug() << "Block masses" << orig->masses.size();
+    for (Mass *m : orig->masses) {
+        minPos[0] = std::min(m->pos[0], minPos[0]);
+        minPos[1] = std::min(m->pos[1], minPos[1]);
+        minPos[2] = std::min(m->pos[2], minPos[2]);
+        maxPos[0] = std::max(m->pos[0], maxPos[0]);
+        maxPos[1] = std::max(m->pos[1], maxPos[1]);
+        maxPos[2] = std::max(m->pos[2], maxPos[2]);
+    }
+
+    this->dimensions[0] = minPos;
+    this->dimensions[1] = maxPos;
+    for (int b = 0; b < size; b++) {
+        // Create block
+        MassContainerBlock *block = new MassContainerBlock();
+        population.push_back(block);
+
+        block->container = sim->createContainer();
+        for (Mass *m : orig->masses) {
+            Mass *m1 = new Mass(*m);
+            block->container->add(sim->createMass(m1));
+        }
+        for (Spring *s : orig->springs) {
+            Spring *s1 = new Spring(*s);
+            s1->setMasses(block->container->masses[s->_left->index], block->container->masses[s->_right->index]);
+            block->container->add(sim->createSpring(s1));
+        }
+
+        // Split block
+        createMassBlockTiles(block, minPos, maxPos, unit, Vec(0, 0, 0));
+
+    }
+    sim->setAll();
+
+    // Run to get metrics
+    relaxSim(sim, relaxation);
+    sim->getAll();
+
+    for (MassContainerBlock * block : population) {
+        for (MassGroup * mg : block->groups) {
+            double lengthMG = calcMassGroupLength(mg);
+            double energyMG = calcMassGroupEnergy(mg);
+            block->metrics.push_back(lengthMG * energyMG);
+        }
+    }
+}
+
 
 // Creates Mass Groups from global Trench Grid
 // Trenches separate mass groups
@@ -1774,10 +2497,74 @@ void MassDisplacer::splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, ve
                                    vector<Spring> &tsSave, vector<Mass *> &massSpans) {
 //---------------------------------------------------------------------------
 
+    int g = 0;
     for (MassGroup *mg : mgs) {
+        int iCon = 0;
+        if (!population.empty()) {
+            int rows = mgs.size() / popSize;
+            iCon = floor(float(g) / rows);
+            qDebug() << "icon" << iCon << rows;
+        }
         for (Mass *m : mg->edge) {
             if (!m->constraints.fixed) {
-                for (Spring *s : sim->springs) {
+                if (population.empty()) {
+                    for (Spring *s : sim->springs) {
+                        if (s->_right == m) {
+                            m->extforce += s->getForce();
+                            m->extduration = DBL_MAX;
+                        }
+                        if (s->_left == m) {
+                            m->extforce -= s->getForce();
+                            m->extduration = DBL_MAX;
+                        }
+                    }
+                } else {
+                    for (Spring *s : population[iCon]->springs) {
+                        if (s->_right == m) {
+                            m->extforce += s->getForce();
+                            m->extduration = DBL_MAX;
+                        }
+                        if (s->_left == m) {
+                            m->extforce -= s->getForce();
+                            m->extduration = DBL_MAX;
+                        }
+                    }
+                }
+                for (Spring *s : mg->springs) {
+                    if (s->_right == m) {
+                        m->extforce -= s->getForce();
+                    }
+                    if (s->_left == m) {
+                        m->extforce += s->getForce();
+                    }
+                }
+            }
+        }
+        g++;
+    }
+    for (Spring *s : tsSim) {
+        Spring t = Spring(*s);
+        tsSave.push_back(t);
+        massSpans.push_back(s->_left);
+        massSpans.push_back(s->_right);
+        //s->_left->m -= s->_left->m / s->_left->ref_count;
+        //s->_right->m -= s->_right->m / s->_right->ref_count;
+        sim->deleteSpring(s);
+    }
+    //addBorders(tsSim);
+}
+
+
+//---------------------------------------------------------------------------
+void MassDisplacer::splitMassTiles(MassDisplacer::MassContainerBlock *block) {
+//---------------------------------------------------------------------------
+
+    qDebug() << "Splitting mass tiles";
+    for (MassGroup *mg : block->groups) {
+        for (Mass *m : mg->edge) {
+            mg->startForce.push_back(m->extforce);
+            if (!m->constraints.fixed) {
+                for (Spring *s : block->container->springs) {
                     if (s->_right == m) {
                         m->extforce += s->getForce();
                         m->extduration = DBL_MAX;
@@ -1800,24 +2587,31 @@ void MassDisplacer::splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, ve
         }
 
     }
-    for (Spring *s : tsSim) {
+    for (Spring *s : block->separate) {
         Spring t = Spring(*s);
-        tsSave.push_back(t);
-        massSpans.push_back(s->_left);
-        massSpans.push_back(s->_right);
-        //s->_left->m -= s->_left->m / s->_left->ref_count;
-        //s->_right->m -= s->_right->m / s->_right->ref_count;
+        block->save.push_back(t);
+        block->massSpans.push_back(s->_left);
+        block->massSpans.push_back(s->_right);
+
+        block->container->springs.resize(std::remove(block->container->springs.begin(),
+                block->container->springs.end(), s) - block->container->springs.begin());
         sim->deleteSpring(s);
     }
-    //addBorders(tsSim);
+
+    qDebug() << "Split mass tiles";
 }
+
 
 // Combine simulation from tiled chunks by recreating inbetween springs
 //---------------------------------------------------------------------------
 void MassDisplacer::combineMassTiles(Simulation *sim, vector<MassGroup *> &massGroups, vector<Spring> &tsSave,
                                      vector<Mass *> massSpans) {
 //---------------------------------------------------------------------------
-
+    int tPerCon = 1;
+    if (!population.empty()) {
+        tPerCon = tsSave.size() / population.size();
+    }
+    qDebug() << "tsSave" << tsSave.size() << tPerCon;
     for (int s = 0; s < tsSave.size(); s++) {
         Spring *n = new Spring(tsSave[s]);
         n->setMasses(massSpans[s*2], massSpans[s*2+1]);
@@ -1847,8 +2641,78 @@ void MassDisplacer::combineMassTiles(Simulation *sim, vector<MassGroup *> &massG
         //n->_left->m = n->_left->m / (1 - 1.0/(n->_left->ref_count + 1));
         //n->_right->m = n->_right->m / (1 - 1.0/(n->_right->ref_count + 1));
 
-        sim->createSpring(n);
+        int iCon = floor(float(s) / tPerCon);
+        if (population.empty())
+            sim->createSpring(n);
+        else
+            population[iCon]->add(sim->createSpring(n));
+
+        int i = springOpacities.size() - s - 1;
+        //springOpacities[i] = 0.2;
+        if (!springColors.empty()) springColors[i] = Vec(0.0, 0.0, 1.0);
     }
+
+    //Graphics
+    if (!springColors.empty()) {
+        Vec color = Vec(0.8, 0.4, 0.8);
+        for (int s = 0; s < sim->springs.size(); s++) {
+            int m = 0;
+            for (MassGroup *mg : massGroups) {
+                if (find(mg->springs.begin(), mg->springs.end(), sim->springs[s]) != mg->springs.end()) {
+                    springColors[s] = color * Vec(float(m + 1) / massGroups.size(),
+                                                  float(massGroups.size() - m) / massGroups.size(), 1.0);
+                }
+                m++;
+            }
+        }
+    }
+}
+
+
+//---------------------------------------------------------------------------
+void MassDisplacer::combineMassTiles(MassDisplacer::MassContainerBlock *block) {
+//---------------------------------------------------------------------------
+
+    for (int s = 0; s < block->save.size(); s++) {
+        Spring *n = new Spring(block->save[s]);
+        n->setMasses(block->massSpans[s*2], block->massSpans[s*2+1]);
+        for (MassGroup *mg : block->groups) {
+            if (n->_left == mg->displaced) {
+                qDebug() << "Connected spring" << n->_rest;
+                double origLen = n->_rest;
+                n->_rest = (n->_right->origpos - mg->displaced->origpos).norm();
+                if (n->_rest < 0.001) {
+                    n->_rest = origLen;
+                    mg->testEnergy = FLT_MAX; // Automatically reject
+                }
+                n->_k *= origLen / n->_rest;
+                qDebug() << "Set" << n->_k << n->_rest;
+            }
+            if (n->_right == mg->displaced) {
+                qDebug() << "Connected spring" << n->_rest;
+                double origLen = n->_rest;
+                n->_rest = (n->_left->origpos - mg->displaced->origpos).norm();
+                if (n->_rest < 0.001) {
+                    n->_rest = origLen;
+                    mg->testEnergy = FLT_MAX; // Automatically reject
+                }
+                n->_k *= origLen / n->_rest;
+            }
+        }
+
+        block->container->add(sim->createSpring(n));
+
+        int i = springOpacities.size() - s - 1;
+        springOpacities[i] = 0.2;
+    }
+    for (MassGroup *mg: block->groups) {
+        for (int m = 0; m < mg->edge.size(); m++) {
+            mg->edge[m]->extforce = mg->startForce[m];
+        }
+    }
+    block->groups.clear();
+    block->massToGroupMap.clear();
+    block->separate.clear();
 }
 
 

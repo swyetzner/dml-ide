@@ -123,7 +123,8 @@ private:
 
     void addColor(GLfloat *buffer, const GLfloat *color, int &count);
     void addMassColor(Mass *mass, GLfloat *buffer, int &count);
-    void addSpringColor(Spring *spring, double totalStress, double totalForce, uint index, GLfloat *buffer, int &count);
+    void addSpringColor(Spring *spring, float opacity, double totalStress, double totalForce, uint index,
+            GLfloat *buffer, int &count, float *color = nullptr);
 
     void initCamera();
     vector<QVector3D> getBoundingBox();

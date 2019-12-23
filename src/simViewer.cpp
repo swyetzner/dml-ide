@@ -249,7 +249,7 @@ static const char *depthQuadFragSource =
 static const GLfloat defaultMassColor[] = { 0.2f, 5.0f, 0.0f, 1.0f };
 static const GLfloat fixedMassColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
 static const GLfloat forceMassColor[] = { 0.0f, 0.0f, 1.0f, 1.0f };
-static const GLfloat defaultSpringColor[] = { 0.5, 1.0, 0.0, 0.1 };
+static const GLfloat defaultSpringColor[] = { 0.5, 1.0, 0.0, 1.0f };
 static const GLfloat expandSpringColor[] = { 0.5, 1.0, 0.0, 1.0 };
 static const GLfloat contractSpringColor[] = { 0.7, 0.0, 1.0, 1.0 };
 static const GLfloat actuatedSpringColor[] = { 0.3, 1.0, 0.9, 1.0 };
@@ -266,7 +266,9 @@ void SimViewer::updatePairVertices() {
 
     if (resizeBuffers) {
         if (simulator->sim->containers.size() <= 1) n_springs = simulator->sim->springs.size();
-        else n_springs = simulator->sim->containers.front()->springs.size();
+        else
+            n_springs = simulator->sim->containers[0]->springs.size();
+        //n_springs = simulator->sim->springs.size();
         delete pairVertices;
         pairVertices = new GLfloat[2 * 3 * n_springs];
     }
@@ -276,7 +278,11 @@ void SimViewer::updatePairVertices() {
 
     for (int i = 0; i < n_springs; i++) {
         GLfloat *p = pairVertices + verticesCount;
-        Spring *s = simulator->sim->getSpringByIndex(i);
+        Spring *s;
+        if (simulator->sim->containers.size() <= 1)
+            s = simulator->sim->getSpringByIndex(i);
+        else
+            s = simulator->sim->getSpringByIndex(i);
 
         Mass *m = s->_left;
 
@@ -391,7 +397,8 @@ void SimViewer::addMassColor(Mass *mass, GLfloat *buffer, int &count) {
 //  ----- addSpringColor()
 //  Fills a color buffer with two 4-float colors based on spring type
 //
-void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalForce, uint index, GLfloat *buffer, int &count) {
+void SimViewer::addSpringColor(Spring *spring, float opacity, double totalStress, double totalForce,
+        uint index, GLfloat *buffer, int &count, float *color) {
     if (spring->_broken) {
 
         addColor(buffer, brokenSpringColor, count);
@@ -400,8 +407,19 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
 
     }
 
-
     GLfloat  * springColor = new GLfloat[4];
+    if (color) {
+        springColor[0] = color[0];
+        springColor[1] = color[1];
+        springColor[2] = color[2];
+        springColor[3] = opacity;
+
+        addColor(buffer, springColor, count);
+        addColor(buffer, springColor, count);
+        return;
+    }
+
+
     switch (springVisual.colorScheme) {
         case SpringVisual::NOTHING:
 
@@ -414,7 +432,8 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
             GUtils::interpolateColors(contractSpringColor, expandSpringColor, -totalForce, totalForce,
                                       spring->_curr_force, springColor);
             // Interpolate alpha
-            springColor[3] = GUtils::interpolate(0.01, 1.0, 0.0, 1.0, fabs(spring->_curr_force) / totalForce);
+            springColor[3] = opacity;
+            //springColor[3] = GUtils::interpolate(0.01, 1.0, 0.0, 1.0, fabs(spring->_curr_force) / totalForce);
 
             addColor(buffer, springColor, count);
             addColor(buffer, springColor, count);
@@ -458,14 +477,20 @@ void SimViewer::updateColors() {
     int colorsCount = 0;
     int n_springs;
     if (simulator->sim->containers.size() <= 1) n_springs = simulator->sim->springs.size();
-    else n_springs = simulator->sim->containers.front()->springs.size();
+    else
+        n_springs = simulator->sim->containers[0]->springs.size();
+    //n_springs = simulator->sim->springs.size();
     if (resizeBuffers) {
         delete colors;
         colors = new GLfloat[2 * 4 * (2 * n_springs)];
     }
 
+    graphics_properties properties;
+    simulator->getGraphicsProperties(properties);
+
     for (int i = 0; i < n_springs; i++) {
-        Spring *s = simulator->sim->getSpringByIndex(i);
+        Spring *s;
+        s = simulator->sim->getSpringByIndex(i);
 
         // MASS VERTEX COLORS
         Mass *m1 = s->_left;
@@ -485,7 +510,7 @@ void SimViewer::updateColors() {
             }
         }
         else {
-            for (Spring *s: simulator->sim->containers.front()->springs) {
+            for (Spring *s: simulator->sim->containers[0]->springs) {
                 totalStress = fmax(totalStress, s->_max_stress);
                 totalForce = fmax(totalForce, fabs(s->_curr_force));
             }
@@ -496,7 +521,17 @@ void SimViewer::updateColors() {
         Spring *s = simulator->sim->getSpringByIndex(i);
 
         // SPRING VERTEX COLORS
-        addSpringColor(s, totalStress, totalForce, i, colors, colorsCount);
+        if (properties.spring_colors.empty())
+            addSpringColor(s, properties.spring_opacities[i], totalStress, totalForce, i, colors, colorsCount);
+        else {
+            float *overrideColor = new float[3];
+            overrideColor[0] = properties.spring_colors[i][0];
+            overrideColor[1] = properties.spring_colors[i][1];
+            overrideColor[2] = properties.spring_colors[i][2];
+            addSpringColor(s, properties.spring_opacities[i], totalStress, totalForce, i,
+                           colors, colorsCount, overrideColor);
+            delete[] overrideColor;
+        }
     }
 }
 
@@ -506,8 +541,10 @@ void SimViewer::updateColors() {
 void SimViewer::updateDiameters() {
     int diamCount = 0;
     int n_springs;
-    if (simulator->sim->containers.size() <= 1) n_springs = simulator->sim->springs.size();
-    else n_springs = simulator->sim->containers.front()->springs.size();
+    if (simulator->sim->containers.size() <= 1)
+        n_springs = simulator->sim->springs.size();
+    else
+        n_springs = simulator->sim->containers[0]->springs.size();
     if (resizeBuffers) {
         delete diameters;
         diameters = new GLfloat[2 * n_springs];
@@ -515,7 +552,11 @@ void SimViewer::updateDiameters() {
 
     for (int i = 0; i < n_springs; i++) {
         GLfloat *p = diameters + diamCount;
-        Spring *s = simulator->sim->getSpringByIndex(i);
+        Spring *s;
+        if (simulator->sim->containers.size() <= 1)
+            s = simulator->sim->getSpringByIndex(i);
+        else
+            s = simulator->sim->getSpringByIndex(i);
 
         *p++ = s->_diam;
         *p++ = s->_diam;
@@ -1158,8 +1199,10 @@ void SimViewer::paintGL() {
     glClearColor(0, 0, 0, 0);
 
     int s_springs;
-    if (simulator->sim->containers.size() <= 1) s_springs = simulator->sim->springs.size();
-    else s_springs = simulator->sim->containers.front()->springs.size();
+    if (simulator->sim->containers.size() <= 1)
+        s_springs = simulator->sim->springs.size();
+    else
+        s_springs = simulator->sim->containers[1]->springs.size();
     if (n_springs != s_springs) {
         resizeBuffers = true;
     }

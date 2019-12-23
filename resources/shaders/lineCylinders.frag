@@ -45,5 +45,5 @@ void main() {
 
     vec3 color = fColor.rgb;
     vec3 clColor = clamp(color * 0.4 + color * 0.6 * NL, 0.0, 1.0);
-    fragColor = vec4(clColor, 1.0);
+    fragColor = vec4(clColor, fColor.a);
 }

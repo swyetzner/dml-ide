@@ -41,6 +41,10 @@ public:
     void sortMasses_stress(vector<uint> &output_indices);
     int settleSim(double eps, bool use_cap=false, double cap=0);
 
+    // Extra graphics properties
+    vector<Vec> springColors;
+    vector<float> springOpacities;
+
     struct VolumeConstraint {
         double minX, minY, minZ;
         double maxX, maxY, maxZ;
@@ -157,28 +161,44 @@ public:
         double testEnergy = 0;
 
         Vec dx;
+        int di;
         vector<Mass *> displacedList;
         vector<Vec> displacements;
         Vec displaceOrigPos;
         vector<Vec> startPos;
         vector<double> startMass;
         vector<double> startRest;
+        vector<Vec> startForce;
         vector<Mass *> fixed;
         vector<Spring> groupStart;
 
     } massGroup;
+
+    // Struct coupling a Container and MassGroups
+    struct MassContainerBlock {
+
+        Container * container;
+        vector<MassGroup *> groups;
+        map<Mass *, MassGroup *> massToGroupMap;
+        vector<Spring *> separate;
+        vector<Spring> save;
+        vector<Mass *> massSpans;
+        vector<double> metrics;
+    };
 
     vector<MassGroup *> massGroups;
     map<Mass *, MassGroup *> massGroupMap;
     vector<Spring *> trenchSprings;
     int gridSize[3];
     Vec gridOffset; // Current mass group offset
-    Vec dimensions; // Dimensions of simulation
+    Vec dimensions[2]; // Dimensions of simulation
     double unit; // Unit for mass group cubes
     double springUnit; // Unit for mass separation
 
     int popSize;
     vector<Container *> population;
+    vector<MassContainerBlock *> blockPopulation;
+
 
     // Struct holding separation grid information
     struct TrenchGrid {
@@ -210,15 +230,22 @@ private:
     void createMassGroup(Simulation *sim, double cutoff, Mass *center, MassGroup &massGroup);
     void createPopulation(Simulation *sim, Container *orig, int size, vector<Container *> &population);
     void deletePopulation(Simulation *sim, vector<Container *> &population);
+    void createBlockPopulation(Simulation *sim, Container *orig, int size, vector<MassContainerBlock *> &population);
     void createMassGroup(Simulation *sim, Vec minc, Vec maxc, MassGroup &massGroup);
+    void createMassGroup(Container *con, Vec minc, Vec maxc, MassGroup &massGroup);
+    void createBlockMassGroup(MassContainerBlock *block, Vec minc, Vec maxc, MassGroup &massGroup);
     void createMassTiles(Simulation *sim, double unit, Vec offset, vector<MassGroup *> &massGroups,
             map<Mass *, MassGroup *> &massGroupMap, vector<Spring *> &trenchSprings);
+    void createMassBlockTiles(MassContainerBlock * block, Vec minPos, Vec maxPos,  double unit, Vec offset);
     int createTile(int n, int i, double width, double offset, double minPos, double &tileStart, double &tileEnd);
     void createMassGroupGrid(Simulation *sim, const TrenchGrid &trenchGrid, vector<MassGroup> &mgs);
+    void createMassClusters(Simulation *sim, double unit, vector<MassGroup *> &groups, vector<Spring *> &trenches);
     void splitMassTiles(Simulation *sim, vector<MassGroup *> &mgs, vector<Spring *> &tsSim, vector<Spring> &tsSave,
             vector<Mass *> &massSpans);
+    void splitMassTiles(MassContainerBlock *block);
     void combineMassTiles(Simulation *sim, vector<MassGroup *> &massGroups, vector<Spring> &tsSave,
             vector<Mass *> massSpans);
+    void combineMassTiles(MassContainerBlock *block);
     void addBorders(vector<Spring *> &borders);
     void eraseBorders(vector<Spring *> &borders);
     void resetPopulation(Container *success, Container *orig, vector<Container *> &population);
@@ -238,6 +265,7 @@ private:
     int displaceSingleMass(double displacement, double chunkSize, int metricOrder);
     int displaceGroupMass(double displacement);
     int displacePopMass(double displacement);
+    int displaceSplitPopMass(double displacement);
 };
 
 
