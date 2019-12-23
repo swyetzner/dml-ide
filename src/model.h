@@ -280,7 +280,7 @@ struct model_data {
 
             //qDebug() << "p " << p.x << p.y << p.z;
 
-            if (intersectPlane && p.x > point.x && p.y > point.y && p.z > point.z) {
+            if (intersectPlane && p.x > point.x + 1E-6 && p.y > point.y + 1E-6 && p.z > point.z + 1E-6) {
 
                 if (Utils::insideTriangle(vertices[i], vertices[i+1], vertices[i+2], p)) {
                     intersections++;

@@ -596,7 +596,7 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
 
         for (int k = j+1; k < sim->masses.size(); k++) {
             Mass *massk = sim->masses[k];
-            double dist = (massj->pos - massk->pos).norm();
+            double dist = (massj->origpos - massk->origpos).norm();
 
             kCutoff = arrays->pointOrigins.at(k)->unit[0] * springMult;
 
@@ -1234,16 +1234,16 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         }
     }
 
-
+        vector<float> sumDistsStore = vector<float>();
+        for (auto c: candidates) {
+            sumDistsStore.push_back(0.0f);
+        }
         while (maxLength >= cutoff && candidates.size() > 0) {
 
             // Find point furthest from original point
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
-            vector<float> sumDistsStore = vector<float>();
-            for (auto c: candidates) {
-                sumDistsStore.push_back(0.0f);
-            }
+
 
             for (uint i = 0; i < candidates.size(); i++) {
                 bool reject = false;
@@ -1251,22 +1251,23 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 float sumDists = 0.0f;
                 float distFromPoint;
 
-                if (latticeTemp.size() > 0) {
-                    vec3 l = latticeTemp.back();
-                    distFromPoint = length(candidates[i] - l);
+                vec3 l = latticeTemp.back();
+                distFromPoint = length(candidates[i] - l);
 
-                    if (distFromPoint < cutoff) {
-                        candidates.erase(candidates.begin() + i);
-                        sumDistsStore.erase(sumDistsStore.begin() + i);
-                        i--;
-                        continue;
-                    }
-                    sumDistsStore[i] += distFromPoint;
+                if (distFromPoint < cutoff) {
+                    candidates.erase(candidates.begin() + i);
+                    sumDistsStore.erase(sumDistsStore.begin() + i);
+                    i--;
+                    continue;
                 }
+                assert(sumDistsStore.size() == candidates.size());
+                sumDistsStore[i] += distFromPoint;
 
                 if (sumDistsStore[i] > maxDistFromPoints) {
                     maxDistFromPoints = sumDistsStore[i];
                     iFarthest = i;
+                } else {
+                    sumDistsStore[i] -= distFromPoint;
                 }
             }
 
@@ -1281,6 +1282,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 latticeTemp.push_back(candidates[iFarthest]);
                 pointOrigins.push_back(latticeBox);
                 candidates.erase(candidates.begin() + iFarthest);
+                sumDistsStore.erase(sumDistsStore.begin() + iFarthest);
             }
             qDebug() << "Added to lattice" << latticeTemp.size();
         }
