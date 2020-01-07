@@ -333,7 +333,7 @@ void Simulator::run() {
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
-        qDebug() << "Synced to CPU" << sim->springs.size();
+        qDebug() << "Synced to CPU" << sim->springs.size() << sim->masses.size();
         totalLength_prev = totalLength;
         totalLength = 0;
         double maxForce = 0;
@@ -448,7 +448,7 @@ void Simulator::run() {
                             writeMetric(metricFile);
 
                             optimized++;
-                            n_repeats = 0;
+                            //n_repeats = 0;
 
 
                             n_masses = int(sim->masses.size());

@@ -22,8 +22,9 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     // Set model constants
     n_models = long(design->volumes.size());
     n_modelVertices = new long(n_models);
-    for (uint i = 0; i < uint(n_models); i++)
+    for (uint i = 0; i < uint(n_models); i++) {
         n_modelVertices[i] = design->volumes[i]->model->n_vertices;
+    }
 
     // Set activate models to true
     activateModel = new bool(n_models);
@@ -44,6 +45,8 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     getBoundingBox();
     m_dim = (m_minCorner - m_maxCorner).length();
     if (m_dim != 0.0f) m_zoom = 0.4f / m_dim;
+
+    qDebug() << "Initialized DesignViewer";
 }
 
 // --------------------------------------------------------------------
@@ -510,6 +513,7 @@ void DesignViewer::drawModels() {
 //
 void DesignViewer::cleanUp() {
 
+    qDebug() << "In cleanup";
     if (shaderProgram == nullptr || guideShaderProgram == nullptr)
         return;
 
@@ -523,13 +527,12 @@ void DesignViewer::cleanUp() {
     glDeleteFramebuffers(1, &depthFrameBuff_id);
 
     delete vertexBuff_ids;
+    delete normalBuff_ids;
     delete colorBuff_ids;
     delete activateModel;
     delete n_modelVertices;
     delete shaderProgram;
     delete guideShaderProgram;
-    shaderProgram = nullptr;
-    guideShaderProgram = nullptr;
     doneCurrent();
 }
 
@@ -583,6 +586,7 @@ void DesignViewer::getBoundingBox() {
 //
 void DesignViewer::initializeGL() {
 
+    qDebug() << "In initialize";
     connect(context(), &QOpenGLContext::aboutToBeDestroyed, this, &DesignViewer::cleanUp);
 
     initializeOpenGLFunctions();
@@ -595,6 +599,8 @@ void DesignViewer::initializeGL() {
     camera.translate(0, 0, -1);
     eye = QVector3D(0, 0, 1);
     camera.lookAt(eye, QVector3D(0, 0, 0), QVector3D(0, 1, 0));
+
+    qDebug() << "Initialized GL";
 }
 
 
@@ -603,6 +609,7 @@ void DesignViewer::initializeGL() {
 //  Called every frame update
 //
 void DesignViewer::paintGL() {
+    qDebug() << "In paintGL";
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -614,6 +621,8 @@ void DesignViewer::paintGL() {
     updateShader();
     //updateBuffers();
     drawVertexArray();
+
+    qDebug() << "Paint GL";
 }
 
 
@@ -622,6 +631,7 @@ void DesignViewer::paintGL() {
 //  Called for window resizing
 //
 void DesignViewer::resizeGL(int width, int height) {
+    qDebug() << "In resizeGL";
     projection.setToIdentity();
     projection.perspective(45.0f, GLfloat(width) / height, nearPlane, farPlane);
     frameWidth = width;

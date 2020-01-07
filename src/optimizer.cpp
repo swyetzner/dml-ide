@@ -179,6 +179,7 @@ void SpringRemover::optimize() {
 
     if (n_springs > n_springs_start * stopRatio) {
         map<Spring *, bool> springsToDelete = map<Spring *, bool>();
+        map<Mass *, bool> massesToDelete = map<Mass *, bool>();
         map<Spring *, bool> hangingCandidates = map<Spring *, bool>();
 
         uint toRemove = stepRatio > 0 ?  uint(stepRatio * sim->springs.size()): 1;
@@ -317,7 +318,6 @@ void SpringRemover::optimize() {
             }
             qDebug() << "Hanging springs" << hangingSprings;
             qDebug() << "New candidates" << newCandidates.size();
-            hangingCandidates.clear();
             hangingCandidates = newCandidates;
         }
 
@@ -335,7 +335,27 @@ void SpringRemover::optimize() {
         }
         qDebug() << "Deleted springs";
         for (Spring *s : sim->springs) {
-            s->_max_stress *= 0.9;
+            //s->_max_stress *= 0;
+        }
+
+        // Remove masses
+        for (Mass *m : sim->masses) {
+            if (massToSpringMap[m].empty()) {
+                massesToDelete[m] = true;
+            } else {
+                massesToDelete[m] = false;
+            }
+        }
+        i = 0;
+        while (i < sim->masses.size()) {
+            if (sim->masses[i] != nullptr && massesToDelete[sim->masses[i]]) {
+                sim->deleteMass(sim->masses[i]);
+                i--;
+            }
+            i++;
+        }
+        for (i = 0; i < sim->masses.size(); i++) {
+            sim->masses[i]->index = i;
         }
 
         sim->setAll(); // Set spring stresses and mass value updates on GPU

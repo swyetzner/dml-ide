@@ -929,7 +929,7 @@ void SimViewer::drawVertexArray() {
     axesShaderProgram->bind();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    GUtils::drawMainAxes(4, axesVertexBuff_id);
+    //GUtils::drawMainAxes(4, axesVertexBuff_id);
     axesShaderProgram->release();
 
 
@@ -1143,7 +1143,7 @@ void SimViewer::paintGL() {
     glEnable(GL_DEPTH_CLAMP);
     glEnable(GL_MULTISAMPLE);
 
-    glClearColor(0, 0, 0, 0);
+    glClearColor(1, 1, 1, 1);
 
     if (n_springs != int(simulator->sim->springs.size())) {
         resizeBuffers = true;

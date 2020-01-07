@@ -452,11 +452,12 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     case LatticeConfig::BARS:
                         for (Mass *m : sim->masses) {
                             m->m = 0;
+                            m->density = d * unit;
                         }
                         double totalM = 0;
                         for (Spring *s : sim->springs) {
                             // get volume for half
-                            double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
+                            double vol = s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
                             qDebug() << vol << s->_rest / 2 << s->_diam / 2;
                             double m = vol * d * unit;
                             //s->_mass = 2 * m;
