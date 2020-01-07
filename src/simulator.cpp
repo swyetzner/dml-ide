@@ -347,6 +347,8 @@ void Simulator::run() {
 
         posFile << '\n';
 
+        posFile.close();
+
 
         qDebug() << "About to step" << sim;
         sim->step(renderTimeStep);

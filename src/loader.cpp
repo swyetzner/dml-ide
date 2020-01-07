@@ -1499,7 +1499,6 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
          if (mass_i >= 0) {
              k_vals.push_back(Eigen::Triplet<double>(mass_i, mass_i, temp_k));
-             Kfile << mass_i << ',' << mass_
          }
 
          if (mass_j >= 0) {
