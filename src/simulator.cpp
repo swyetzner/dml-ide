@@ -333,7 +333,7 @@ void Simulator::run() {
         ofstream posFile;
         posFile.open("pos.txt", ios::app);
 
-        posFile << sim->() << ',';
+        posFile << sim->time() << ',';
 
         int n_masses = sim->masses.size();
 
