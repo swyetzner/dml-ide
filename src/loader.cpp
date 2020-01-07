@@ -1491,6 +1491,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      vector<Eigen::Triplet<double>> k_vals;
      k_vals.reserve(n_masses*4);
 
+
      for (Spring * spring: sim->springs) {
          double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
          int mass_i = mass_ind[spring->getLeft()];
@@ -1498,6 +1499,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
          if (mass_i >= 0) {
              k_vals.push_back(Eigen::Triplet<double>(mass_i, mass_i, temp_k));
+             Kfile << mass_i << ',' << mass_
          }
 
          if (mass_j >= 0) {
@@ -1513,6 +1515,24 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      Eigen::SparseMatrix<double> k(n,n);
      k.setFromTriplets(k_vals.begin(), k_vals.end());
+
+     ofstream Kfile;
+     Kfile.open('K.csv');
+     for (int i=0; i<k.outerSize(); ++i) {
+         for (Eigen::SparseMatrix<double>::InnerIterator it(k, i); it; ++it) {
+             cout << it.value() << ',' << it.row() << ',' << it.col() << '\n';
+         }
+     }
+     Kfile.close();
+
+     ofstream Mfile;
+     Kfile.open('M.csv');
+     for (int i=0; i<m.outerSize(); ++i) {
+         for (Eigen::SparseMatrix<double>::InnerIterator it(m, i); it; ++it) {
+             cout << it.value() << ',' << it.row() << ',' << it.col() << '\n';
+         }
+     }
+     Mfile.close();
 
      // Set up the generalized eigenvalue solver
      Spectra::SparseSymMatProd<double> op(m);

@@ -6,6 +6,7 @@
 #include <QProgressDialog>
 #include <QTextStream>
 #include <glm/glm.hpp>
+#include <fstream>
 #include "model.h"
 #include "utils.h"
 #include "Eigen/SparseCore"
