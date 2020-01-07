@@ -1517,7 +1517,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      k.setFromTriplets(k_vals.begin(), k_vals.end());
 
      ofstream Kfile;
-     Kfile.open('K.csv');
+     Kfile.open("K.csv");
      for (int i=0; i<k.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(k, i); it; ++it) {
              cout << it.value() << ',' << it.row() << ',' << it.col() << '\n';
@@ -1526,7 +1526,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      Kfile.close();
 
      ofstream Mfile;
-     Kfile.open('M.csv');
+     Kfile.open("M.csv");
      for (int i=0; i<m.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(m, i); it; ++it) {
              cout << it.value() << ',' << it.row() << ',' << it.col() << '\n';
