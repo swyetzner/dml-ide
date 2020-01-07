@@ -24,7 +24,7 @@ void qtNoDebugMessageOutput(QtMsgType type, const QMessageLogContext &context, c
     }
 }
 
-void loadNoGraphics(std::string input, double gstep, double rstep, std::string dpath) {
+void loadNoGraphics(std::string input, double gstep, double rstep, std::string dpath, bool stlExport) {
 
     Design *design = new Design();
     Simulation *simulation = new Simulation();
@@ -42,7 +42,7 @@ void loadNoGraphics(std::string input, double gstep, double rstep, std::string d
     cout << "Loading complete.\n\n";
 
     qInstallMessageHandler(qtNoDebugMessageOutput);
-    Simulator *simulator = new Simulator(simulation, loader, &design->simConfigs[0], design->optConfig);
+    Simulator *simulator = new Simulator(simulation, loader, &design->simConfigs[0], design->optConfig, false, stlExport);
     simulator->setSimTimestep(gstep);
     simulator->setSyncTimestep(rstep);
     if (!dpath.empty()) simulator->setDataDir(dpath);
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     if (!dmlInput.empty()) {
 
         bool graphics = CommandLine::graphicsUI;
+        bool noExportSTL = CommandLine::noExportSTL? CommandLine::noExportSTL.Get() : false;
         double gpuTimestep = CommandLine::gpuTimestep? CommandLine::gpuTimestep.Get() : 1E-4;
         double renderTimestep = CommandLine::renderTimestep? CommandLine::renderTimestep.Get() : 5E-3;
         string outputDataPath = CommandLine::outputDataPath? CommandLine::outputDataPath.Get(): "";
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]) {
         if (!graphics) {
 
             cout << "\n\nLoading without a graphical user interface...\n\n";
-            loadNoGraphics(dmlInput, gpuTimestep, renderTimestep, outputDataPath);
+            loadNoGraphics(dmlInput, gpuTimestep, renderTimestep, outputDataPath, !noExportSTL);
 
         }
         QApplication a(argc, argv);

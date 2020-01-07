@@ -33,7 +33,7 @@ struct sim_metrics {
 class Simulator {
 public:
     explicit Simulator(Simulation *sim, Loader *loader, SimulationConfig *config,
-            OptimizationConfig * optconfig = nullptr, bool graphics = false);
+            OptimizationConfig * optconfig = nullptr, bool graphics = false, bool endExport = true);
     ~Simulator();
 
     enum Status {
@@ -56,6 +56,7 @@ public:
 
     Status simStatus;
     bool GRAPHICS;
+    bool EXPORT;
 
     // --------------------------------------------------------------------
     // SIMULATION  FUNCTIONS

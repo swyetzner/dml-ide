@@ -1,7 +1,8 @@
 #include "simulator.h"
 #include <QDir>
 
-Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, OptimizationConfig *optConfig, bool graphics) {
+Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, OptimizationConfig *optConfig,
+        bool graphics, bool endExport) {
     this->sim = sim;
     this->config = config;
     this->optConfig = optConfig;
@@ -44,6 +45,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     barData = nullptr;
     GRAPHICS = graphics;
+    EXPORT = endExport;
 
     relaxation = 3000;
 
@@ -449,7 +451,7 @@ void Simulator::run() {
                             optimizer->optimize();
 
                             optimized++;
-                            n_repeats = optimizeAfter - 1;
+                            n_repeats = optimizeAfter > 0? optimizeAfter - 1 : 0;
 
 
                             n_masses = int(sim->masses.size());
@@ -474,7 +476,7 @@ void Simulator::run() {
         if (stopReached) {
             simStatus = STOPPED;
             dumpSpringData();
-            exportSimulation();
+            if (EXPORT) exportSimulation();
             exit(0);
         }
     }
