@@ -1525,7 +1525,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      Kfile.close();
 
      ofstream Mfile;
-     Kfile.open("M.csv");
+     Mfile.open("M.csv");
      for (int i=0; i<m.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(m, i); it; ++it) {
              Mfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
