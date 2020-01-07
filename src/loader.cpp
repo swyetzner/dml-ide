@@ -1240,7 +1240,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         }
         while (maxLength >= cutoff && candidates.size() > 0) {
 
-            // Find point furthest from original point
+            // Find point furthest from existing points
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
 
@@ -1266,8 +1266,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 if (sumDistsStore[i] > maxDistFromPoints) {
                     maxDistFromPoints = sumDistsStore[i];
                     iFarthest = i;
-                } else {
-                    sumDistsStore[i] -= distFromPoint;
                 }
             }
 
