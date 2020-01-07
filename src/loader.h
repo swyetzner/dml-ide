@@ -7,6 +7,7 @@
 #include <QTextStream>
 #include <glm/glm.hpp>
 #include <fstream>
+#include <iostream>
 #include "model.h"
 #include "utils.h"
 #include "Eigen/SparseCore"
