@@ -440,15 +440,16 @@ void Simulator::run() {
                         if ((loadQueueDone || config->repeat.afterExplicit) && optimizeAfter <= n_repeats &&
                             prevSteps >= r.frequency && !stopReached) {
 
-                            if (!optimized) {
+                            if (!optimized && n_repeats == 0) {
                                 writeMetricHeader(metricFile);
                             }
 
-                            optimizer->optimize();
+                            qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
+                            optimizer->optimize();
 
                             optimized++;
-                            //n_repeats = 0;
+                            n_repeats = optimizeAfter - 1;
 
 
                             n_masses = int(sim->masses.size());
@@ -483,6 +484,11 @@ void Simulator::run() {
 void Simulator::repeatLoad() {
 
     if (!sim->running()) {
+
+        if (n_repeats == 0) {
+            writeMetricHeader(metricFile);
+        }
+        writeMetric(metricFile);
 
         // Get rotation
         Vec rotation;
@@ -698,6 +704,14 @@ double Simulator::calcDeflection() {
             }
         }
         deflection /= points.size();
+    } else {
+        assert(!sim->masses.empty());
+        Mass *refMass = sim->masses.front();
+        for (Mass *m : sim->masses) {
+            double origDist = (m->origpos - refMass->origpos).norm();
+            double newDist = (m->pos - refMass->pos).norm();
+            deflection += fabs(newDist - origDist);
+        }
     }
     return deflection;
 }
