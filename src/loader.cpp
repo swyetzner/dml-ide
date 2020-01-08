@@ -1477,7 +1477,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
          if (m_temp->constraints.fixed) {
              mass_ind[i] = -1;
-             Afile << i << '\n';
+             AFile << i << '\n';
          } else {
              mass_ind[i] = n;
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
