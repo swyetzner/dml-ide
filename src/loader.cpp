@@ -1490,6 +1490,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      }
 
      AFile.close();
+     pos << '\n';
      pos.close();
 
      Eigen::SparseMatrix<double> m(n,n);
