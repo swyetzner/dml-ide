@@ -329,26 +329,6 @@ void Simulator::run() {
             }
         }
 
-        // Write all positions to file
-        ofstream posFile;
-        posFile.open("pos.txt", ios::app);
-
-        posFile << sim->time() << ',';
-
-        int n_masses = sim->masses.size();
-
-        for (int i = 0; i < n_masses; i++) {
-            Mass *m_temp = sim->getMassByIndex(i);
-
-            if (!m_temp->constraints.fixed) {
-                posFile << m_temp->pos << ',';
-            }
-        }
-
-        posFile << '\n';
-
-        posFile.close();
-
 
         qDebug() << "About to step" << sim;
         sim->step(renderTimeStep);
@@ -485,6 +465,26 @@ void Simulator::run() {
                 }
             }
         }
+
+        // Write all positions to file
+        ofstream posFile;
+        posFile.open("pos.txt", ios::app);
+
+        posFile << sim->time() << ',';
+
+        int n_masses = sim->masses.size();
+
+        for (int i = 0; i < n_masses; i++) {
+            Mass *m_temp = sim->getMassByIndex(i);
+
+            if (!m_temp->constraints.fixed) {
+                posFile << m_temp->pos << ',';
+            }
+        }
+
+        posFile << '\n';
+
+        posFile.close();
 
 
         steps += long(renderTimeStep / sim->masses.front()->dt);

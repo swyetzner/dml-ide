@@ -1484,9 +1484,15 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      Eigen::SparseVector<double> f = Eigen::SparseVector<double>(n);
 
+     ofstream Ffile;
+     Ffile.open("F.csv");
+
      for (int i : forceIndices) {
          f.coeffRef(i) = 1.0;
+         Ffile << i << ',' << sim->getMassByIndex(i)->extforce << '\n';
      }
+
+     Ffile.close();
 
      vector<Eigen::Triplet<double>> k_vals;
      k_vals.reserve(n_masses*4);
