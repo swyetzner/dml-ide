@@ -1464,20 +1464,33 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      int n = 0;
 
+     ofstream AFile;
+     AFile.open("A.csv");
+
+     ofstream pos;
+     pos.open("pos.csv");
+
+     pos << "Time";
+
      for (int i = 0; i < n_masses; i++) {
          Mass *m_temp = sim->getMassByIndex(i);
 
          if (m_temp->constraints.fixed) {
              mass_ind[i] = -1;
+             Afile << i << '\n';
          } else {
              mass_ind[i] = n;
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
+             pos << ',' << i << "x," << i << "y," << i << "z";
              if (!(m_temp -> extforce == Vec(0,0,0)))
                  forceIndices.push_back(n);
              n++;
          }
      }
+
+     AFile.close();
+     pos.close();
 
      Eigen::SparseMatrix<double> m(n,n);
      m.setFromTriplets(m_vals.begin(), m_vals.end());
