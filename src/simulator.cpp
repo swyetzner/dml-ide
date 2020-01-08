@@ -470,7 +470,7 @@ void Simulator::run() {
         ofstream posFile;
         posFile.open("pos.csv", ios::app);
 
-        posFile << sim->time() << ',';
+        posFile << sim->time();
 
         int n_masses = sim->masses.size();
 
@@ -478,7 +478,7 @@ void Simulator::run() {
             Mass *m_temp = sim->getMassByIndex(i);
 
             if (!m_temp->constraints.fixed) {
-                posFile << m_temp->pos << ',';
+                posFile << ',' << m_temp->pos;
             }
         }
 
