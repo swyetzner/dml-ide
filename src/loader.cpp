@@ -1468,7 +1468,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      AFile.open("A.csv");
 
      ofstream pos;
-     pos.open("pos.csv");
+     pos.open("pos.csv", ios::app);
 
      pos << "Time";
 
