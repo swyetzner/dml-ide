@@ -1472,7 +1472,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      pos << "Time";
 
-     std::String origPos = "0";
+     std::string origPos = "0";
 
      for (int i = 0; i < n_masses; i++) {
          Mass *m_temp = sim->getMassByIndex(i);
@@ -1485,7 +1485,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
              pos << ',' << n << "x," << n << "y," << n << "z";
-             origPos += ',' << m_temp->pos.data[0]  << ',' << m_temp->pos.data[1] << ',' << m_temp->pos.data[2];
+             origPos += (',' + m_temp->pos.data[0]  + ',' + m_temp->pos.data[1] + ',' + m_temp->pos.data[2]);
              if (!(m_temp -> extforce == Vec(0,0,0)))
                  forceIndices.push_back(n);
              n++;
