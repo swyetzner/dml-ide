@@ -1485,7 +1485,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
              pos << ',' << n << "x," << n << "y," << n << "z";
-             origPos += (',' + m_temp->pos.data[0]  + ',' + m_temp->pos.data[1] + ',' + m_temp->pos.data[2]);
+             origPos += (',' + std::to_string(m_temp->pos.data[0])  + ',' + std::to_string(m_temp->pos.data[1]) + ',' + std::to_string(m_temp->pos.data[2]));
              if (!(m_temp -> extforce == Vec(0,0,0)))
                  forceIndices.push_back(n);
              n++;
