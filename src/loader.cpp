@@ -1473,8 +1473,6 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      pos << "Time";
 
-     std::string origPos = "0";
-
      for (int i = 0; i < n_masses; i++) {
          Mass *m_temp = sim->getMassByIndex(i);
 
@@ -1486,7 +1484,6 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
              pos << ',' << n << "x," << n << "y," << n << "z";
-             origPos += (',' + std::to_string(m_temp->pos.data[0])  + ',' + std::to_string(m_temp->pos.data[1]) + ',' + std::to_string(m_temp->pos.data[2]));
              if (!(m_temp -> extforce == Vec(0,0,0)))
                  forceIndices.push_back(n);
              n++;
@@ -1504,8 +1501,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          }
      }
 
-
-     pos << origPos << '\n';
+     pos << '\n';
      pos.close();
 
      Eigen::SparseMatrix<double> m(n,n);
