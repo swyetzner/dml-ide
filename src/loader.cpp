@@ -1468,7 +1468,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      AFile.open("A.csv");
 
      ofstream pos;
-     pos.open("pos.csv", ios::app);
+     pos.open("pos.csv");
 
      pos << "Time";
 
@@ -1482,7 +1482,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              mass_ind[i] = n;
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
-             pos << ',' << i << "x," << i << "y," << i << "z";
+             pos << ',' << n << "x," << n << "y," << n << "z";
              if (!(m_temp -> extforce == Vec(0,0,0)))
                  forceIndices.push_back(n);
              n++;
@@ -1503,7 +1503,8 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      for (int i : forceIndices) {
          f.coeffRef(i) = 1.0;
-         Ffile << i << ',' << sim->getMassByIndex(i)->extforce << '\n';
+         Vec* force = sim->getMassbyIndex(i)->extforce
+         Ffile << i << ',' << force.data[0] << ',' << force.data[1] << ',' << force.data[2] << '\n';
      }
 
      Ffile.close();

@@ -478,7 +478,7 @@ void Simulator::run() {
             Mass *m_temp = sim->getMassByIndex(i);
 
             if (!m_temp->constraints.fixed) {
-                posFile << ',' << m_temp->pos;
+                posFile << ',' << m_temp->pos.data[0] << m_temp->pos.data[1] << m_temp->pos.data[2];
             }
         }
 
