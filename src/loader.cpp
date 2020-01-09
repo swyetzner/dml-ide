@@ -1472,7 +1472,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      pos << "Time";
 
-     String origPos = "0"
+     std::String origPos = "0";
 
      for (int i = 0; i < n_masses; i++) {
          Mass *m_temp = sim->getMassByIndex(i);
