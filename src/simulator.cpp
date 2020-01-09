@@ -469,6 +469,7 @@ void Simulator::run() {
         // Write all positions to file
         ofstream posFile;
         posFile.open("pos.csv", ios::app);
+        posFile.precision(10);
 
         posFile << sim->time();
 
