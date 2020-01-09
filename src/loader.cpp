@@ -1492,6 +1492,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      AFile.close();
      pos << '\n';
+     pos << '0';
 
      for (int i = 0; i < n_masses; i++) {
          Mass *m_temp = sim->getMassByIndex(i);
