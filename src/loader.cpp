@@ -1503,7 +1503,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      for (int i : forceIndices) {
          f.coeffRef(i) = 1.0;
-         Vec* force = sim->getMassByIndex(i)->extforce
+         Vec force = sim->getMassByIndex(i)->extforce
          Ffile << i << ',' << force.data[0] << ',' << force.data[1] << ',' << force.data[2] << '\n';
      }
 
