@@ -42,13 +42,13 @@ for ((i=4; i<= $#; i++)); do
       ./DMLIDE $outputDML/$inputFile\_${!i}.$inputExt --ne -t 1E-5 -r 5E-4 -d $trial
 
       # Check to make sure deflection is not NaN
-      deflection=`csvtool col 3 $trial/optMetrics.csv`
-      readarray -t defs <<<"$deflection"
-      for d in "${defs[@]}"; do
-        if [ "$d" == "nan" ]; then
-          success=0
-        fi
-      done
+      while IFS=, read -r -a defs; do
+        for d in ${defs[2]}; do
+          if [ "$d" == "nan" ]; then
+            success=0
+          fi
+        done
+      done < $trial/optMetrics.csv
     done
   done
 done
