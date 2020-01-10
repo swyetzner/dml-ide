@@ -935,6 +935,7 @@ public:
         method = NONE;
         threshold = 0;
         frequency = 0;
+        memory = 1;
     }
     ~OptimizationRule() = default;
 
@@ -943,6 +944,7 @@ public:
     Method method;
     double threshold;
     int frequency;
+    double memory;
 
     QString methodName() {
         switch (method) {

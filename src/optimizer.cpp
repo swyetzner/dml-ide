@@ -140,6 +140,7 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 
     this->stepRatio = removeRatio;
     this->stopRatio = stopRatio;
+    this->stressMemory = 1;
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 
     // Fill mass to spring map
@@ -335,7 +336,7 @@ void SpringRemover::optimize() {
         }
         qDebug() << "Deleted springs";
         for (Spring *s : sim->springs) {
-            //s->_max_stress *= 0;
+            s->_max_stress *= stressMemory;
         }
 
         // Remove masses

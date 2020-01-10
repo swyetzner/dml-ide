@@ -332,6 +332,7 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         QString method = dml_rul.attribute("method").value();
         QString threshold = dml_rul.attribute("threshold").value();
         int frequency = dml_rul.attribute("frequency").as_int(0);
+        double memory = dml_rul.attribute("memory").as_double(1);
 
         if (method == "remove_low_stress") {
             rule.method = OptimizationRule::REMOVE_LOW_STRESS;
@@ -346,6 +347,7 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
             rule.threshold = threshold.toDouble();
         }
         rule.frequency = frequency;
+        rule.memory = memory;
         optConfig->rules.push_back(rule);
         std::cout << "\tOptimization Rule " << rule.methodName().toStdString() << " PARSED\n";
     }

@@ -64,6 +64,7 @@ public:
     double stopRatio;
     map<Mass *, vector<Spring *>> massToSpringMap;
     double massFactor;
+    double stressMemory;
 
 protected:
     void optimize() override;

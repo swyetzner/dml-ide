@@ -539,6 +539,7 @@ void Simulator::loadOptimizers() {
                     springRemover = new SpringRemover(sim, r.threshold);
                     springRemover->massFactor = M_PI * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
                                                 config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
+                    springRemover->stressMemory = r.memory;
                     this->optimizer = springRemover;
                     qDebug() << "Created SpringRemover" << r.threshold;
                     break;
