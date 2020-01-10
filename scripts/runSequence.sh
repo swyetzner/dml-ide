@@ -6,10 +6,12 @@
 inputDML="$1"
 trialParam="$2"
 varyParam="$3"
+buildDir="$4"
 echo
 echo "Input:" $inputDML
 echo "Trials:" $trialParam
 echo "Vary:" $varyParam
+echo "Build Directory:" $buildDir
 echo
 
 # Make SCENARIOS directory
@@ -28,7 +30,7 @@ inputFile="${inputFile%.*}"
 for s in $inputPath/*.stl; do
   cp $s $outputDML
 done
-for ((i=4; i<= $#; i++)); do
+for ((i=5; i<= $#; i++)); do
   scenario=$outputDML/$varyParam\_${!i}
   mkdir $scenario
   python $PWD/scripts/generateDMLFiles.py $inputDML $varyParam ${!i} $outputDML
@@ -39,7 +41,7 @@ for ((i=4; i<= $#; i++)); do
     success=0
     while [ $success == 0 ]; do
       success=1
-      ./DMLIDE $outputDML/$inputFile\_${!i}.$inputExt --ne -t 1E-5 -r 5E-4 -d $trial
+      ./$buildDir/DMLIDE $outputDML/$inputFile\_${!i}.$inputExt --ne -t 1E-5 -r 5E-4 -d $trial
 
       # Check to make sure deflection is not NaN
       while IFS=, read -r -a defs; do
