@@ -1469,7 +1469,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream pos;
      pos.open("pos.csv");
-     pos.precision(15);
+     pos.precision(17);
 
      pos << "Time";
 
@@ -1512,7 +1512,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream Ffile;
      Ffile.open("F.csv");
-     Ffile.precision(15);
+     Ffile.precision(17);
 
      for (int i : forceIndices) {
          f.coeffRef(i) = 1.0;
@@ -1551,7 +1551,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream Kfile;
      Kfile.open("K.csv");
-     Kfile.precision(15);
+     Kfile.precision(17);
      for (int i=0; i<k.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(k, i); it; ++it) {
              Kfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
@@ -1561,7 +1561,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream Mfile;
      Mfile.open("M.csv");
-     Mfile.precision(15);
+     Mfile.precision(17);
      for (int i=0; i<m.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(m, i); it; ++it) {
              Mfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
