@@ -1484,8 +1484,10 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
              pos << ',' << n << "x," << n << "y," << n << "z";
-             if (!(m_temp -> extforce == Vec(0,0,0)))
-                 forceIndices.push_back(n);
+             if (!(m_temp -> extforce == Vec(0,0,0))) {
+                 forceIndices.push_back(i);
+             }
+
              n++;
          }
      }
@@ -1515,9 +1517,9 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      Ffile.precision(17);
 
      for (int i : forceIndices) {
-         f.coeffRef(i) = 1.0;
+         f.coeffRef(mass_ind[i]) = 1.0;
          Vec force = sim->getMassByIndex(i)->extforce;
-         Ffile << i << ',' << force.data[0] << ',' << force.data[1] << ',' << force.data[2] << '\n';
+         Ffile << mass_ind[i] << ',' << force.data[0] << ',' << force.data[1] << ',' << force.data[2] << '\n';
      }
 
      Ffile.close();
