@@ -1585,10 +1585,13 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
       * faster, this actually works in our favor. So we solve Mx=zKx, where z = 1/h. Taking the square root of the result
       * gives us our natural periods.
       */
-     int numEig = 3;
+     int numEig = 2;
+     int ncv = numEig*3;
+     ncv = ncv<= n ? ncv : n;
+
      Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double>,
              Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY>
-             geigs(&op, &Bop, numEig, numEig*2);
+             geigs(&op, &Bop, numEig, ncv);
 
      geigs.init();
      int nconv = geigs.compute();
