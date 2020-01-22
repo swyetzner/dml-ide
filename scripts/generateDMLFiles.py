@@ -24,3 +24,12 @@ for par in sys.argv[3:-1]:
                         print(opt.attrib["threshold"])
 
         tree.write(outputDML + "/" + fileName + "_" + par + ext)
+
+    if varyProp == "VESTIGIAL":
+        for child in root:
+            if child.tag == "optimization":
+                for opt in child:
+                    if opt.tag == "rule":
+                        opt.attrib["memory"] = par
+                        print(opt.attrib["memory"])
+        tree.write(outputDML + "/" + fileName + "_" + par + ext)
