@@ -1483,16 +1483,13 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              mass_ind[i] = n;
 
              pos << ',' << n << "x," << n << "y," << n << "z";
-             if (!(m_temp -> extforce == Vec(0,0,0))) {
-                 forceIndices.push_back(i);
-             }
 
              for (int j = 0; j < 3; j++)
-                m_vals.push_back(Eigen::Triplet<double>(3*n+j,3*n+j,m_temp->m));
+                 m_vals.push_back(Eigen::Triplet<double>(3*n+j,3*n+j,m_temp->m));
 
              Vec force = m_temp->extforce;
              if (!(force == Vec(0,0,0))) {
-                         forceIndices.push_back(i);
+                 forceIndices.push_back(i);
              }
              n++;
          }
