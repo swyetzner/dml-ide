@@ -1490,7 +1490,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      Eigen::SparseMatrix<double> m(3*n,3*n);
      m.setFromTriplets(m_vals.begin(), m_vals.end());
 
-     Eigen::SparseVector<double> f = Eigen::SparseVector<double>(n);
+     Eigen::SparseVector<double> f = Eigen::SparseVector<double>(3*n);
 
      for (int i : forceIndices) {
          f.coeffRef(i) = 1.0;
