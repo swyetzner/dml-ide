@@ -1471,15 +1471,23 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              mass_ind[i] = -1;
          } else {
              mass_ind[i] = n;
-             m_vals.push_back(Eigen::Triplet<double>(n,n,m_temp->m));
 
-             if (!(m_temp -> extforce == Vec(0,0,0)))
-                 forceIndices.push_back(n);
+             for (int j = 0; j < 3; j++)
+                m_vals.push_back(Eigen::Triplet<double>(3*n+j,3*n+j,m_temp->m));
+
+             Vec force = m_temp->extforce;
+             if (!(force == Vec(0,0,0))) {
+                 for (int j = 0; j < 3; j++) {
+                     if (force.data[j] != 0) {
+                         forceIndices.push_back(3 * n + j);
+                     }
+                 }
+             }
              n++;
          }
      }
 
-     Eigen::SparseMatrix<double> m(n,n);
+     Eigen::SparseMatrix<double> m(3*n,3*n);
      m.setFromTriplets(m_vals.begin(), m_vals.end());
 
      Eigen::SparseVector<double> f = Eigen::SparseVector<double>(n);
@@ -1491,27 +1499,40 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      vector<Eigen::Triplet<double>> k_vals;
      k_vals.reserve(n_masses*4);
 
+     Vec dirs[] = {Vec(1,0,0), Vec(0,1,0), Vec(0,0,1)};
+
      for (Spring * spring: sim->springs) {
          double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
+         Vec springVec = (spring->_left->pos)-(spring->_right->pos);
+         springVec = springVec/springVec.norm();
          int mass_i = mass_ind[spring->getLeft()];
          int mass_j = mass_ind[spring->getRight()];
 
-         if (mass_i >= 0) {
-             k_vals.push_back(Eigen::Triplet<double>(mass_i, mass_i, temp_k));
-         }
+         for (int c=0; c<3; i++) {
+             for (int v=0; v<3; v++) {
+                 if (mass_i >= 0) {
 
-         if (mass_j >= 0) {
-             k_vals.push_back(Eigen::Triplet<double>(mass_j, mass_j, temp_k));
-         }
+                     k_vals.push_back(Eigen::Triplet<double>(mass_i * 3 + c, mass_i * 3 + v,
+                                                             temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                 }
 
-         // add the negative stiffness to the off diagonals connecting the two masses
-         if (mass_i >= 0 && mass_j >= 0) {
-             k_vals.push_back(Eigen::Triplet<double>(mass_i, mass_j, -temp_k));
-             k_vals.push_back(Eigen::Triplet<double>(mass_j, mass_i, -temp_k));
+                 if (mass_j >= 0) {
+                     k_vals.push_back(Eigen::Triplet<double>(mass_j * 3 + c, mass_j * 3 + v,
+                                                             temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                 }
+
+                 // add the negative stiffness to the off diagonals connecting the two masses
+                 if (mass_i >= 0 && mass_j >= 0) {
+                     k_vals.push_back(Eigen::Triplet<double>(mass_i * 3 + c, mass_j * 3 + v,
+                             -temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                     k_vals.push_back(Eigen::Triplet<double>(mass_j * 3 + c, mass_i * 3 + v,
+                             -temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                 }
+             }
          }
      }
 
-     Eigen::SparseMatrix<double> k(n,n);
+     Eigen::SparseMatrix<double> k(3*n,3*n);
      k.setFromTriplets(k_vals.begin(), k_vals.end());
 
      // Set up the generalized eigenvalue solver
@@ -1531,7 +1552,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      int numEig = 3;
      Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double>,
              Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY>
-             geigs(&op, &Bop, numEig, numEig*2);
+             geigs(&op, &Bop, numEig, numEig*5);
 
      geigs.init();
      int nconv = geigs.compute();
