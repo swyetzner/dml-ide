@@ -1508,7 +1508,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          int mass_i = mass_ind[spring->getLeft()];
          int mass_j = mass_ind[spring->getRight()];
 
-         for (int c=0; c<3; i++) {
+         for (int c=0; c<3; c++) {
              for (int v=0; v<3; v++) {
                  if (mass_i >= 0) {
 
