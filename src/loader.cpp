@@ -1493,8 +1493,6 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              Vec force = m_temp->extforce;
              if (!(force == Vec(0,0,0))) {
                          forceIndices.push_back(i);
-                     }
-                 }
              }
              n++;
          }
