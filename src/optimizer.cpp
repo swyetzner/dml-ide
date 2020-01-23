@@ -612,11 +612,11 @@ void MassDisplacer::optimize() {
         createPopulation(sim, sim->containers.front(), popSize, population);
         //createBlockPopulation(sim, sim->containers.front(), popSize, blockPopulation);
         sim->setAll();
-        qDebug() << "Created block population" << sim->containers.size() - 1 << sim->springs.size();
+        //qDebug() << "Created block population" << blockPopulation.size() << sim->springs.size();
     } else {
         for (auto *block : blockPopulation) {
             qDebug() << block->container->masses.front()->pos[0];
-            //createMassBlockTiles(block, dimensions[0], dimensions[1], unit, Vec(0, 0, 0));
+            createMassBlockTiles(block, dimensions[0], dimensions[1], unit, Vec(0, 0, 0));
         }
     }
 
@@ -631,13 +631,13 @@ void MassDisplacer::optimize() {
         attempts ++;
         auto pstart = std::chrono::system_clock::now();
         //displaced = displaceSingleMass(dx, chunkSize, order);
-        //createMassTiles(sim, unit, gridOffset, massGroups, massGroupMap, trenchSprings);
-        displaced = displacePopMass(dx);
+        createMassTiles(sim, unit, gridOffset, massGroups, massGroupMap, trenchSprings);
+        //displaced = displacePopMass(dx);
         //createMassClusters(sim, unit, massGroups, trenchSprings);
         //if (massGroups.empty()) goto START_OPTIMIZE;
         //displaced = displaceGroupMass(dx);
         //displaced = displaceManyMasses(dx, order, 2);
-        //displaced = displaceSplitPopMass(dx);
+        displaced = displaceSplitPopMass(dx);
         auto pend = std::chrono::system_clock::now();
         std::chrono::duration<double> pduration = pend - pstart;
         std::cout << "Trial " << attempts << " duration: " << pduration.count() << '\n';
@@ -1468,26 +1468,26 @@ int MassDisplacer::displacePopMass(double displacement) {
             Vec ddx = moves[p];
             qDebug() << "Dx" << ddx[0] << ddx[1] << ddx[2];
             shiftMassPos(orig, moved[p], ddx);
-            for (int m = 0; m < orig->masses.size(); m++) {
+            /*for (int m = 0; m < orig->masses.size(); m++) {
                 orig->masses[m]->pos = copy->masses[m]->pos;
                 orig->masses[m]->vel = copy->masses[m]->vel;
-            }
+            }*/
             //resetPopulation(copy, orig, population);
 
             for (int p1 = 0; p1 < popSize; p1++) {
                 Container *c = population[p1];
                 if (c != copy) {
                     shiftMassPos(c, moved[p], ddx);
-                    shiftMassPos(c, moved[p1], -moves[p1]);
+                    //shiftMassPos(c, moved[p1], -moves[p1]);
                 }
             }
             sim->setAll();
-            return 1;
+            //return 1;
             n++;
             qDebug() << "Found success" << p;
         } else {
-            //Vec ddx = moves[p];
-            //shiftMassPos(copy, moved[p], -ddx);
+            Vec ddx = moves[p];
+            shiftMassPos(copy, moved[p], -ddx);
         }
     }
     for (int p1 = 0; p1 < popSize; p1++) {
@@ -1507,6 +1507,8 @@ int MassDisplacer::displaceSplitPopMass(double displacement) {
 
     n_springs = sim->springs.size();
     n_masses = sim->masses.size();
+    movedMasses = vector<uint>();
+    movedVectors = vector<Vec>();
 
     Container * orig = sim->containers.front();
 
@@ -1596,13 +1598,22 @@ int MassDisplacer::displaceSplitPopMass(double displacement) {
             p++;
         }
 
-        if (!moved.empty()) {
+        /*if (!moved.empty()) {
             shiftMassPos(orig, moved.front(), moves.front());
             for (auto *con : population) {
                 shiftMassPos(con, moved.front(), moves.front());
             }
             n++;
             qDebug() << "Moved mass" << moved.front();
+        }*/
+        for (int m = 0; m < moved.size(); m++) {
+            shiftMassPos(orig, moved[m], moves[m]);
+            for (auto *con : population) {
+                shiftMassPos(con, moved[m], moves[m]);
+            }
+            n++;
+            movedMasses.push_back(moved[m]);
+            movedVectors.push_back(moves[m]);
         }
     }
 
@@ -1730,6 +1741,23 @@ int MassDisplacer::displaceSplitPopMass(double displacement) {
     return n;*/
 }
 
+
+void MassDisplacer::undoDisplace() {
+    for (int m = 0; m < movedMasses.size(); m++) {
+        shiftMassPos(sim, sim->masses[movedMasses[m]], -movedVectors[m]);
+    }
+
+    if (!population.empty()) {
+        for (auto con : population) {
+            for (int m = 0; m < movedMasses.size(); m++) {
+                shiftMassPos(con, movedMasses[m], -movedVectors[m]);
+            }
+        }
+    }
+    sim->setAll();
+
+    iterations -= movedMasses.size();
+}
 
 // Creates arrays of surrounding masses around a center mass
 //---------------------------------------------------------------------------

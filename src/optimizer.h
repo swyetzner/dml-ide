@@ -114,6 +114,7 @@ public:
     double stepRatio;
     vector<uint> movedMasses;
     vector<Vec> movedVectors;
+    void undoDisplace();
 
     double dx;
     bool equilibrium;

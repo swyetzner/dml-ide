@@ -21,6 +21,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     totalLength_prev = 0;
     totalLength_start = 0;
     totalEnergy_start = 0;
+    metric_prev = 0;
     springInserter = nullptr;
     springRemover = nullptr;
     massDisplacer = nullptr;
@@ -416,22 +417,35 @@ void Simulator::run() {
                         massDisplacer->lastMetric = totalLength * totalEnergy;
                         writeMetricHeader(metricFile);
                         writeCustomMetricHeader(customMetricFile);
+                        metric_prev = totalEnergy / sim->containers.size();
                     }
 
-                    qDebug() << "About to optimize";
-                    optimizer->optimize();
-                    equilibrium = false;
-                    closeToPrevious = 0;
-                    cout << "Average trial time (simulation): " << massDisplacer->totalTrialTime / massDisplacer->totalAttempts << "s \n";
+                    // If optimization failed
+                    if (totalEnergy / sim->containers.size() > metric_prev * 1.5) {
+                        qDebug() << "UNDOING DISPLACEMENT" << totalEnergy << metric_prev;
+                        massDisplacer->undoDisplace();
+                        equilibrium = false;
+                        closeToPrevious = 0;
 
-                    if (varyLoad) {
-                        varyLoadDirection();
+                    } else {
+                        metric_prev = totalEnergy;
+
+                        qDebug() << "About to optimize";
+                        optimizer->optimize();
+                        equilibrium = false;
+                        closeToPrevious = 0;
+                        cout << "Average trial time (simulation): "
+                             << massDisplacer->totalTrialTime / massDisplacer->totalAttempts << "s \n";
+
+                        if (varyLoad) {
+                            varyLoadDirection();
+                        }
+
+                        writeMetric(metricFile);
+                        if (optimized == 0)
+                            writeCustomMetric(customMetricFile);
+                        optimized = massDisplacer->iterations;
                     }
-
-                    writeMetric(metricFile);
-                    if (optimized == 0)
-                        writeCustomMetric(customMetricFile);
-                    optimized = massDisplacer->iterations;
 
                     if (dumpCriteriaMet()) dumpSpringData();
                     cout << "Average iteration time (simulation): " << massDisplacer->totalTrialTime / optimized << "s \n";

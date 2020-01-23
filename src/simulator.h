@@ -100,6 +100,7 @@ private:
     double totalLength_start;
     double totalEnergy_start;
     Vec deflectionPoint_start;
+    double metric_prev;
     long steps;
     double wallClockTime;
 
