@@ -421,14 +421,15 @@ void Simulator::run() {
                     }
 
                     // If optimization failed
-                    if (totalEnergy / sim->containers.size() > metric_prev * 1.5) {
-                        qDebug() << "UNDOING DISPLACEMENT" << totalEnergy << metric_prev;
+                    if (totalEnergy / sim->containers.size() > metric_prev * 1.1) {
+                        qDebug() << "UNDOING DISPLACEMENT" << totalEnergy / sim->containers.size() << metric_prev;
                         massDisplacer->undoDisplace();
                         equilibrium = false;
                         closeToPrevious = 0;
 
                     } else {
-                        metric_prev = totalEnergy;
+                        qDebug() << "KEEPING DISPLACEMENT" << totalEnergy / sim->containers.size() << metric_prev;
+                        metric_prev = totalEnergy / sim->containers.size();
 
                         qDebug() << "About to optimize";
                         optimizer->optimize();
