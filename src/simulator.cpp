@@ -424,6 +424,7 @@ void Simulator::run() {
                     if (totalEnergy / sim->containers.size() > metric_prev * 1.1) {
                         qDebug() << "UNDOING DISPLACEMENT" << totalEnergy / sim->containers.size() << metric_prev;
                         massDisplacer->undoDisplace();
+                        metric_prev = totalEnergy / sim->containers.size();
                         equilibrium = false;
                         closeToPrevious = 0;
 
