@@ -155,7 +155,7 @@ static const char *vertexShaderPlaneSource =
         "void main() {\n"
         "   vertPos = projMatrix * mvMatrix * vec4(vertexPos, 1.0);\n"
         "   gl_Position = vertPos;\n"
-        "   vertexColor = vec4(0.6, 0.6, 0.6, 0.9);\n"
+        "   vertexColor = vec4(0.8, 0.8, 0.8, 0.9);\n"
         "   fragPosLightSpace = lightSpaceMatrix * vec4(vertexPos, 1.0);\n"
         "}\n";
 
@@ -843,7 +843,7 @@ void SimViewer::drawSolids() {
     glBindBuffer(GL_ARRAY_BUFFER, planeVertexBuff_id);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4 * GLsizei(n_planes));
+    //glDrawArrays(GL_TRIANGLE_FAN, 0, 4 * GLsizei(n_planes));
 
     glDisableVertexAttribArray(3);
     planeShaderProgram->release();
@@ -1027,7 +1027,7 @@ void SimViewer::initCamera() {
     up.normalize();
     if (up == QVector3D(0, 0, 0)) { up = QVector3D(0, 0, 1); }
 
-    eye = QVector3D(4, 3, 3);
+    eye = QVector3D(0, 3, 3);
 
     float span = (bounds[0] - bounds[1]).length();
     m_zoom =  span > 1E-5? float(1/span) : 1.0f;
