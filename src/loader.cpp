@@ -1451,6 +1451,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
  // Calculates the largest natural period (smallest natural frequency) of the lattice
  double Loader::calculateNaturalPeriod(Simulation *sim) {
 
+    int prec = 10;
 
      int n_masses = sim->masses.size();
 
@@ -1469,7 +1470,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream pos;
      pos.open("pos.csv");
-     pos.precision(17);
+     pos.precision(prec);
 
      pos << "Time";
 
@@ -1517,7 +1518,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream Ffile;
      Ffile.open("F.csv");
-     Ffile.precision(17);
+     Ffile.precision(prec);
 
      for (int i : forceIndices) {
          Vec force = sim->getMassByIndex(i)->extforce;
@@ -1573,7 +1574,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream Kfile;
      Kfile.open("K.csv");
-     Kfile.precision(17);
+     Kfile.precision(prec);
      for (int i=0; i<k.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(k, i); it; ++it) {
              Kfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
@@ -1583,7 +1584,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      ofstream Mfile;
      Mfile.open("M.csv");
-     Mfile.precision(17);
+     Mfile.precision(prec);
      for (int i=0; i<m.outerSize(); ++i) {
          for (Eigen::SparseMatrix<double>::InnerIterator it(m, i); it; ++it) {
              Mfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
