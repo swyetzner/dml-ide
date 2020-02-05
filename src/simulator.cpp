@@ -459,6 +459,11 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
+			    if (n_springs <= n_springs_start * 0.5) {
+			      springRemover->regenerateLattice();
+			      n_masses = int(sim->masses.size());
+			      n_springs = int(sim->springs.size());
+			    }
 
                             if (dumpCriteriaMet()) dumpSpringData();
 
@@ -475,8 +480,8 @@ void Simulator::run() {
 
         if (stopReached) {
             simStatus = STOPPED;
-            dumpSpringData();
-            if (EXPORT) exportSimulation();
+            //dumpSpringData();
+            //if (EXPORT) exportSimulation();
             exit(0);
         }
     }

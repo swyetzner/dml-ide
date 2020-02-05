@@ -169,6 +169,188 @@ void SpringRemover::removeSpringFromMap(Spring *d) {
 
 }
 
+void SpringRemover::regenerateLattice() {
+  
+  qDebug() << "REGENERATING LATTICE";
+
+  sim->getAll();
+  double minCut = FLT_MAX;
+
+  for (Spring *s : sim->springs) {
+
+    minCut = std::min(minCut, (s->_left->pos - s->_right->pos).norm());
+  }
+  minCut *= 2;
+
+  Vec minPos = Vec(FLT_MAX, FLT_MAX, FLT_MAX);
+  Vec maxPos = Vec(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+  for (Mass *m : sim->masses) {
+    minPos[0] = std::min(minPos[0], m->pos[0]);
+    minPos[1] = std::min(minPos[1], m->pos[1]);
+    minPos[2] = std::min(minPos[2], m->pos[2]);
+    maxPos[0] = std::max(maxPos[0], m->pos[0]);
+    maxPos[1] = std::max(maxPos[1], m->pos[1]);
+    maxPos[2] = std::max(maxPos[2], m->pos[2]);
+  }
+
+  qDebug() << "Max" << maxPos[0] << maxPos[1] << maxPos[2] << "Min" << minPos[0] << minPos[1] << minPos[2];
+  
+  int xLines = int((maxPos[0] - minPos[0]) / minCut) + 1;
+  int yLines = int((maxPos[1] - minPos[1]) / minCut) + 1;
+  int zLines = int((maxPos[2] - minPos[2]) / minCut) + 1;
+  int kNewPoints = xLines * yLines * zLines;
+  kNewPoints *= 3;
+
+  qDebug() << "Generating" << kNewPoints << "random point candidates with cutoff" << minCut;
+
+  vector<Vec> lattice = vector<Vec>();
+  vector<Vec> candidates = vector<Vec>();
+  vector<double> sumDists = vector<double>();
+
+  lattice.push_back(Utils::randPointVec(minPos, maxPos));
+  double maxLength = minCut;
+
+  for (int k = 0; k < kNewPoints; k++) {
+    candidates.push_back(Utils::randPointVec(minPos, maxPos));
+    sumDists.push_back(0.0);
+  }
+
+  while (maxLength >= minCut && !candidates.empty()) {
+    uint ifar = 0;
+    double maxDist = 0.0;
+
+    for (int i = 0; i < candidates.size(); i++) {
+      bool reject = false;
+
+      Vec l = lattice.back();
+      double d = (candidates[i] - l).norm();
+
+      if (d < minCut) {
+	candidates.erase(candidates.begin() + i);
+	sumDists.erase(sumDists.begin() + i);
+	i--;
+	continue;
+      }
+      if (sumDists[i] + d > maxDist) {
+	maxDist = sumDists[i] + d;
+	ifar = i;
+      }
+    }
+
+    if (!candidates.empty()) {
+      maxLength = maxDist;
+      for (Vec l : lattice)
+	maxLength = std::min(maxLength, (candidates[ifar] - l).norm());
+      lattice.push_back(candidates[ifar]);
+      candidates.erase(candidates.begin() + ifar);
+      for (int i = 0; i < candidates.size(); i++) {
+	sumDists[i] += (candidates[i] - lattice.back()).norm();
+      }
+      qDebug() << "Aded to lattice" << lattice.size();
+    }
+  }
+
+  int nm = sim->masses.size();
+  for (Vec l : lattice) {
+    Mass *n = new Mass(*sim->masses.front());
+    Mass *m = sim->createMass(n);
+    m->pos = l;
+    m->origpos = l;
+    m->vel = Vec(0,0,0);
+    m->constraints.fixed = false;
+    m->m = 0.0;
+    qDebug() << "Added mass" << m->pos[0] << m->pos[1] << m->pos[2];
+  }
+  sim->setAll();
+
+  // Reindex masses
+  for (int i = 0; i < sim->masses.size(); i++) {
+    sim->masses[i]->index = i;
+  }
+
+  double maxS = 0.5 * 2.9 * minCut;
+  for (int j = 0; j < sim->masses.size() - 1; j++) {
+    for (int k = nm; k < sim->masses.size(); k++) {
+
+      if (j == k) continue;
+
+      Mass *m1 = sim->masses[j];
+      Mass *m2 = sim->masses[k];
+
+      assert(m1 != nullptr);
+      assert(m2 != nullptr);
+      assert((m1->pos - m2->pos).norm() > 0);
+      if ((m1->pos - m2->pos).norm() <= maxS) {
+	Spring t = Spring(*sim->springs.front());
+	Spring *s = new Spring(t);
+	s->setMasses(m1, m2);
+	double origLen = s->_rest;
+	s->_rest = (m1->origpos - m2->origpos).norm();
+	s->_k *= origLen / s->_rest;
+	s->_max_stress = 0;
+	// Mass values
+	
+	m1->m += m1->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+	m2->m += m2->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+
+	qDebug() << "Masses" << m1->m << m2->m << m1->index << m2->index;
+	qDebug() << "Spring" << s->_rest << s->_k;
+
+	sim->createSpring(s);
+      }
+    }
+  }
+
+  for (int i = 0; i < sim->masses.size(); i++) {
+    if (sim->masses[i]->m == 0) {
+      sim->deleteMass(sim->masses[i]);
+      i--;
+      qDebug() << "DELETE MASS";
+    }
+  }
+
+  sim->deleteSpring(sim->springs.back());
+  sim->setAll();
+}
+
+void SpringRemover::splitSprings() {
+  
+  int n = sim->springs.size();
+  
+  qDebug() << "Springs" << n;
+  for (int i = 0; i < n; i++) {
+  
+    Spring *s = sim->springs[i];
+    
+    // Find midpoint
+    Vec mid = 0.5 * (s->_left->pos + s->_right->pos);
+    
+    // Add mass at midpoint
+    Mass *m = sim->createMass(mid);
+    qDebug() << "Added mass" << m->pos[0] << m->pos[1] << m->pos[2];
+  }
+
+    double maxCut = 0;
+    for (Spring *s : sim->springs) {
+      maxCut = std::max(maxCut, s->_rest);
+    }
+
+
+    for (int j = 0; j < sim->masses.size() - 1; j++) {
+      for (int k = j+1; k < sim->masses.size(); k++) {
+	Mass *m1 = sim->masses[j];
+	Mass *m2 = sim->masses[k];
+
+	if ((m2->pos - m1->pos).norm() <= maxCut) {
+	// Make spring
+	  sim->createSpring(m1, m2);
+	}
+      }
+    }
+    sim->setAll();
+}
+
 
 // Removes stepRatio percent least stressed springs
 //---------------------------------------------------------------------------
@@ -363,6 +545,7 @@ void SpringRemover::optimize() {
 
         n_springs = int(sim->springs.size());
         qDebug() << "Springs" << n_springs << "Percent springs left" << 100 * n_springs / n_springs_start;
+    
     } else {
         qDebug() << "Optimization ended";
     }

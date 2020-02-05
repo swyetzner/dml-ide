@@ -65,6 +65,7 @@ public:
     map<Mass *, vector<Spring *>> massToSpringMap;
     double massFactor;
     double stressMemory;
+    void regenerateLattice();
 
 protected:
     void optimize() override;
@@ -72,6 +73,7 @@ protected:
 private:
     void removeSpringFromMap(Spring *d);
     void deleteSpring(Spring *d);
+    void splitSprings();
 };
 
 /**

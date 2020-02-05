@@ -1202,7 +1202,7 @@ void SimViewer::resizeGL(int width, int height) {
 //
 void SimViewer::renderText(const QString &text, int flags) {
     QPainter painter(this);
-    painter.setPen(Qt::white);
+    painter.setPen(Qt::black);
     painter.setFont(QFont("Helvetica [Cronyx]", 14));
     painter.drawText(rect(), flags, text);
 }
