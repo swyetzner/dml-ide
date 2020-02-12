@@ -31,7 +31,7 @@ SimViewer::SimViewer(Simulator *simulator, QWidget *parent)
     RECORDING = false;
     outputDir = "output";
     sampleDir = "output/sample";
-    framerate = 50;
+    framerate = 500;
     renderNumber = 0;
     simFrameInterval = 0;
     sampleNumber = 0;
@@ -266,6 +266,7 @@ void SimViewer::updatePairVertices() {
 
     if (resizeBuffers) {
         n_springs = simulator->sim->springs.size();
+        n_masses = simulator->sim->masses.size();
         delete pairVertices;
         pairVertices = new GLfloat[2 * 3 * n_springs];
     }
@@ -278,12 +279,14 @@ void SimViewer::updatePairVertices() {
         Spring *s = simulator->sim->getSpringByIndex(i);
 
         Mass *m = s->_left;
+        assert(m != nullptr);
 
         *p++ = GLfloat(m->pos[0]);
         *p++ = GLfloat(m->pos[1]);
         *p++ = GLfloat(m->pos[2]);
 
         m = s->_right;
+        assert(m != nullptr);
 
         *p++ = GLfloat(m->pos[0]);
         *p++ = GLfloat(m->pos[1]);
@@ -377,11 +380,11 @@ void SimViewer::addMassColor(Mass *mass, GLfloat *buffer, int &count) {
 
         addColor(buffer, fixedMassColor, count);
 
-    } else if (fabs(mass->force[0]) > 1E-6 || fabs(mass->force[1]) > 1E-6 || fabs(mass->force[2]) > 1E-6) {
+    } /**else if (fabs(mass->force[0]) > 1E-6 || fabs(mass->force[1]) > 1E-6 || fabs(mass->force[2]) > 1E-6) {
 
         addColor(buffer, forceMassColor, count);
 
-    } else {
+    }**/ else {
 
         addColor(buffer, defaultMassColor, count);
     }
@@ -820,7 +823,7 @@ void SimViewer::updateBuffers() {
     glBufferData(GL_ARRAY_BUFFER, 2 * n_springs * long(sizeof(GLfloat)), diameters, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, planeVertexBuff_id);
-    glBufferData(GL_ARRAY_BUFFER, 3 * 4 * long(sizeof(GLfloat)), planeVertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * 4 * long(sizeof(GLfloat)) * n_planes, planeVertices, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, forceVertexBuff_id);
     glBufferData(GL_ARRAY_BUFFER, 3 * extForces.size() * long(sizeof(GLfloat)), forceVertices, GL_DYNAMIC_DRAW);
@@ -987,12 +990,12 @@ void SimViewer::drawVertexArray() {
 //
 void SimViewer::cleanUp() {
 
-    delete pairVertices;
-    delete anchorVertices;
-    delete forceVertices;
-    delete colors;
-    delete diameters;
-    delete planeVertices;
+    delete [] pairVertices;
+    delete [] anchorVertices;
+    delete [] forceVertices;
+    delete [] colors;
+    delete [] diameters;
+    delete [] planeVertices;
 
     delete timer;
 
@@ -1145,7 +1148,7 @@ void SimViewer::paintGL() {
 
     glClearColor(0, 0, 0, 0);
 
-    if (n_springs != int(simulator->sim->springs.size())) {
+    if (n_springs != int(simulator->sim->springs.size() || n_masses != simulator->sim->masses.size())) {
         resizeBuffers = true;
     }
     if (springVisual.colorScheme != SpringVisual::NOTHING || getVisualizeScheme() != springVisual.colorScheme || resizeBuffers) {

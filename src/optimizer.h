@@ -11,6 +11,7 @@
 #include <Titan/sim.h>
 
 #include "utils.h"
+#include "model.h"
 
 /**
  * Optimizer base class

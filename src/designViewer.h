@@ -45,7 +45,7 @@ private:
     // --------------------------------------------------------------------
     long n_models;
     long n_vertices;
-    long *n_modelVertices;
+    int *n_modelVertices;
     bool *activateModel;
 
     // --------------------------------------------------------------------
