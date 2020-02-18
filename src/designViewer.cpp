@@ -21,20 +21,20 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     qDebug() << "Design Assigned"; // For some reason, this prevents the IDE from crashing when loading a file
     // Set model constants
     n_models = long(design->volumes.size());
-    n_modelVertices = new long(n_models);
+    n_modelVertices = new int[n_models];
     for (uint i = 0; i < uint(n_models); i++) {
         n_modelVertices[i] = design->volumes[i]->model->n_vertices;
     }
 
     // Set activate models to true
-    activateModel = new bool(n_models);
-    for (uint i = 0; i < uint(n_models); i++)
+    activateModel = new bool[n_models];
+    for (uint i = 0; i < n_models; i++)
         activateModel[i] = true;
 
     // Allocate buffer id for each model
-    vertexBuff_ids = new GLuint(uint(n_models));
-    normalBuff_ids = new GLuint(uint(n_models));
-    colorBuff_ids = new GLuint(uint(n_models));
+    vertexBuff_ids = new GLuint[uint(n_models)];
+    normalBuff_ids = new GLuint[uint(n_models)];
+    colorBuff_ids = new GLuint[uint(n_models)];
 
     // Set rotation + zoom constants
     m_center = QVector3D(0, 0, 0);
@@ -466,7 +466,7 @@ void DesignViewer::drawVertexArray() {
 //  Calls draw commands after vertex attributes haves been bound
 //
 void DesignViewer::drawModels() {
-    for (uint m = 0; m < uint(n_models); m++) {
+    for (uint m = 0; m < n_models; m++) {
 
         if (activateModel[m]) {
 
@@ -526,11 +526,11 @@ void DesignViewer::cleanUp() {
     glDeleteBuffers(1, &axesBuff_id);
     glDeleteFramebuffers(1, &depthFrameBuff_id);
 
-    delete vertexBuff_ids;
-    delete normalBuff_ids;
-    delete colorBuff_ids;
-    delete activateModel;
-    delete n_modelVertices;
+    delete [] vertexBuff_ids;
+    delete [] normalBuff_ids;
+    delete [] colorBuff_ids;
+    delete [] activateModel;
+    delete [] n_modelVertices;
     delete shaderProgram;
     delete guideShaderProgram;
     doneCurrent();
