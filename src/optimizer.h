@@ -11,6 +11,7 @@
 #include <Titan/sim.h>
 
 #include "utils.h"
+#include "model.h"
 
 /**
  * Optimizer base class
@@ -65,13 +66,17 @@ public:
     map<Mass *, vector<Spring *>> massToSpringMap;
     double massFactor;
     double stressMemory;
-    void regenerateLattice();
+    void regenerateLattice(SimulationConfig *config);
+    void regenerateShift();
 
 protected:
     void optimize() override;
 
 private:
+    void fillMassSpringMap();
     void removeSpringFromMap(Spring *d);
+    void removeMassFromMap(Mass *d);
+    void removeHangingSprings(map<Spring *, bool> &hangingCandidates, map<Spring *, bool> &springsToDelete);
     void deleteSpring(Spring *d);
     void splitSprings();
 };

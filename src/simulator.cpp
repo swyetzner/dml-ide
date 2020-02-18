@@ -342,6 +342,7 @@ void Simulator::run() {
         Spring *maxForceSpring = nullptr;
         int i = 0, n = 0;
         for (Spring *s: sim->springs) {
+            if (s == nullptr) continue;
             totalLength += s->_rest;
             if (maxForce < fabs(s->_curr_force)) {
                 maxForce = fabs(s->_curr_force);
@@ -460,7 +461,8 @@ void Simulator::run() {
 
                             currentLoad = 0;
 			    if (n_springs <= n_springs_start * 0.5) {
-			      springRemover->regenerateLattice();
+			      springRemover->regenerateLattice(config);
+			      //springRemover->regenerateShift();
 			      n_masses = int(sim->masses.size());
 			      n_springs = int(sim->springs.size());
 			    }
