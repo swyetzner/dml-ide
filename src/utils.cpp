@@ -513,7 +513,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
             return;
     }
 
-    // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
