@@ -1215,11 +1215,33 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         int k;
         qDebug() << "First point" << point.x << point.y << point.z;
 
-        vector<glm::vec3> candidates = vector<glm::vec3>();
+    
+        vector<glm::vec3>(kNewPoints) candidates;
 
+        #pragma omp parallel for
+        for (int i = 0; i < kNewPoints; ++i) {
+            glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
+
+            if (includeHull) {
+                while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
+                    // Generate a new point if its within the cutoff of the model edge
+                    //   or its not inside the model
+                    newPoint = Utils::randPoint(startCorner, endCorner);
+                        }
+                } 
+            else {
+                while (!arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
+                // Generate a new point if its within the cutoff of the model edge
+                //   or its not inside the model
+                    newPoint = Utils::randPoint(startCorner, endCorner);
+                }
+           }
+            candidates[i] = newPoint;
+        }
+
+/*
     // Spawn k new points
     int threads = 1;
-
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
 
@@ -1244,15 +1266,19 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         }
     }
 
+*/
+
         vector<float> sumDistsStore = vector<float>();
         for (auto c: candidates) {
             sumDistsStore.push_back(0.0f);
         }
+        int latticePrintFrequency = 100; 
         while (maxLength >= cutoff && candidates.size() > 0) {
 
             // Find point furthest from existing points
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
+
 
 
             for (uint i = 0; i < candidates.size(); i++) {
@@ -1292,7 +1318,11 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 candidates.erase(candidates.begin() + iFarthest);
                 sumDistsStore.erase(sumDistsStore.begin() + iFarthest);
             }
-            qDebug() << "Added to lattice" << latticeTemp.size();
+            if (latticePrintFrequency == 0) {
+                qDebug() << "Added to lattice" << latticeTemp.size();
+                latticePrintFrequency = 100;
+            }
+            latticePrintFrequency--;
         }
       
         lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
@@ -1372,6 +1402,39 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
     // Spawn k new points
     int threads = 64;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #pragma omp parallel for {
     for (int t = 0; t < threads; t++) {
