@@ -1387,7 +1387,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     qDebug() << "Set lattice";
 }
 
-
 // Creates a lattice with random pseudo-evenly-spacedd interal points
 void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff, bool includeHull) {
     log("Creating space lattice.");
@@ -1495,7 +1494,7 @@ int latticePrintFrequency = 100;
         float maxDistFromPoints = 0.0f;
         vector<float> sumDistsStore(candidates.size());
 
-		#pragma omp parallel for
+        #pragma omp parallel for
         for (size_t i = 0; i < sumDistsStore.size(); ++i) {
             sumDistsStore[i]= maxDistFromPoints;
         }
@@ -1503,15 +1502,15 @@ int latticePrintFrequency = 100;
         vector<int> candidatesToErase();
         Vec l_temp = space.back();
 
-		#pragma omp parallel for
+        #pragma omp parallel for
         for (uint i = 0; i < candidates.size(); i++) {
-        	// this is defined but never used?
+            // this is defined but never used?
 
             if (space.size() > 0) {
                 float distFromPoint = (candidates[i] - l_temp).norm();
 
                 if (distFromPoint < cutoff ) {
-					#pragma omp critical
+                    #pragma omp critical
                    candidates.erase(candidates.begin() + i);
                     i--;
                     continue;
@@ -1529,7 +1528,7 @@ int latticePrintFrequency = 100;
             maxLength = maxDistFromPoints;
             // Update maxLength to minimum distance between
             //   an existing point and the point chosen
-			#pragma omp parallel for
+            #pragma omp parallel for
             for (size_t i = 0; i <space.size(); ++i) {
                 maxLength = std::min(maxLength, float((candidates[iFarthest] - space[i]).norm()));
             }
@@ -1538,8 +1537,8 @@ int latticePrintFrequency = 100;
             candidates.erase(candidates.begin() + iFarthest);
         }
         if (latticePrintFrequency == 0) {
-   	        qDebug() << "Added to lattice" << space.size();
- 	       latticePrintFrequency = 100;
+            qDebug() << "Added to lattice" << space.size();
+           latticePrintFrequency = 100;
         }
         latticePrintFrequency--;
     }
