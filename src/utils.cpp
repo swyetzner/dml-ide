@@ -392,7 +392,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         return;
     }
 
-    if (endsWith(path, ".stl")) {
+    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
         if (startsWith(trim(header), "solid")) {
