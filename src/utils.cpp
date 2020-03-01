@@ -386,6 +386,10 @@ inline QDebug operator<<(QDebug dbg, const std::string& str)
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
+<<<<<<< HEAD
+=======
+    qDebug() << "TYPE A";
+>>>>>>> utils.cpp
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -426,7 +430,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
             return;
     }
 
-    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
+    if (endsWith(path, ".stl")) {
         getline(file, header);
 
         qDebug() << "Header...";
@@ -472,6 +476,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vector<Vec> &ns) {
+
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -506,13 +511,12 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         file.close();
         file.open(path);       
     }
-    // Salvy is a BOSS //
     if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
 
-    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
+    if (endsWith(path, ".stl")) {
         getline(file, header);
 
         qDebug() << "Header...";
