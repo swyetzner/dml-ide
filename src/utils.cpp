@@ -386,13 +386,7 @@ inline QDebug operator<<(QDebug dbg, const std::string& str)
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    qDebug() << "TYPE A";
->>>>>>> utils.cpp
-=======
->>>>>>> utils.cpp
+
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -435,12 +429,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
-
-        qDebug() << "Header...";
-        qDebug() << "*** " << header << " ***";
-
-
-
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
         } else {
@@ -531,6 +519,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
             fileFormat = STL_BINARY;
         }
     }
+        qDebug() << header;
 
     // Parse based on format
     switch (fileFormat) {
