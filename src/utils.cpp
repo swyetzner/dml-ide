@@ -429,8 +429,8 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
-
-    if (endsWith(path, ".stl")) {
+    
+    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
         qDebug() << "Header...";
@@ -516,7 +516,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
             return;
     }
 
-    if (endsWith(path, ".stl")) {
+    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
         qDebug() << "Header...";
