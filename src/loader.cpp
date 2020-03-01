@@ -1394,7 +1394,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
     int threads = 64;
 
 
-#pragma omp parallel for {
+#pragma omp parallel for
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
 
