@@ -1394,38 +1394,6 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
     int threads = 64;
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #pragma omp parallel for {
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
@@ -1454,7 +1422,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
         qDebug() << "Lattice Thread" << t << "done";
     }
 
-
+	int latticePrintFrequency = 100; 
     while (maxLength >= cutoff && !candidates.empty()) {
 
         // Find point furthest from original point
@@ -1500,7 +1468,11 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             space.push_back(candidates[iFarthest]);
             candidates.erase(candidates.begin() + iFarthest);
         }
-        qDebug() << "Added to lattice" << space.size();
+        if (latticePrintFrequency == 0) {
+   	        qDebug() << "Added to lattice" << latticeTemp.size();
+ 	       latticePrintFrequency = 100;
+        }
+        latticePrintFrequency--;
     }
 
     // Set lattice property
