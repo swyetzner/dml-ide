@@ -377,7 +377,7 @@ void Utils::createCube(vec3 center, float edgeLength, vector<vec3> &vs, vector<v
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
-
+    qDebug() << "TYPE A";
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -393,7 +393,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         return;
     }
 
-    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
+    if (endsWith(path, ".stl")) {
         getline(file, header);
 
         if (startsWith(trim(header), "solid")) {
@@ -434,7 +434,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vector<Vec> &ns) {
-
+    qDebug() << "TYPE B";
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -450,7 +450,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         return;
     }
 
-    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
+    if (endsWith(path, ".stl")) {
         getline(file, header);
 
         if (startsWith(trim(header), "solid")) {
