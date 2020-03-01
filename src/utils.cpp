@@ -403,7 +403,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         getline(file, header);
 
 
-        qDebug() << header;
+        qDebug() << "*** " << header << " ***";
 
 
         if (startsWith(trim(header), "solid")) {
@@ -462,8 +462,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
-
-        qDebug() << header;
+        qDebug() << "*** " << header << " ***";
 
 
         if (startsWith(trim(header), "solid")) {
