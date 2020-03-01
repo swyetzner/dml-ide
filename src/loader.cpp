@@ -1216,7 +1216,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         qDebug() << "First point" << point.x << point.y << point.z;
 
     
-        vector<glm::vec3> candidates =  glm::vec3();
+        vector<glm::vec3> candidates =  vector<glm::vec3>();
 ;
 /*
         #pragma omp parallel for
