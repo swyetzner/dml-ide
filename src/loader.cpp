@@ -1432,7 +1432,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
         qDebug() << "Lattice Thread" << t << "done";
     }
 
-	int latticePrintFrequency = 100; 
+int latticePrintFrequency = 100; 
     while (maxLength >= cutoff && !candidates.empty()) {
 
         // Find point furthest from original point
@@ -1479,7 +1479,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             candidates.erase(candidates.begin() + iFarthest);
         }
         if (latticePrintFrequency == 0) {
-   	       qDebug() << "Added to lattice" << latticeTemp.size();
+   	        qDebug() << "Added to lattice" << space.size();
  	       latticePrintFrequency = 100;
         }
         latticePrintFrequency--;
