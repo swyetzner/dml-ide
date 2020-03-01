@@ -516,7 +516,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         qDebug() << "*** " << header << " ***";
 =======
 
-        qDebug() << header;
+        qDebug() << qPrintable(header);
 
 >>>>>>> utils.cpp
 
