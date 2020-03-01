@@ -1206,9 +1206,9 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         qDebug() << "First point" << point.x << point.y << point.z;
 
     
-        vector<glm::vec3> candidates =  glm::vec3(kNewPoints);
+        vector<glm::vec3> candidates =  glm::vec3();
 ;
-
+/*
         #pragma omp parallel for
         for (int i = 0; i < kNewPoints; ++i) {
             glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
@@ -1229,8 +1229,8 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
            }
             candidates[i] = newPoint;
         }
+*/
 
-/*
     // Spawn k new points
     int threads = 1;
     for (int t = 0; t < threads; t++) {
@@ -1257,7 +1257,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         }
     }
 
-*/
 
         vector<float> sumDistsStore = vector<float>();
         for (auto c: candidates) {
