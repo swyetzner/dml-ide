@@ -368,6 +368,13 @@ void Utils::createCube(vec3 center, float edgeLength, vector<vec3> &vs, vector<v
     ns.push_back(ntop); ns.push_back(ntop); ns.push_back(ntop);
 }
 
+// Qdebug overload to accept std::string class
+inline QDebug operator<<(QDebug dbg, const std::string& str)
+{
+    dbg.nospace() << QString::fromStdString(str);
+    return dbg.space();
+}
+
 
 // createModelFromFile(string fileName, vector<vec3> &vs, vector<vec3> &ns)
 //
@@ -396,7 +403,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         getline(file, header);
 
 
-        qDebug() << qPrintable(header);
+        qDebug() << header;
 
 
         if (startsWith(trim(header), "solid")) {
@@ -456,7 +463,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         getline(file, header);
 
 
-        qDebug() << qPrintable(header);
+        qDebug() << header;
 
 
         if (startsWith(trim(header), "solid")) {
