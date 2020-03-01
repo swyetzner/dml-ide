@@ -430,6 +430,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
+// fake
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
         } else {
@@ -516,7 +517,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         qDebug() << "*** " << header << " ***";
 =======
 
-        qDebug() << qPrintable(header);
+        qDebug() << header;
 
 >>>>>>> utils.cpp
 
