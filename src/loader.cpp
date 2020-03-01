@@ -1469,7 +1469,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             candidates.erase(candidates.begin() + iFarthest);
         }
         if (latticePrintFrequency == 0) {
-   	        qDebug() << "Added to lattice" << latticeTemp.size();
+   	       qDebug() << "Added to lattice" << latticeTemp.size();
  	       latticePrintFrequency = 100;
         }
         latticePrintFrequency--;
