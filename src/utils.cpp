@@ -394,7 +394,11 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
+
+        
         qDebug() << header;
+
+
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
         } else {
@@ -451,13 +455,16 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
+
+        qDebug() << header;
+
+
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
         } else {
             fileFormat = STL_BINARY;
         }
     }
-        qDebug() << header;
 
     // Parse based on format
     switch (fileFormat) {
