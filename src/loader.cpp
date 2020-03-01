@@ -1131,6 +1131,8 @@ void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, f
     lattice.vertices = grid;
     qDebug() << "Created grid lattice" << lattice.vertices.size();
 }
+
+
 // Creates a lattice with random pseudo-evenly-spacedd interal points
 void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating space lattice.");
