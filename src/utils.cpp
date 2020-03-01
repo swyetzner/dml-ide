@@ -387,8 +387,11 @@ inline QDebug operator<<(QDebug dbg, const std::string& str)
 //
 void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     qDebug() << "TYPE A";
+>>>>>>> utils.cpp
+=======
 >>>>>>> utils.cpp
     enum Format {
         STL_ASCII,
@@ -429,7 +432,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
-    
+    // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
@@ -515,7 +518,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
-
+    // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
