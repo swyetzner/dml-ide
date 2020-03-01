@@ -1132,7 +1132,6 @@ void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, f
     qDebug() << "Created grid lattice" << lattice.vertices.size();
 }
 
-
 // Creates a lattice with random pseudo-evenly-spacedd interal points
 void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating space lattice.");
@@ -1477,7 +1476,8 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
         qDebug() << "Lattice Thread" << t << "done";
     }
 
-int latticePrintFrequency = 1000; 
+int latticePrintFrequency = 100; 
+
     while (maxLength >= cutoff && !candidates.empty()) {
 
         // Find point furthest from original point
@@ -1528,8 +1528,8 @@ int latticePrintFrequency = 1000;
             candidates.erase(candidates.begin() + iFarthest);
         }
         if (latticePrintFrequency == 0) {
-   	        qDebug() << "Added to lattice" << space.size();
- 	       latticePrintFrequency = 1000;
+            qDebug() << "Added to lattice" << space.size();
+           latticePrintFrequency = 100;
         }
         latticePrintFrequency--;
     }
