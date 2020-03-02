@@ -542,8 +542,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
             vs[i] = scale * vs[i];
         }
     }
-}//
-//temp
+}mp
 
 // parseStlASCII(ifstream &text, vector<vec3> &vs, vector<vec3> &ns)
 //
@@ -582,7 +581,7 @@ void Utils::parseStlASCII(ifstream &text, vector<vec3> &vs, vector<vec3> &ns) {
     }
 
 }
-
+//t
 
 // parseStlASCII(ifstream &text, vector<Vec> &vs, vector<Vec> &ns)
 //
