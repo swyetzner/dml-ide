@@ -543,7 +543,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         }
     }
 }
-
 // parseStlASCII(ifstream &text, vector<vec3> &vs, vector<vec3> &ns)
 //
 // Parses vertex positions and normals from a Qt file in STL (ASCII) format
