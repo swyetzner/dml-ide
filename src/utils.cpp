@@ -492,11 +492,11 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         // a different capitalization
         if (endsWith(path,".stl")) { 
             qDebug() << 3; 
-            path = path[0:length(path)-3] + "STL"
+            path = path.substr(0,lenght(path)-3) + "STL";
         }
         if (endsWith(path,".STL")) { 
             qDebug() << 4; 
-             path = path[0:length(path)-3] + "stl"
+             path = path.substr(0,lenght(path)-3) + "stl";
         } 
         
         qDebug() << "New path: " << path;  
