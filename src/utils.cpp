@@ -484,7 +484,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     qDebug() << "*** " << header << " ***";
     qDebug() << "Path...";
     qDebug() << "*** " << path << " ***";
-//this
+
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
