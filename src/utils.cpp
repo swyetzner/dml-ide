@@ -461,6 +461,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     }
 }
 
+
 // createModelFromFile(string fileName, vector<Vec> &vs, vector<Vec> &ns)
 //
 // Populates a model from a file.
@@ -542,7 +543,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         }
     }
 }
-
 
 // parseStlASCII(ifstream &text, vector<vec3> &vs, vector<vec3> &ns)
 //
