@@ -581,7 +581,7 @@ void Utils::parseStlASCII(ifstream &text, vector<vec3> &vs, vector<vec3> &ns) {
     }
 
 }
-//t
+//tsa
 
 // parseStlASCII(ifstream &text, vector<Vec> &vs, vector<Vec> &ns)
 //
