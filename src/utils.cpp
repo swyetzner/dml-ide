@@ -398,20 +398,22 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     qDebug() << "Path...";
     qDebug() << "*** " << path << " ***";
 
-    // Salvy is a BOSS //
-    if (!file) {
+       // Salvy is a BOSS //
+    if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
         // a different capitalization
         if (endsWith(path,".stl")) { path.replace(path.end()-4,path.end(),".STL"); } 
         
         if (endsWith(path,".STL")) {  path.replace(path.end()-4,path.end(),".stl"); } 
-        qDebug() << "New path: " << path;
-        file(path, ios::in | ios::binary);
-        if (!file) {
+        
+        qDebug() << "New path: " << path;  
+    }
+    // Salvy is a BOSS //
+    ifstream file(path, ios::in | ios::binary);
+    if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
-        }
     }
     // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
@@ -484,13 +486,15 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         
         if (endsWith(path,".STL")) {  path.replace(path.end()-4,path.end(),".stl"); } 
         
-        qDebug() << "New path: " << path;
-        file(path, ios::in | ios::binary);
-        if (!file) {
+        qDebug() << "New path: " << path;  
+    }
+    // Salvy is a BOSS //
+    ifstream file(path, ios::in | ios::binary);
+    if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
-        }
     }
+
     // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
