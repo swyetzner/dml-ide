@@ -397,12 +397,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 
     ifstream file(path, ios::in | ios::binary);
     string header;
-    qDebug() << "Header...";
-    qDebug() << "*** " << header << " ***";
-    qDebug() << "Path...";
-    qDebug() << "*** " << path << " ***";
-
-       // Salvy is a BOSS //
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
@@ -482,6 +476,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     qDebug() << "Path...";
     qDebug() << "*** " << path << " ***";
 
+<<<<<<< HEAD
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
@@ -501,6 +496,8 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         file.close();
         file.open(path);       
     }
+=======
+>>>>>>> utils.cpp
     if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
@@ -511,6 +508,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         qDebug() << "Header...";
         qDebug() << "*** " << header << " ***";
 =======
@@ -518,6 +516,8 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         qDebug() << header;
 =======
         qDebug() << "*** " << header << " ***";
+>>>>>>> utils.cpp
+=======
 >>>>>>> utils.cpp
 
 >>>>>>> utils.cpp
