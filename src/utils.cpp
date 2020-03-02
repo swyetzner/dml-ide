@@ -415,8 +415,9 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         } 
         
         qDebug() << "New path: " << path; 
-        file.close();
+        
     }
+    file.close();
     // Salvy is a BOSS //
     ifstream file(path, ios::in | ios::binary);
     if (!file) {
@@ -496,8 +497,9 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         if (endsWith(path,".STL")) { qDebug() << 4;  path.replace(path.end()-4,path.end(),".stl"); } 
         
         qDebug() << "New path: " << path;  
-        file.close();
     }
+    file.close();
+
     // Salvy is a BOSS //
     ifstream file(path, ios::in | ios::binary);
     if (!file) {
