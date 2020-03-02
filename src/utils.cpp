@@ -386,7 +386,6 @@ inline QDebug operator<<(QDebug dbg, const std::string& str)
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
-
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -397,6 +396,11 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 
     ifstream file(path, ios::in | ios::binary);
     string header;
+    qDebug() << "Header...";
+    qDebug() << "*** " << header << " ***";
+    qDebug() << "Path...";
+    qDebug() << "*** " << path << " ***";
+
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
@@ -419,8 +423,14 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
+
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
+
+        qDebug() << "Header...";
+        qDebug() << "*** " << header << " ***";
+
+
 
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
@@ -451,7 +461,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     }
 }
 
-
 // createModelFromFile(string fileName, vector<Vec> &vs, vector<Vec> &ns)
 //
 // Populates a model from a file.
@@ -460,7 +469,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vector<Vec> &ns) {
-
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -476,7 +484,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     qDebug() << "Path...";
     qDebug() << "*** " << path << " ***";
 
-<<<<<<< HEAD
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
@@ -496,31 +503,16 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         file.close();
         file.open(path);       
     }
-=======
->>>>>>> utils.cpp
     if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
-    // Salvy is a BOSS // 
+
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         qDebug() << "Header...";
         qDebug() << "*** " << header << " ***";
-=======
-
-        qDebug() << header;
-=======
-        qDebug() << "*** " << header << " ***";
->>>>>>> utils.cpp
-=======
->>>>>>> utils.cpp
-
->>>>>>> utils.cpp
 
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
