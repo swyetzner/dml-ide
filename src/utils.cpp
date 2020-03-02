@@ -394,6 +394,10 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 
     ifstream file(path, ios::in | ios::binary);
     string header;
+     qDebug() << "Header...";
+    qDebug() << "*** " << header << " ***";
+    qDebug() << "Path...";
+    qDebug() << "*** " << path << " ***";
 
     if (!file) {
         return;
@@ -403,7 +407,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         getline(file, header);
 
 
-        qDebug() << "*** " << header << " ***";
 
 
         if (startsWith(trim(header), "solid")) {
@@ -454,6 +457,10 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
 
     ifstream file(path, ios::in | ios::binary);
     string header;
+    qDebug() << "Header...";
+    qDebug() << "*** " << header << " ***";
+    qDebug() << "Path...";
+    qDebug() << "*** " << path << " ***";
 
     if (!file) {
         return;
@@ -462,7 +469,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
-        qDebug() << "*** " << header << " ***";
 
 
         if (startsWith(trim(header), "solid")) {
