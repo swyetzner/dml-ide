@@ -499,7 +499,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         file.open(path);       
     }
     // Salvy is a BOSS //
-    ifstream file(path, ios::in | ios::binary);
     if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
