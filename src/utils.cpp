@@ -499,7 +499,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
             path.replace(path.end()-3,path.end(),"stl");
         //  path = path.substr(0,path.length()-3) + "stl";
         } 
-        
+        //t
         qDebug() << "New path: " << path;  
         file.close();
         file.open(path);       
