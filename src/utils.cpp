@@ -403,9 +403,9 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
         // a different capitalization
-        if (endsWith(path,".stl")) { path.replace(path.end()-4,str.end(),".stl"); } 
+        if (endsWith(path,".stl")) { path.replace(path.end()-4,path.end(),".stl"); } 
         
-        if (endsWith(path,".STL")) {  path.replace(path.end()-4,str.end(),".stl"); } 
+        if (endsWith(path,".STL")) {  path.replace(path.end()-4,path.end(),".stl"); } 
         
         if (!file) {
             return;
@@ -478,9 +478,9 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
         // a different capitalization
-        if (endsWith(path,".stl")) { path.replace(path.end()-4,str.end(),".stl"); } 
+        if (endsWith(path,".stl")) { path.replace(path.end()-4,path.end(),".stl"); } 
         
-        if (endsWith(path,".STL")) {  path.replace(path.end()-4,str.end(),".stl"); } 
+        if (endsWith(path,".STL")) {  path.replace(path.end()-4,path.end(),".stl"); } 
         
         if (!file) {
             return;
