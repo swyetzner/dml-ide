@@ -490,9 +490,9 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
         // a different capitalization
-        if (endsWith(path,".stl")) { qDebug() << 3; path.replace(path.end()-4,path.end(),".STL"); } 
+        if (endsWith(path,".stl")) { qDebug() << 3; std::replace(path.end()-4,path.end(),".STL"); } 
         
-        if (endsWith(path,".STL")) { qDebug() << 4;  path.replace(path.end()-4,path.end(),".stl"); } 
+        if (endsWith(path,".STL")) { qDebug() << 4;  std::replace(path.end()-4,path.end(),".stl"); } 
         
         qDebug() << "New path: " << path;  
         file.close();
