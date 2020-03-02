@@ -407,7 +407,7 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         
         if (endsWith(path,".STL")) {  path.replace(path.end()-4,path.end(),".stl"); } 
         qDebug() << "New path: " << path;
-
+        file(path, ios::in | ios::binary);
         if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
@@ -485,6 +485,7 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         if (endsWith(path,".STL")) {  path.replace(path.end()-4,path.end(),".stl"); } 
         
         qDebug() << "New path: " << path;
+        file(path, ios::in | ios::binary);
         if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
