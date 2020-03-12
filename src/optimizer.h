@@ -10,6 +10,7 @@
 
 #include <Titan/sim.h>
 
+#include "oUtils.h"
 #include "utils.h"
 #include "model.h"
 

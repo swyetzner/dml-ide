@@ -62,6 +62,8 @@ set(SOURCES
         src/parser.h
         src/simViewer.cpp
         src/simViewer.h
+        src/oUtils.cpp
+        src/oUtils.h
 )
 
 set(CU_SOURCES

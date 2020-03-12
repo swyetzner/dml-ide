@@ -286,7 +286,7 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
         qDebug() << "New candidates" << newCandidates.size();
         hangingCandidates = newCandidates;
     }
-
+    qDebug() << "massToSpring map" << massToSpringMap.size();
 }
 
 void SpringRemover::regenerateShift() {
@@ -361,92 +361,17 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
   }
   minCut *= 2;*/
 
-  Vec minPos = Vec(FLT_MAX, FLT_MAX, FLT_MAX);
-  Vec maxPos = Vec(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
   double minCut = 2 * config->lattices.front()->unit[0];
 
+  vector<Vec> lattice;
+    fillMassSpringMap();
 
-  for (auto &m : massToSpringMap) {
-      minPos[0] = std::min(minPos[0], m.first->origpos[0]);
-      minPos[1] = std::min(minPos[1], m.first->origpos[1]);
-      minPos[2] = std::min(minPos[2], m.first->origpos[2]);
-      maxPos[0] = std::max(maxPos[0], m.first->origpos[0]);
-      maxPos[1] = std::max(maxPos[1], m.first->origpos[1]);
-      maxPos[2] = std::max(maxPos[2], m.first->origpos[2]);
-  }
+    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice);
+  //oUtils::generateMassesPoisson(minCut, massToSpringMap, lattice);
 
-  qDebug() << "Max" << maxPos[0] << maxPos[1] << maxPos[2] << "Min" << minPos[0] << minPos[1] << minPos[2];
+    fillMassSpringMap();
 
-  int xLines = int((maxPos[0] - minPos[0]) / minCut) + 1;
-  int yLines = int((maxPos[1] - minPos[1]) / minCut) + 1;
-  int zLines = int((maxPos[2] - minPos[2]) / minCut) + 1;
-  int kNewPoints = xLines * yLines * zLines;
-  kNewPoints *= 3;
-
-  qDebug() << "Generating" << kNewPoints << "random point candidates with cutoff" << minCut;
-
-  vector<Vec> lattice = vector<Vec>();
-  vector<Vec> candidates = vector<Vec>();
-  vector<double> sumDists = vector<double>();
-
-  minPos += Vec(1E-4, 1E-4, 1E-4);
-  maxPos -= Vec(1E-4, 1E-4, 1E-4);
-
-  lattice.push_back(Utils::randPointVec(minPos, maxPos));
-  double maxLength = minCut;
-
-  for (int k = 0; k < kNewPoints; k++) {
-      Vec p = Utils::randPointVec(minPos, maxPos);
-
-      bool close = false;
-      for (auto &m: massToSpringMap) {
-          if ((m.first->origpos - p).norm() <= 1E-6) {
-              close = true;
-          }
-      }
-      if (!close) {
-          candidates.push_back(p);
-          sumDists.push_back(0.0);
-      }
-  }
-
-  while (maxLength >= minCut && !candidates.empty()) {
-    uint ifar = 0;
-    double maxDist = 0.0;
-
-    for (int i = 0; i < candidates.size(); i++) {
-      bool reject = false;
-
-      Vec l = lattice.back();
-      double d = (candidates[i] - l).norm();
-
-      if (d < minCut) {
-	candidates.erase(candidates.begin() + i);
-	sumDists.erase(sumDists.begin() + i);
-	i--;
-	continue;
-      }
-      if (sumDists[i] + d > maxDist) {
-	maxDist = sumDists[i] + d;
-	ifar = i;
-      }
-    }
-
-    if (!candidates.empty()) {
-      maxLength = maxDist;
-      for (Vec l : lattice)
-	maxLength = std::min(maxLength, (candidates[ifar] - l).norm());
-      lattice.push_back(candidates[ifar]);
-      candidates.erase(candidates.begin() + ifar);
-      for (int i = 0; i < candidates.size(); i++) {
-	sumDists[i] += (candidates[i] - lattice.back()).norm();
-      }
-      qDebug() << "Added to lattice" << lattice.back()[0] << lattice.back()[1] << lattice.back()[2];
-    }
-  }
-
-  int nm = sim->masses.size();
+    int nm = sim->masses.size();
   for (Vec l : lattice) {
     Mass *n = new Mass(*sim->masses.front());
     Mass *m = sim->createMass(n);
@@ -488,7 +413,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
           k--;
           continue;
       }**/
-      assert((m1->origpos - m2->origpos).norm() > 1E-6);
+      //assert((m1->pos - m2->pos).norm() > 1E-6);
       if ((m1->pos - m2->pos).norm() <= maxS && (m1->pos - m2->pos).norm() > maxS / 4) {
         Spring t = Spring(*sim->springs.front());
         Spring *s = new Spring(t);
@@ -660,18 +585,11 @@ void SpringRemover::optimize() {
         qDebug() << "Applied stress memory";
         // Remove masses
         for (Mass *m : sim->masses) {
-            massesToDelete[m] = massToSpringMap[m].empty();
-        }
-        qDebug() << "Set mass delete list";
-        i = 0;
-        while (i < sim->masses.size()) {
-            if (sim->masses[i] != nullptr && massesToDelete[sim->masses[i]]) {
-                removeMassFromMap(sim->masses[i]);
-                //sim->deleteMass(sim->masses[i]);
-                //i--;
+            if (massToSpringMap.count(m) && massToSpringMap[m].empty()) {
+                removeMassFromMap(m);
             }
-            i++;
         }
+
         qDebug() << "Deleted masses";
         for (i = 0; i < sim->masses.size(); i++) {
             sim->masses[i]->index = i;
