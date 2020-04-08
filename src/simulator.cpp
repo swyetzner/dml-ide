@@ -34,7 +34,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     steps = 0;
 
-    simStatus = PAUSED;
+    simStatus = STOPPED;
     dataDir = QDir::currentPath() + QDir::separator() + "data";
 
     n_repeats = 0;
@@ -121,8 +121,10 @@ void Simulator::runSimulation(bool running) {
     if (running) {
         if (simStatus != STARTED) {
             sim->initCudaParameters();
-            createDataDir();
             dumpSpringData();
+        }
+        if (simStatus == STOPPED) {
+            createDataDir();
         }
         simStatus = STARTED;
         run();
@@ -492,7 +494,6 @@ void Simulator::run() {
             exit(0);
         }
     }
-    simStatus = STOPPED;
 
     auto pend = std::chrono::system_clock::now();
     std::chrono::duration<double> pduration = pend - pstart;
@@ -760,6 +761,7 @@ Vec Simulator::getDeflectionPoint() {
 
 void Simulator::createDataDir() {
 
+    qDebug() << "CREATE DATA DIR";
     QDir data(dataDir);
     if (!data.exists()) {
         qDebug() << "Data folder does not exist. Creating...";
@@ -808,6 +810,7 @@ void Simulator::writeCustomMetricHeader(const QString &outputFile) {
 void Simulator::writeMetric(const QString &outputFile) {
 
     QFile file(outputFile);
+    qDebug() << "WRITE METRIC";
     if (!file.open(QFile::WriteOnly | QIODevice::Append | QFile::Text)) {
         return;
     }
