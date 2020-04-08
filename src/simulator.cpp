@@ -87,6 +87,8 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
         printf("\033[10;1f");
     }
 
+    wallClockTime = 0;
+
     qDebug() << "Initialized Simulator";
 }
 
@@ -308,6 +310,9 @@ void Simulator::exportSimulation() {
 }
 
 void Simulator::run() {
+
+    auto pstart = std::chrono::system_clock::now();
+
     if (!sim->running()) {
         qDebug() << "Next Load" << currentLoad << "Queue size" << config->loadQueue.size() << "Switch at time" << pastLoadTime;
         bool loadQueueDone = false;
@@ -487,6 +492,13 @@ void Simulator::run() {
             exit(0);
         }
     }
+    simStatus = STOPPED;
+
+    auto pend = std::chrono::system_clock::now();
+    std::chrono::duration<double> pduration = pend - pstart;
+    wallClockTime += pduration.count();
+
+    qDebug() << "WALL CLOCK TIME" << wallClockTime;
 }
 
 
@@ -773,9 +785,9 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            file.write("Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
+            file.write("Wall Time,Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
         } else {
-            file.write("Time,Iteration,Deflection,Total Weight,Bar Number\n");
+            file.write("Wall Time,Iteration,Deflection,Total Weight,Bar Number\n");
         }
     }
 }
@@ -802,7 +814,8 @@ void Simulator::writeMetric(const QString &outputFile) {
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
+            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7,%8\n")
+                    .arg(wallClockTime)
                     .arg(optimized? massDisplacer->totalTrialTime / optimized : 0)
                     .arg(optimized)
                     .arg(calcDeflection())
@@ -812,7 +825,8 @@ void Simulator::writeMetric(const QString &outputFile) {
                     .arg(totalLength);
             file.write(mLine.toUtf8());
         } else if (optConfig->rules.front().method == OptimizationRule::REMOVE_LOW_STRESS) {
-            QString mLine = QString("%1,%2,%3,%4,%5\n")
+            QString mLine = QString("%1,%2,%3,%4,%5,%6\n")
+                    .arg(wallClockTime)
                     .arg(sim->time())
                     .arg(optimized)
                     .arg(calcDeflection())
