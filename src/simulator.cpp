@@ -124,6 +124,7 @@ void Simulator::runSimulation(bool running) {
             createDataDir();
             sim->initCudaParameters();
             dumpSpringData();
+            startWallClockTime = std::chrono::system_clock::now();
         }
         if (simStatus == PAUSED) dumpSpringData();
         simStatus = STARTED;
@@ -313,8 +314,6 @@ void Simulator::exportSimulation() {
 
 void Simulator::run() {
 
-    auto pstart = std::chrono::system_clock::now();
-
     if (!sim->running()) {
         qDebug() << "Next Load" << currentLoad << "Queue size" << config->loadQueue.size() << "Switch at time" << pastLoadTime;
         bool loadQueueDone = false;
@@ -421,7 +420,6 @@ void Simulator::run() {
                         writeCustomMetric(customMetricFile);
                     optimized++;
 
-                    if (dumpCriteriaMet()) dumpSpringData();
                     cout << "Average iteration time (simulation): " << massDisplacer->totalTrialTime / optimized << "s \n";
                 }
 
@@ -474,8 +472,6 @@ void Simulator::run() {
 			      n_springs = int(sim->springs.size());
 			    }
 
-                            if (dumpCriteriaMet()) dumpSpringData();
-
                         }
                     }
                 }
@@ -495,11 +491,12 @@ void Simulator::run() {
         }
     }
 
+    auto currentWallClockTime = std::chrono::system_clock::now();
+    std::chrono::duration<double> diff = (currentWallClockTime - startWallClockTime);
     prevWallClockTime = wallClockTime;
+    wallClockTime = diff.count();
 
-    auto pend = std::chrono::system_clock::now();
-    std::chrono::duration<double> pduration = pend - pstart;
-    wallClockTime += pduration.count();
+    if (dumpCriteriaMet()) dumpSpringData();
 
     qDebug() << "WALL CLOCK TIME" << wallClockTime;
 }
@@ -676,7 +673,11 @@ bool Simulator::stopCriteriaMet() {
 
 bool Simulator::dumpCriteriaMet() {
     bool dump = false;
-    int minute = ceil(wallClockTime / 60);
+    qDebug() << "Dump criteria" << int(floor(wallClockTime / 10)) % 60 <<  int(floor(prevWallClockTime / 10)) % 60;
+    if (int(floor(wallClockTime)) % 60 < int(floor(prevWallClockTime)) % 60) {
+        return true;
+    }
+
     if (OPTIMIZER) {
         for (auto s : optConfig->stopCriteria) {
             double interval = (1 - s.threshold) / 10;
