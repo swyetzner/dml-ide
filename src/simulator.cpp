@@ -34,7 +34,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     steps = 0;
 
-    simStatus = STOPPED;
+    simStatus = NOT_STARTED;
     dataDir = QDir::currentPath() + QDir::separator() + "data";
 
     n_repeats = 0;
@@ -88,6 +88,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     }
 
     wallClockTime = 0;
+    prevWallClockTime = 0;
 
     qDebug() << "Initialized Simulator";
 }
@@ -119,13 +120,12 @@ void Simulator::setDataDir(std::string dp) {
 
 void Simulator::runSimulation(bool running) {
     if (running) {
-        if (simStatus != STARTED) {
+        if (simStatus == NOT_STARTED) {
+            createDataDir();
             sim->initCudaParameters();
             dumpSpringData();
         }
-        if (simStatus == STOPPED) {
-            createDataDir();
-        }
+        if (simStatus == PAUSED) dumpSpringData();
         simStatus = STARTED;
         run();
         if (!GRAPHICS) printStatus();
@@ -495,6 +495,8 @@ void Simulator::run() {
         }
     }
 
+    prevWallClockTime = wallClockTime;
+
     auto pend = std::chrono::system_clock::now();
     std::chrono::duration<double> pduration = pend - pstart;
     wallClockTime += pduration.count();
@@ -674,6 +676,7 @@ bool Simulator::stopCriteriaMet() {
 
 bool Simulator::dumpCriteriaMet() {
     bool dump = false;
+    int minute = ceil(wallClockTime / 60);
     if (OPTIMIZER) {
         for (auto s : optConfig->stopCriteria) {
             double interval = (1 - s.threshold) / 10;

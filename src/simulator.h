@@ -10,6 +10,7 @@
 #include <Titan/sim.h>
 
 #include <ctime>
+#include <chrono>
 #include <iomanip>
 #include <fstream>
 
@@ -37,6 +38,7 @@ public:
     ~Simulator();
 
     enum Status {
+        NOT_STARTED,
         STARTED,
         PAUSED,
         STOPPED
@@ -96,6 +98,7 @@ private:
     double totalEnergy_start;
     Vec deflectionPoint_start;
     long steps;
+    double prevWallClockTime;
     double wallClockTime;
 
 
