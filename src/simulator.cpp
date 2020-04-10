@@ -126,7 +126,7 @@ void Simulator::runSimulation(bool running) {
             dumpSpringData();
             startWallClockTime = std::chrono::system_clock::now();
         }
-        if (simStatus == PAUSED) dumpSpringData();
+        //if (simStatus == PAUSED) dumpSpringData();
         simStatus = STARTED;
         run();
         if (!GRAPHICS) printStatus();
@@ -673,10 +673,10 @@ bool Simulator::stopCriteriaMet() {
 
 bool Simulator::dumpCriteriaMet() {
     bool dump = false;
-    qDebug() << "Dump criteria" << int(floor(wallClockTime / 10)) % 60 <<  int(floor(prevWallClockTime / 10)) % 60;
+    qDebug() << "Dump criteria" << int(floor(wallClockTime)) % (60 * 5) <<  int(floor(prevWallClockTime)) % (60 * 5);
     if (int(floor(wallClockTime)) % 60 < int(floor(prevWallClockTime)) % 60) {
         return true;
-    }
+    } return false;
 
     if (OPTIMIZER) {
         for (auto s : optConfig->stopCriteria) {
@@ -915,6 +915,7 @@ void Simulator::printStatus() {
     cout << "\033[0K" << "\033[92m" << "SIMULATING" << "\033[97m" << std::endl;
     cout << "\033[0K" << "========================================\n" << std::endl;
 
+    cout << "\033[0K" << "Wall Clock: " << wallClockTime << " s" << std::endl;
     cout << "\033[0K" << "Optimization Iterations: " << metrics.optimize_iterations << std::endl;
     cout << "\033[0K" << "Bars: " << metrics.nbars << std::endl;
     cout << "\033[0K" << "Time: " << setw(5) << std::left << std::setfill('0') << metrics.time << " s"  << std::endl;
