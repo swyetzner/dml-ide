@@ -791,9 +791,9 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            file.write("Wall Time,Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
+            file.write("Wall Clock,Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
         } else {
-            file.write("Wall Time,Iteration,Deflection,Total Weight,Bar Number\n");
+            file.write("Wall Clock,Time,Iteration,Deflection,Total Weight,Bar Number\n");
         }
     }
 }
