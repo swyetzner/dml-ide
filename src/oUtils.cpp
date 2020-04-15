@@ -97,8 +97,8 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
     double totalProb = 0.0;
     for (auto i : mToS) {
         normForces.push_back(0.0);
-        for (Spring *s : i->second) {
-            normForce.back() += s->getForce().norm();
+        for (Spring *s : i.second) {
+            normForces.back() += s->getForce().norm();
         }
         totalProb += normForces.back();
     }
