@@ -92,12 +92,29 @@ void oUtils::generateMassesPoisson(double minCut, map<Mass *, vector<Spring *> >
 
 void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> mToS, vector<Vec> &lattice) {
 
+    // Normalize forces
+    vector<double> normForces;
+    double totalProb = 0.0;
+    for (auto i : mToS) {
+        normForces.push_back(0.0);
+        for (Spring *s : i->second) {
+            normForce.back() += s->getForce().norm();
+        }
+        totalProb += normForces.back();
+    }
+
     int genN = mToS.size() * 0.1;
     for (int i = 0; i < genN; i++) {
+
         // Generate new point
-        int a = int(Utils::randUnit() * mToS.size());
+        double a = Utils::randUnit() * totalProb;
         auto it = mToS.begin();
-        std::advance(it, a);
+        int off = 0;
+        while (a -= normForces[off] > 0) {
+            off++;
+        }
+
+        std::advance(it, off);
 
         Mass *m = it->first;
 
