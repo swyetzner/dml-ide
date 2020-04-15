@@ -3,6 +3,7 @@
 //
 
 #include "optimizer.h"
+#include "../lib/Titan/include/Titan/sim.h"
 
 // Returns index of the spring with the minimum max stress
 //---------------------------------------------------------------------------
@@ -469,7 +470,13 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     }
 
 
-  sim->setAll();
+    sim->setAllDeltaTValues(sim->masses.front()->dt * 0.1);
+    sim->setAll();
+
+    sim->step(sim->masses.front()->dt * 20000);
+    sim->setAllDeltaTValues(sim->masses.front()->dt * 10);
+    sim->setAll();
+
 }
 
 void SpringRemover::splitSprings() {
