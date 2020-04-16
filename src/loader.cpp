@@ -410,7 +410,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
             if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
             double E = mat->elasticity*unit;
             KCompFile << E << '\n';
-            KCompFile.close()
+            KCompFile.close();
             for (Spring *s : sim->springs) {
 
                 // ELASTICITY -- SPRING CONSTANT
