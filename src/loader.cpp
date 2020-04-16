@@ -1575,7 +1575,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          }
      }
 
-     KCompFile.close()
+     KCompFile.close();
 
      Eigen::SparseMatrix<double> k(3*n,3*n);
      k.setFromTriplets(k_vals.begin(), k_vals.end());
