@@ -401,6 +401,16 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                 maxMassXVal = std::max(maxMassXVal, m->origpos[2]);
             }
             qDebug() << "Max X val" << maxMassXVal << minMassXVal;
+            ofstream KCompFile;
+            KCompFile.open("KComp.csv");
+
+            KCompFile << simConfig->lattices[0]->barDiameter[1] << '\n';
+            double unit = 1;
+            if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+            if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
+            double E = mat->elasticity*unit;
+            KCompFile << E << '\n';
+            KCompFile.close()
             for (Spring *s : sim->springs) {
 
                 // ELASTICITY -- SPRING CONSTANT
@@ -1539,7 +1549,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
      Vec dirs[] = {Vec(1,0,0), Vec(0,1,0), Vec(0,0,1)};
 
      ofstream KCompFile;
-     KCompFile.open("KComp.csv");
+     KCompFile.open("KComp.csv", ios::app);
      KCompFile.precision(prec);
 
      for (Spring * spring: sim->springs) {
@@ -1549,7 +1559,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          int mass_i = mass_ind[spring->getLeft()];
          int mass_j = mass_ind[spring->getRight()];
 
-         KCompFile << mass_i << ',' << mass_j << ',' << temp_k << ',' << springVec.data[0] << ',' << springVec.data[1] << ',' << springVec.data[2] <<'\n';
+         KCompFile << mass_i << ',' << spring->_left->pos.data[0] << ',' << spring->_left->pos.data[1] << ',' << spring->_left->pos.data[2]  << ',' << mass_j << ',' << spring->_right->pos.data[0] << ',' << spring->_right->pos.data[1] << ',' << spring->_right>pos.data[2] << '\n';
 
          for (int c=0; c<3; c++) {
              for (int v=0; v<3; v++) {
