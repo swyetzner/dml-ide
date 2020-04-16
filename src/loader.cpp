@@ -1538,12 +1538,18 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
 
      Vec dirs[] = {Vec(1,0,0), Vec(0,1,0), Vec(0,0,1)};
 
+     ofstream KCompFile;
+     KCompFile.open("KComp.csv");
+     KCompFile.precision(prec);
+
      for (Spring * spring: sim->springs) {
          double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
          Vec springVec = (spring->_left->pos)-(spring->_right->pos);
          springVec = springVec/springVec.norm();
          int mass_i = mass_ind[spring->getLeft()];
          int mass_j = mass_ind[spring->getRight()];
+
+         KCompFile << mass_i << ',' << mass_j << ',' << temp_k;
 
          for (int c=0; c<3; c++) {
              for (int v=0; v<3; v++) {
@@ -1568,6 +1574,8 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
              }
          }
      }
+
+     KCompFile.close()
 
      Eigen::SparseMatrix<double> k(3*n,3*n);
      k.setFromTriplets(k_vals.begin(), k_vals.end());
