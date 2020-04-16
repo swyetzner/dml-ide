@@ -1549,7 +1549,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          int mass_i = mass_ind[spring->getLeft()];
          int mass_j = mass_ind[spring->getRight()];
 
-         KCompFile << mass_i << ',' << mass_j << ',' << temp_k << '\n';
+         KCompFile << mass_i << ',' << mass_j << ',' << temp_k << ',' << springVec.data[0] << ',' << springVec.data[1] << ',' << springVec.data[2] <<'\n';
 
          for (int c=0; c<3; c++) {
              for (int v=0; v<3; v++) {
