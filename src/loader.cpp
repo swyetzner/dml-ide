@@ -404,13 +404,15 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
             ofstream KCompFile;
             KCompFile.open("KComp.csv");
 
-            KCompFile << simConfig->lattices[0]->barDiameter[1] << '\n';
-            double unit = 1;
-            if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
-            if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
-            double E = mat->elasticity*unit;
-            KCompFile << E << '\n';
-            KCompFile.close();
+            if (mat->eUnits != nullptr) {
+                KCompFile << simConfig->lattices[0]->barDiameter[1] << '\n';
+                double unit = 1;
+                if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+                if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
+                double E = mat->elasticity * unit;
+                KCompFile << E << '\n';
+                KCompFile.close();
+            }
             for (Spring *s : sim->springs) {
 
                 // ELASTICITY -- SPRING CONSTANT
@@ -418,7 +420,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     double pi = atan(1.0) * 4;
                     double a = pi * (simConfig->lattices[0]->barDiameter[1] / 2) *
                                (simConfig->lattices[0]->barDiameter[1] / 2);
-                    double unit = 1;
+                    unit = 1;
 
                     if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
                     if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
