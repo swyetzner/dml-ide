@@ -420,7 +420,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     double pi = atan(1.0) * 4;
                     double a = pi * (simConfig->lattices[0]->barDiameter[1] / 2) *
                                (simConfig->lattices[0]->barDiameter[1] / 2);
-                    unit = 1;
+                    double unit = 1;
 
                     if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
                     if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
