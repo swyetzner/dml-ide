@@ -95,6 +95,7 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
     // Normalize forces
     vector<double> normForces;
     double totalProb = 0.0;
+    qDebug() << "Start of generateMassesBounded";
     for (auto i : mToS) {
         normForces.push_back(0.0);
         for (Spring *s : i.second) {
@@ -102,19 +103,24 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
         }
         totalProb += normForces.back();
     }
+    qDebug() << "Set probablities";
 
     int genN = mToS.size() * 0.1;
+    qDebug() << "Generating" << genN << "points";
     for (int i = 0; i < genN; i++) {
 
         // Generate new point
         double a = Utils::randUnit() * totalProb;
         auto it = mToS.begin();
-        int off = 0;
-        while (a -= normForces[off] > 0) {
-            off++;
-        }
+        int r = 0;
+	double running = 0.0;
+	while (running + normForces[r] < a) {
+	  assert(r < normForces.size());
 
-        std::advance(it, off);
+	  running += normForces[r];
+	  it++;
+	  r++;
+	}
 
         Mass *m = it->first;
 
