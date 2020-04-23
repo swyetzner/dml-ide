@@ -1499,7 +1499,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
          Mass *m_temp = sim->getMassByIndex(i);
 
          if (m_temp->constraints.fixed) {
-             mass_ind[i] = -1;
+             mass_ind[i] = -n; // This won't be nice and consecutive, but it gives a unique identifier for each anchor
              AFile << i << '\n';
          } else {
              mass_ind[i] = n;
