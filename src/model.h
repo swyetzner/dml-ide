@@ -11,11 +11,15 @@
 #include<QVector3D>
 #include<QVector4D>
 #include<glm/glm.hpp>
+
+#ifdef USE_OpenGL
 #include<QOpenGLWidget>
 #include<QOpenGLFunctions>
 #include<QOpenGLBuffer>
 #include<QOpenGLVertexArrayObject>
 #include<QOpenGLShaderProgram>
+#endif
+
 #include<float.h>
 #include<QDebug>
 
@@ -120,6 +124,7 @@ struct model_data {
 
     boundingBox<glm::vec3> bounds;
 
+  #ifdef USE_OpenGL
     const GLfloat *constData() const { return m_data.constData(); }
     const GLuint *constIndicies() const { return indices.data(); }
     const GLfloat *constColor() { return m_colors.constData(); }
@@ -259,6 +264,7 @@ struct model_data {
         m_center = QVector3D(bounds.center.x, bounds.center.y, bounds.center.z);
         m_dim = (bounds.maxCorner - bounds.maxCorner).length();
     }
+  #endif
 
     bool isInside(glm::vec3 point, int n_model) {
 
@@ -436,6 +442,7 @@ struct simulation_data {
 
     boundingBox<vec3> bounds;
 
+  #ifdef USE_OpenGL
     const GLfloat *constData() const { return m_data.constData(); }
     const GLuint *constIndices() const { return m_index.constData(); }
     int count() const { return m_count; }
@@ -463,6 +470,7 @@ struct simulation_data {
             m_indexCount++;
         }
     }
+#endif
 
     void indexVertices(int n_model) {
         qDebug() << "Indexing vertices for model " << n_model;
@@ -636,15 +644,7 @@ struct bar_data {
 class Volume
 {
 public:
-    Volume();
-    Volume(QString id);
-    Volume(QString id,
-           QString primitive,
-           QString url,
-           QString units,
-           QString rendering,
-           QString alpha,
-           QString color);
+  Volume() {}
 
     QString id;
     QString primitive;
@@ -667,6 +667,43 @@ public:
         vec4 cvec = vec4(color.x(), color.y(), color.z(), color.w());
         model->colors.insert(model->colors.begin(), cvec);
     }
+
+    Volume(QString s_id,
+           QString s_primitive,
+           QString s_url,
+           QString s_units,
+           QString s_rendering,
+           QString s_alpha,
+           QString s_color) {
+      id = s_id;
+      primitive = s_primitive;
+      rendering = s_rendering;
+      units = s_units;
+      color = QVector4D(1.0f, 1.0f, 1.0f, 1.0f);
+
+      url = QUrl(s_url);
+
+      if (s_color != nullptr) {
+        QList<QString> s_colors = s_color.split(" ");
+        QList<float> f_colors;
+        for (auto c : s_colors) {
+	  float f_c = c.toFloat();
+	  f_colors.append(f_c);
+        }
+        color.setX(f_colors.at(0));
+        color.setY(f_colors.at(1));
+        color.setZ(f_colors.at(2));
+      }
+
+      if (s_alpha != nullptr) {
+        float f_alpha = s_alpha.toFloat();
+        color.setW(f_alpha);
+      }
+
+      model = new model_data();
+
+    }
+
 
 signals:
     void log(const QString message);
@@ -1000,7 +1037,7 @@ struct output_data {
 class Design
 {
 public:
-    Design();
+    Design() {};
     ~Design() {
         delete optConfig;
     }
@@ -1025,5 +1062,11 @@ public:
 
 
 
+/*Design::Design() {
+  volumes = std::vector<Volume *>();
+}
+*/
 
 #endif // MODEL_H
+
+

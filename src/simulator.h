@@ -1,10 +1,9 @@
 #ifndef TITANVIEWER_H
 #define TITANVIEWER_H
 
-#include "model.h"
 #include "optimizer.h"
 #include "loader.h"
-#include "exportThread.h"
+#include "io/exportThread.h"
 
 #undef GRAPHICS
 #include <Titan/sim.h>
@@ -12,6 +11,7 @@
 #include <ctime>
 #include <iomanip>
 #include <fstream>
+#include <QMatrix4x4>
 
 struct sim_metrics {
     sim_metrics() = default;

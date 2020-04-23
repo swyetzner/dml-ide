@@ -18,13 +18,16 @@ QTextEdit * Window::s_textEdit = nullptr;
 Window::Window(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    propTable(nullptr),
-    designWidget(nullptr),
-    simWidget(nullptr)
+    propTable(nullptr)
 {
 
     design = new Design();
     simulation = new Simulation();
+
+    #ifdef USE_OpenGL
+    designWidget = nullptr;
+    simWidget = nullptr;
+    #endif
 
     inputDMLPath = nullptr;
 
@@ -221,8 +224,11 @@ bool Window::getShowText() {
 }
 
 void Window::reloadSimulation() {
+
+#ifdef USE_OpenGL
     if (simWidget != nullptr)
         ui->verticalLayout->removeWidget(simWidget);
+#endif
 
     simulation = new Simulation();
     //loader->loadSimFromLattice(arrays_sim, simulation, 0.035);
@@ -249,11 +255,14 @@ void Window::reloadSimulation() {
     loader->loadSimulation(simulation, &design->simConfigs[0]);
 
     simulator = new Simulator(simulation, loader, &design->simConfigs[0],  design->optConfig, true);
+
+    #ifdef USE_OpenGL
     simWidget = new SimViewer(simulator, this);
     connect(simWidget, &SimViewer::stopCriteriaSat, this, &Window::simulationFinished);
     connect(simWidget, &SimViewer::log, this, &Window::log);
 
     ui->verticalLayout->addWidget(simWidget);
+    #endif
     ui->propLayout->addWidget(ui->simSettingsBox);
     setUpSimulationOptions();
 
@@ -263,9 +272,10 @@ void Window::reloadSimulation() {
 void Window::setUpDMLFeatures() {
     loader->loadDesignModels(design);
 
+    #ifdef USE_OpenGL
     designWidget = new DesignViewer(design, this);
     ui->verticalLayout->addWidget(designWidget);
-
+    #endif
     //loader->loadVolumes(arrays, design);
     //arrays_sim = design->simConfigs[0].model;
 
@@ -273,15 +283,17 @@ void Window::setUpDMLFeatures() {
     //qDebug() << "Model vertices count " << arrays->vertices.size();
 
     connect(dmlTreeWidget, &DMLTree::itemDoubleClicked, this, &Window::modelItemToggled);
+#ifdef USE_OpenGL
     connect(this, &Window::toggleVolume, designWidget, &DesignViewer::toggleModel);
-
+    connect(propTable, &PropertiesTable::updateGraphics, designWidget, &DesignViewer::updateColors);
+#endif
     connect(dmlTreeWidget, &DMLTree::itemClicked, this, &Window::dmlItemClicked);
     connect(this, &Window::displayVolumeProp, propTable, &PropertiesTable::displayVolume);
     connect(this, &Window::displayMaterialProp, propTable, &PropertiesTable::displayMaterial);
     connect(this, &Window::displayLoadProp, propTable, &PropertiesTable::displayLoadcase);
     connect(this, &Window::displaySimProp, propTable, &PropertiesTable::displaySimulation);
     connect(this, &Window::displayOptProp, propTable, &PropertiesTable::displayOptimization);
-    connect(propTable, &PropertiesTable::updateGraphics, designWidget, &DesignViewer::updateColors);
+    
 
     setUpPropertyTable();
     propTable->show();
@@ -338,29 +350,34 @@ void Window::exportThreadFinished(QString fileName) {
 
 void Window::on_actionwireframeView_triggered()
 {
-
+  #ifdef USE_OpenGL
     if (designWidget != nullptr) {
         designWidget->renderWireframe();
     }
+    #endif
 }
 
 void Window::on_actionSTLView_triggered()
 {
-
+#ifdef USE_OpenGL
     if (designWidget != nullptr) {
         designWidget->renderSolid();
     }
+#endif
 }
 
 void Window::on_actionDMLView_triggered()
 {
+#ifdef USE_OpenGL
     if (designWidget != nullptr) {
         designWidget->renderDesign();
     }
+#endif
 }
 
 void Window::on_actionSimulation_Mode_toggled(bool toggled)
 {
+#ifdef USE_OpenGL
     if (designWidget != nullptr) {
         if (toggled) {
             designWidget->hide();
@@ -389,6 +406,7 @@ void Window::on_actionSimulation_Mode_toggled(bool toggled)
             ui->actionSaveSim->setVisible(false);
         }
     }
+#endif
 }
 
 void Window::updateTimeLCD(double time)
@@ -397,34 +415,43 @@ void Window::updateTimeLCD(double time)
     ui->timeLCD->display(time);
 }
 
-
 void Window::on_actionStepSim_triggered()
 {
+#ifdef USE_OpenGL
     simWidget->step();
+#endif
 }
 
 void Window::on_actionStartSim_triggered()
 {
+#ifdef USE_OpenGL
     simWidget->start();
+#endif
 }
 
 void Window::on_actionStopSim_triggered()
 {
+#ifdef USE_OpenGL
     simWidget->stop();
+#endif
 }
 
 
 void Window::on_actionPauseSim_triggered()
 {
+#ifdef USE_OpenGL
     simWidget->pause();
+#endif
 }
 
 void Window::on_actionRecordSim_toggled(bool toggled)
 {
+#ifdef USE_OpenGL
     if (toggled)
         simWidget->recordVideo();
     else
         simWidget->saveVideo();
+#endif
 }
 
 
@@ -471,6 +498,7 @@ void Window::setUpSimulationOptions() {
     ui->renderUpdateEdit->setText(QString::number(defaultRenderPeriod));
 
     ui->colorComboBox->clear();
+    #ifdef USE_OpenGL
     for (int vis = SimViewer::SpringVisual::NOTHING; vis <= SimViewer::SpringVisual::ACTUATION; vis++) {
         SimViewer::SpringVisual::ColorScheme type = static_cast<SimViewer::SpringVisual::ColorScheme>(vis);
         ui->colorComboBox->addItem(SimViewer::SpringVisual::colorSchemeName(type));
@@ -482,6 +510,7 @@ void Window::setUpSimulationOptions() {
     connect(simWidget, &SimViewer::getVisualizeScheme, this, &Window::getVisualizeScheme);
     connect(simWidget, &SimViewer::getShowText, this, &Window::getShowText);
     connect(simWidget, &SimViewer::reloadSimulation, this, &Window::reloadSimulation);
+#endif
 }
 
 

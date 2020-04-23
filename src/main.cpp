@@ -1,7 +1,8 @@
 #include <QApplication>
-#include "commandLine.h"
+#include <QSurfaceFormat>
+#include "io/commandLine.h"
 #include "parser.h"
-#include "window.h"
+#include "gui/window.h"
 
 void qtNoDebugMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
@@ -41,13 +42,14 @@ void loadNoGraphics(std::string input, double gstep, double rstep, std::string d
     cout << "Simulation springs: " << simulation->springs.size() << " masses: " << simulation->masses.size() << "\n";
     cout << "Loading complete.\n\n";
 
-    qInstallMessageHandler(qtNoDebugMessageOutput);
+    //qInstallMessageHandler(qtNoDebugMessageOutput);
     Simulator *simulator = new Simulator(simulation, loader, &design->simConfigs[0], design->optConfig);
     simulator->setSimTimestep(gstep);
     simulator->setSyncTimestep(rstep);
     if (!dpath.empty()) simulator->setDataDir(dpath);
     while (simulator->simStatus != Simulator::STOPPED) {
         simulator->runSimulation(true);
+	cout << "Run done\n";
     }
     delete loader;
     delete simulator;

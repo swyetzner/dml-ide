@@ -7,8 +7,8 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 
-#include "src/gUtils.h"
-#include "src/model.h"
+#include "gUtils.h"
+#include "model.h"
 
 class DesignViewer : public QOpenGLWidget, protected QOpenGLFunctions
 {

@@ -4,6 +4,7 @@
 #include <QOpenGLFunctions>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
+#define GLM_FORCE_MESSAGES
 #include <glm/glm.hpp>
 
 typedef glm::vec3 vec3;

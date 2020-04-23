@@ -20,7 +20,9 @@ void Loader::loadDesignModels(Design *design) {
     for (uint v = 0; v < design->volumes.size(); v++) {
         loadVolumeModel(design->volumes[v]);
         loadVolumeGeometry(design->volumes[v]);
+	#ifdef USE_OpenGL
         design->volumes[v]->model->createGraphicsData();
+	#endif
     }
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
@@ -505,7 +507,9 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_volume) {
 
     // Create graphics data
+    #ifdef USE_OpenGL
     arrays->createGraphicsData();
+    #endif
 
     // Already existing triangle edges/springs
     // Stored in form key=(mass m), value=(masses connected to mass m)

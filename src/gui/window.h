@@ -8,16 +8,19 @@
 #include <QStyleFactory>
 #include <QTextEdit>
 #include <QTimer>
-#include "src/exportdialog.h"
-#include "src/dmlTree.h"
-#include "src/exportThread.h"
-#include "src/loader.h"
+#include "gui/exportdialog.h"
+#include "gui/dmlTree.h"
+#include "io/exportThread.h"
+#include "loader.h"
 #include "model.h"
 #include "polygonizer.h"
-#include "properties.h"
+#include "gui/properties.h"
+
+#ifdef USE_OpenGL
 #include "designViewer.h"
 #include "simViewer.h"
-#include "simulatorParallel.h"
+#endif // USE_OpenGL
+
 #include "simulator.h"
 
 #undef GRAPHICS
@@ -102,10 +105,13 @@ private:
     Ui::MainWindow *ui;
     DMLTree *dmlTreeWidget;
     PropertiesTable *propTable;
-    DesignViewer *designWidget;
     Simulator *simulator;
-    SimViewer *simWidget;
     Loader *loader;
+
+    #ifdef USE_OpenGL
+    DesignViewer *designWidget;
+    SimViewer *simWidget;
+    #endif
 
     ExportThread exportThread;
 

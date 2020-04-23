@@ -116,6 +116,7 @@ void Simulator::setDataDir(std::string dp) {
 }
 
 void Simulator::runSimulation(bool running) {
+  cout << "Running " << running << "\n";
     if (running) {
         if (simStatus != STARTED) {
             sim->initCudaParameters();
