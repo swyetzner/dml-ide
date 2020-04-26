@@ -1034,8 +1034,6 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
         vector <glm::vec3> model = vector<glm::vec3>();
 
         // Populate grid and check inside
-        qDebug() << "Parallel for grid populaiton test";
-		#pragma omp parallel for ordered
         for (ulong z = 0; z < zLines.size(); z++) {
             for (ulong y = 0; y < yLines.size(); y++) {
                 for (ulong x = 0; x < xLines.size(); x++) {
@@ -1043,9 +1041,7 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
 
                     if (arrays->isInside(gridPoint) && latticeVol->isInside(gridPoint, 0)) {
                         // Add to lattice
-						#pragma omp critical
                         gridTemp.push_back(gridPoint);
-						#pragma omp critical
                         pointOrigins.push_back(latticeBox);
                     }
                 }
@@ -1219,8 +1215,8 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         int k;
         qDebug() << "First point" << point.x << point.y << point.z;
 
-        vector<glm::vec3> candidates =  vector<glm::vec3>();
-;
+        vector<glm::vec3> candidates =  vector<glm::vec3>(kNewPoints);
+
 /*
         #pragma omp parallel for
         for (int i = 0; i < kNewPoints; ++i) {
@@ -1246,7 +1242,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 */
     // Spawn k new points
 
-		#pragma omp parallel for ordered
+		#pragma omp parallel for
         for (k = 0; k < kNewPoints; k++) {
 
                 glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
@@ -1265,10 +1261,8 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 }
-			#pragma omp critical
-            candidates.push_back(newPoint);
+            candidates[k] = newPoint;
         }
-
 
         vector<float> sumDistsStore = vector<float>();
         for (auto c: candidates) {
@@ -1276,12 +1270,14 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         }
 
 
-        int latticePrintFrequency = 100;
+        int latticePrintFrequency = 1000;
 
 
         qDebug() << "1";
+
         while (maxLength >= cutoff && candidates.size() > 0) {
             // Find point furthest from existing points
+
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
             // this loop is fast dont bother making omp
@@ -1312,9 +1308,9 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 maxLength = maxDistFromPoints;
                 // Update maxLength to minimum distance between
                 //   an existing point and the point chosen
-                for (vec3 l : latticeTemp)
+                for (vec3 l : latticeTemp) {
                     maxLength = std::min(maxLength, length(candidates[iFarthest] - l));
-
+                }
                 // Add point to lattice
                 latticeTemp.push_back(candidates[iFarthest]);
                 pointOrigins.push_back(latticeBox);
@@ -1324,7 +1320,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
             if (latticePrintFrequency == 0) {
                 qDebug() << "Added to lattice" << latticeTemp.size();
-                latticePrintFrequency = 100;
+                latticePrintFrequency = 1000;
             }
             latticePrintFrequency--;
         }
@@ -1342,6 +1338,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         }
 */
+
         lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
         // Set lattice property
         qDebug() << "Found all points in lattice" << latticeBox->volume->id;
