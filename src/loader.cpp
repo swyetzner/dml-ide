@@ -1034,6 +1034,8 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
         vector <glm::vec3> model = vector<glm::vec3>();
 
         // Populate grid and check inside
+        qDebug() << "Parallel for grid populaiton test";
+		#pragma omp parallel for ordered
         for (ulong z = 0; z < zLines.size(); z++) {
             for (ulong y = 0; y < yLines.size(); y++) {
                 for (ulong x = 0; x < xLines.size(); x++) {
@@ -1041,7 +1043,9 @@ void Loader::createGridLattice(simulation_data *arrays, SimulationConfig *simCon
 
                     if (arrays->isInside(gridPoint) && latticeVol->isInside(gridPoint, 0)) {
                         // Add to lattice
+						#pragma omp critical
                         gridTemp.push_back(gridPoint);
+						#pragma omp critical
                         pointOrigins.push_back(latticeBox);
                     }
                 }
@@ -1270,13 +1274,17 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         for (auto c: candidates) {
             sumDistsStore.push_back(0.0f);
         }
-        int latticePrintFrequency = 100; 
-        while (maxLength >= cutoff && candidates.size() > 0) {
 
+
+        int latticePrintFrequency = 100;
+
+
+        qDebug() << "1";
+        while (maxLength >= cutoff && candidates.size() > 0) {
             // Find point furthest from existing points
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
-
+            // this loop is fast dont bother making omp
             for (uint i = 0; i < candidates.size(); i++) {
                 bool reject = false;
 
@@ -1300,7 +1308,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                     iFarthest = i;
                 }
             }
-
             if (candidates.size() > 0) {
                 maxLength = maxDistFromPoints;
                 // Update maxLength to minimum distance between
@@ -1314,12 +1321,14 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 candidates.erase(candidates.begin() + iFarthest);
                 sumDistsStore.erase(sumDistsStore.begin() + iFarthest);
             }
+
             if (latticePrintFrequency == 0) {
                 qDebug() << "Added to lattice" << latticeTemp.size();
                 latticePrintFrequency = 100;
             }
             latticePrintFrequency--;
         }
+
 
      //   bool spanningSpring = false;
 	//	int nCrossovers = 0;
