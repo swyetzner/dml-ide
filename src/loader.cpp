@@ -1193,6 +1193,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         glm::vec3 point = Utils::randPoint(startCorner, endCorner);
 
+
         if (includeHull) {
             while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point) || !latticeVol->isInside(point, 0)) {
 
@@ -1207,7 +1208,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 point = Utils::randPoint(startCorner, endCorner);
             }
         }
-
         // Add point to lattice
         latticeTemp.push_back(point);
         pointOrigins.push_back(latticeBox);
@@ -1215,7 +1215,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         int k;
         qDebug() << "First point" << point.x << point.y << point.z;
 
-    
         vector<glm::vec3> candidates =  vector<glm::vec3>();
 ;
 /*
@@ -1239,12 +1238,12 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
            }
             candidates[i] = newPoint;
         }
-*/
 
+*/
     // Spawn k new points
-    int threads = 1;
-    for (int t = 0; t < threads; t++) {
-        for (k = 0; k < kNewPoints/threads; k++) {
+
+		#pragma omp parallel for ordered
+        for (k = 0; k < kNewPoints; k++) {
 
                 glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 
@@ -1262,10 +1261,9 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 }
-
+			#pragma omp critical
             candidates.push_back(newPoint);
         }
-    }
 
 
         vector<float> sumDistsStore = vector<float>();
@@ -1279,8 +1277,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
 
-
-
             for (uint i = 0; i < candidates.size(); i++) {
                 bool reject = false;
 
@@ -1291,10 +1287,10 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 distFromPoint = length(candidates[i] - l);
 
                 if (distFromPoint < cutoff) {
-                    candidates.erase(candidates.begin() + i);
-                    sumDistsStore.erase(sumDistsStore.begin() + i);
-                    i--;
-                    continue;
+					candidates.erase(candidates.begin() + i);
+					sumDistsStore.erase(sumDistsStore.begin() + i);
+                	i--;
+                	continue;
                 }
                 assert(sumDistsStore.size() == candidates.size());
                 sumDistsStore[i] += distFromPoint;
@@ -1324,7 +1320,19 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             }
             latticePrintFrequency--;
         }
-      
+
+     //   bool spanningSpring = false;
+	//	int nCrossovers = 0;
+      //  vec3 l = latticeTemp.back();
+/*
+        for (uint i = 0; i < candidates.size(); i++) {
+
+        	spanningSpring = latticeVol->springCrossover(candidates[i],l,0);
+        	nCrossovers += spanningSpring;
+        	qDebug() << "crossovers: " << nCrossovers;
+
+        }
+*/
         lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
         // Set lattice property
         qDebug() << "Found all points in lattice" << latticeBox->volume->id;
@@ -1444,6 +1452,7 @@ int latticePrintFrequency = 100;
         }
 
         for (uint i = 0; i < candidates.size(); i++) {
+        	// this is defined but never used?
             bool reject = false;
 
             float sumDists = 0.0f;
@@ -1453,7 +1462,7 @@ int latticePrintFrequency = 100;
                 Vec l = space.back();
                 distFromPoint = (candidates[i] - l).norm();
 
-                if (distFromPoint < cutoff) {
+                if (distFromPoint < cutoff ) {
                     candidates.erase(candidates.begin() + i);
                     i--;
                     continue;
