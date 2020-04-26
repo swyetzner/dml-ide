@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.0.0)
 
+<<<<<<< HEAD
+=======
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-10.2/bin/nvcc)
+set(CMAKE_PREFIX_PATH /home/salvy/Qt/5.14.1/gcc_64/lib/cmake)
+set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-10.2/)
+set(CMAKE_TOOLCHAIN_FILE /home/salvy/Downloads/vcpkg/scripts/buildsystems/vcpkg.cmake)
+>>>>>>> parrellelize the space lattice generation
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)

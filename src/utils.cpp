@@ -250,6 +250,8 @@ bool Utils::intersectPlane(vec3 *triangle, vec3 o, vec3 dir, vec3 &p, float &pu,
 
 }
 
+
+
 // True if point p projects to within triangle (v0;v1;v2)
 // http://www.blackpawn.com/texts/pointinpoly/
 bool Utils::insideTriangle(vec3 a, vec3 b, vec3 c, vec3 &point) {
@@ -486,7 +488,6 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
     qDebug() << "Path...";
     qDebug() << "*** " << path << " ***";
 
-    // Salvy is a BOSS //
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
