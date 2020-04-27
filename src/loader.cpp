@@ -1217,31 +1217,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         vector<glm::vec3> candidates =  vector<glm::vec3>(kNewPoints);
 
-/*
-        #pragma omp parallel for
-        for (int i = 0; i < kNewPoints; ++i) {
-            glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
-
-            if (includeHull) {
-                while (arrays->isCloseToEdge(newPoint, cutoff) || !arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
-                    // Generate a new point if its within the cutoff of the model edge
-                    //   or its not inside the model
-                    newPoint = Utils::randPoint(startCorner, endCorner);
-                        }
-                } 
-            else {
-                while (!arrays->isInside(newPoint) || !latticeVol->isInside(newPoint, 0)) {
-                // Generate a new point if its within the cutoff of the model edge
-                //   or its not inside the model
-                    newPoint = Utils::randPoint(startCorner, endCorner);
-                }
-           }
-            candidates[i] = newPoint;
-        }
-
-*/
-    // Spawn k new points
-
 		#pragma omp parallel for
         for (k = 0; k < kNewPoints; k++) {
 
@@ -1272,15 +1247,11 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         int latticePrintFrequency = 1000;
 
-
-        qDebug() << "1";
-
         while (maxLength >= cutoff && candidates.size() > 0) {
             // Find point furthest from existing points
 
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
-            // this loop is fast dont bother making omp
             for (uint i = 0; i < candidates.size(); i++) {
                 bool reject = false;
 
@@ -1296,6 +1267,9 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 	i--;
                 	continue;
                 }
+                /// this line is the problem with parralel looping here...
+                /// well not the problem, but whatever makes us need this line
+                // is the real culprit
                 assert(sumDistsStore.size() == candidates.size());
                 sumDistsStore[i] += distFromPoint;
 
@@ -1304,12 +1278,14 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                     iFarthest = i;
                 }
             }
+
             if (candidates.size() > 0) {
                 maxLength = maxDistFromPoints;
                 // Update maxLength to minimum distance between
                 //   an existing point and the point chosen
-                for (vec3 l : latticeTemp) {
-                    maxLength = std::min(maxLength, length(candidates[iFarthest] - l));
+				#pragma omp parallel for
+                for (int i = 0; i < latticeTemp.size(); i++) {
+                    maxLength = std::min(maxLength, length(candidates[iFarthest] - latticeTemp[i]));
                 }
                 // Add point to lattice
                 latticeTemp.push_back(candidates[iFarthest]);
