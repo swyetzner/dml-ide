@@ -113,14 +113,14 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
         double a = Utils::randUnit() * totalProb;
         auto it = mToS.begin();
         int r = 0;
-	double running = 0.0;
-	while (running + normForces[r] < a) {
-	  assert(r < normForces.size());
+        double running = 0.0;
+        while (running + normForces[r] < a) {
+          assert(r < normForces.size());
 
-	  running += normForces[r];
-	  it++;
-	  r++;
-	}
+          running += normForces[r];
+          it++;
+          r++;
+        }
 
         Mass *m = it->first;
 
