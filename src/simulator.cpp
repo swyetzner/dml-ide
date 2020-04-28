@@ -280,6 +280,7 @@ void Simulator::loadSimDump(std::string sp) {
 void Simulator::exportSimulation() {
     int NUM_THREADS = 32;
 
+    qDebug() << "In exportSimulation";
     delete barData;
     barData = new bar_data();
     loader->loadBarsFromSim(sim, barData, false, false);
@@ -483,7 +484,6 @@ void Simulator::run() {
             exit(0);
         }
     }
-    simStatus = STOPPED;
 
     auto pend = std::chrono::system_clock::now();
     std::chrono::duration<double> pduration = pend - pstart;
