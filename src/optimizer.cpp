@@ -141,16 +141,26 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 
     this->stepRatio = removeRatio;
     this->stopRatio = stopRatio;
+
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 
     // Fill mass to spring map
-    for (auto iter = sim->masses.begin(); iter != sim->masses.end(); iter++) {
-    	Mass * m = *iter;
-        massToSpringMap[m] = vector<Spring *> ();
+    /*vector<Mass*>::iterator iter = sim->masses.begin(); iter != sim->masses.end(); iter++*/
+    qDebug() << "omp attempt";
+    qDebug() << "First make the map init in single thread with just keys";
 
+    for (uint i = 0; i < sim->masses.size(); i++) {
+    	Mass * m = sim->masses[i];
+    	massToSpringMap[m] = vector<Spring*> ();
+    }
+    qDebug() << "second parallel loop through map to assign data";
+
+	#pragma omp parallel for
+    for (uint i = 0; i < sim->masses.size(); i++) {
         for (Spring *s : sim->springs) {
-            if (m == s->_left || m == s->_right) {
-                massToSpringMap[m].push_back(s);
+            if (sim->masses[i] == s->_left || sim->masses[i] == s->_right) {
+				#pragma omp critical
+                massToSpringMap[sim->masses[i]].push_back(s);
             }
         }
     }
