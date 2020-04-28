@@ -1169,6 +1169,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
     for(auto&& latticeBox: latticeConfigs) {
 
+
         vector<glm::vec3> latticeTemp = vector<glm::vec3>();
         float cutoff = float(latticeBox->unit[0]);
 
@@ -1217,6 +1218,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         vector<glm::vec3> candidates =  vector<glm::vec3>(kNewPoints);
 
+    	time_t tinit = time(0);
 		#pragma omp parallel for
         for (k = 0; k < kNewPoints; k++) {
 
@@ -1246,47 +1248,107 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
 
         int latticePrintFrequency = 1000;
+        time_t tstart,tend;
+        tstart = time(0);
 
+        qDebug() << "maxL" << maxLength << " cutoff " << cutoff << " size " << candidates.size();
         while (maxLength >= cutoff && candidates.size() > 0) {
             // Find point furthest from existing points
+        	// THIS IS THE ORIGINAL LOOP DONT DELETE IT
+        	/*
+        	  // Find point furthest from existing points
+        	            uint iFarthest = 0;
+        	            float maxDistFromPoints = 0.0f;
+
+
+        	            for (uint i = 0; i < candidates.size(); i++) {
+        	                bool reject = false;
+
+        	                float sumDists = 0.0f;
+        	                float distFromPoint;
+
+        	                vec3 l = latticeTemp.back();
+        	                distFromPoint = length(candidates[i] - l);
+
+        	                if (distFromPoint < cutoff) {
+        	                    candidates.erase(candidates.begin() + i);
+        	                    sumDistsStore.erase(sumDistsStore.begin() + i);
+        	                    i--;
+        	                    continue;
+        	                }
+        	                assert(sumDistsStore.size() == candidates.size());
+        	                sumDistsStore[i] += distFromPoint;
+
+        	                if (sumDistsStore[i] > maxDistFromPoints) {
+        	                    maxDistFromPoints = sumDistsStore[i];
+        	                    iFarthest = i;
+        	                }
+        	            }
+*/
 
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
+/*
+            vec3 l = latticeTemp.back();
+            float distFromPoint;
+            int nToRemove = 0;
+            int candidateSize = candidates.size();
+            qDebug() << "Candidates: " << candidateSize;
+            for (uint i = 0; i < candidateSize; i++) {
+                if (candidateSize-nToRemove > i) { /*do nothing}
+                else {
+                    distFromPoint = length(candidates[i] - l);
+                	if (distFromPoint < cutoff) {
+                		nToRemove++;
+                		candidates[i] = candidates[candidates.size()-nToRemove];
+                		sumDistsStore[i] = sumDistsStore[sumDistsStore.size()-nToRemove];
+						i--;
+                	}
+                	else {
+						sumDistsStore[i] += distFromPoint;
+						if (sumDistsStore[i] > maxDistFromPoints) {
+							maxDistFromPoints = sumDistsStore[i];
+							iFarthest = i;
+						}
+                	}
+                }
+            }
+
+            candidates.erase(candidates.end()-nToRemove,candidates.end());
+            sumDistsStore.erase(sumDistsStore.end()-nToRemove,sumDistsStore.end());
+            assert(sumDistsStore.size() == candidates.size());
+*/
+            vec3 l = latticeTemp.back();
             for (uint i = 0; i < candidates.size(); i++) {
-                bool reject = false;
-
-                float sumDists = 0.0f;
-                float distFromPoint;
-
-                vec3 l = latticeTemp.back();
-                distFromPoint = length(candidates[i] - l);
+                float distFromPoint = length(candidates[i] - l);
 
                 if (distFromPoint < cutoff) {
-					candidates.erase(candidates.begin() + i);
-					sumDistsStore.erase(sumDistsStore.begin() + i);
-                	i--;
-                	continue;
+                    candidates.erase(candidates.begin() + i);
+                    sumDistsStore.erase(sumDistsStore.begin() + i);
+                    i--;
                 }
-                /// this line is the problem with parralel looping here...
-                /// well not the problem, but whatever makes us need this line
-                // is the real culprit
-                assert(sumDistsStore.size() == candidates.size());
-                sumDistsStore[i] += distFromPoint;
+                else {
+                    assert(sumDistsStore.size() == candidates.size());
+                    sumDistsStore[i] += distFromPoint;
 
-                if (sumDistsStore[i] > maxDistFromPoints) {
-                    maxDistFromPoints = sumDistsStore[i];
-                    iFarthest = i;
-                }
+                    if (sumDistsStore[i] > maxDistFromPoints) {
+                            maxDistFromPoints = sumDistsStore[i];
+                            iFarthest = i;
+                    }
+
+                    }
             }
 
             if (candidates.size() > 0) {
                 maxLength = maxDistFromPoints;
                 // Update maxLength to minimum distance between
                 //   an existing point and the point chosen
+
 				#pragma omp parallel for
                 for (int i = 0; i < latticeTemp.size(); i++) {
                     maxLength = std::min(maxLength, length(candidates[iFarthest] - latticeTemp[i]));
                 }
+                assert(iFarthest <= candidates.size());
                 // Add point to lattice
                 latticeTemp.push_back(candidates[iFarthest]);
                 pointOrigins.push_back(latticeBox);
@@ -1295,30 +1357,21 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             }
 
             if (latticePrintFrequency == 0) {
-                qDebug() << "Added to lattice" << latticeTemp.size();
+            	tend = time(0);
+                qDebug() << "Added to lattice" << latticeTemp.size() << " Time: " << difftime(tend, tstart) << " second(s)";
                 latticePrintFrequency = 1000;
+                tstart = time(0);
             }
             latticePrintFrequency--;
         }
 
-
-     //   bool spanningSpring = false;
-	//	int nCrossovers = 0;
-      //  vec3 l = latticeTemp.back();
-/*
-        for (uint i = 0; i < candidates.size(); i++) {
-
-        	spanningSpring = latticeVol->springCrossover(candidates[i],l,0);
-        	nCrossovers += spanningSpring;
-        	qDebug() << "crossovers: " << nCrossovers;
-
-        }
-*/
-
+        // PROBLEM HERE
         lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
         // Set lattice property
-        qDebug() << "Found all points in lattice" << latticeBox->volume->id;
+        qDebug() << "Found all points in lattice" << latticeBox->volume->id ;
+        qDebug() << "Total time: " << difftime(tend, tinit) << " second(s)";
     }
+
     arrays->lattice = lattice;
     arrays->pointOrigins = pointOrigins;
     qDebug() << "Set lattice";
@@ -1423,29 +1476,32 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
     }
 
 int latticePrintFrequency = 100; 
+
     while (maxLength >= cutoff && !candidates.empty()) {
 
         // Find point furthest from original point
         uint iFarthest = 0;
         float maxDistFromPoints = 0.0f;
-        vector<float> sumDistsStore = vector<float>();
-        for (auto c: candidates) {
-            sumDistsStore.push_back(0.0f);
+        vector<float> sumDistsStore(candidates.size());
+
+		#pragma omp parallel for
+        for (size_t i = 0; i < sumDistsStore.size(); ++i) {
+            sumDistsStore[i]= maxDistFromPoints;
         }
 
+        vector<int> candidatesToErase();
+        Vec l_temp = space.back();
+
+		#pragma omp parallel for
         for (uint i = 0; i < candidates.size(); i++) {
         	// this is defined but never used?
-            bool reject = false;
-
-            float sumDists = 0.0f;
-            float distFromPoint;
 
             if (space.size() > 0) {
-                Vec l = space.back();
-                distFromPoint = (candidates[i] - l).norm();
+                float distFromPoint = (candidates[i] - l_temp).norm();
 
                 if (distFromPoint < cutoff ) {
-                    candidates.erase(candidates.begin() + i);
+					#pragma omp critical
+                   candidates.erase(candidates.begin() + i);
                     i--;
                     continue;
                 }
@@ -1462,9 +1518,10 @@ int latticePrintFrequency = 100;
             maxLength = maxDistFromPoints;
             // Update maxLength to minimum distance between
             //   an existing point and the point chosen
-            for (Vec l : space)
-                maxLength = std::min(maxLength, float((candidates[iFarthest] - l).norm()));
-
+			#pragma omp parallel for
+            for (size_t i = 0; i <space.size(); ++i) {
+                maxLength = std::min(maxLength, float((candidates[iFarthest] - space[i]).norm()));
+            }
             // Add point to lattice
             space.push_back(candidates[iFarthest]);
             candidates.erase(candidates.begin() + iFarthest);
