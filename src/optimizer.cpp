@@ -153,10 +153,12 @@ void SpringRemover::fillMassSpringMap() {
 //---------------------------------------------------------------------------
 
     massToSpringMap = map<Mass *, vector<Spring *>>();
+    assert(massToSpringMap.size() == 0);
     for (Spring *s : sim->springs) {
         massToSpringMap[s->_left].push_back(s);
         massToSpringMap[s->_right].push_back(s);
     }
+    assert(massToSpringMap.size() <= sim->masses.size());
 
 }
 
@@ -367,7 +369,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
   vector<Vec> lattice;
     fillMassSpringMap();
 
-    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice);
+    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * 0.1);
   //oUtils::generateMassesPoisson(minCut, massToSpringMap, lattice);
 
     fillMassSpringMap();

@@ -90,13 +90,12 @@ void oUtils::generateMassesPoisson(double minCut, map<Mass *, vector<Spring *> >
 }
 
 
-void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> mToS, vector<Vec> &lattice) {
+void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> mToS, vector<Vec> &lattice, int n) {
 
     qDebug() << "Set probablities";
 
-    int genN = mToS.size() * 0.1;
-    qDebug() << "Generating" << genN << "points";
-    for (int i = 0; i < genN; i++) {
+    qDebug() << "Generating" << n << "points";
+    for (int i = 0; i < n; i++) {
 
         // Generate new point
         int a = floor(Utils::randUnit() * mToS.size());
