@@ -272,7 +272,7 @@ void PropertiesTable::displayOptimization() {
     headerLabels.append("");
 
     qDebug() << optConfig->rules.size() << optConfig->stopCriteria.size();
-    this->setRowCount(1 + 4 * int(optConfig->rules.size() + 3 * int(optConfig->stopCriteria.size())));
+    this->setRowCount(1 + 5 * int(optConfig->rules.size() + 3 * int(optConfig->stopCriteria.size())));
     this->setColumnCount(3);
 
     this->setHorizontalHeaderLabels(headerLabels);
@@ -289,6 +289,8 @@ void PropertiesTable::displayOptimization() {
         createValueItem(rowCount, 2, QString::number(r.threshold));
         createPropertyItem(++rowCount, 1, "frequency");
         createValueItem(rowCount, 2, QString::number(r.frequency));
+        createPropertyItem(++rowCount, 1, "memory");
+        createValueItem(rowCount, 2, QString::number(r.memory));
     }
 
     for (OptimizationStop s : optConfig->stopCriteria) {
@@ -467,6 +469,16 @@ void PropertiesTable::updateProp(int row, int col) {
                         }
                     }
                     optConfig->rules.at(index).frequency = item->text().toInt();
+                }
+                if (property->text() == "memory") {
+                    int index = 0;
+                    int j = parentProperty->column();
+                    for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                        if (this->item(i,j) != nullptr && this->item(i, j)->text() == "rule") {
+                            index++;
+                        }
+                    }
+                    optConfig->rules.at(index).memory = item->text().toDouble();
                 }
                 if (property->text() == "metric")  {
                     int index = 0;

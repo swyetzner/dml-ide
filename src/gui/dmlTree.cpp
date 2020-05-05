@@ -93,6 +93,7 @@ static inline QString constraintElement() { return QStringLiteral("constraint");
 // Rule attributes
 static inline QString methodAttribute() { return QStringLiteral("method"); }
 static inline QString frequencyAttribute() { return QStringLiteral("frequency"); }
+static inline QString memoryAttribute() { return QStringLiteral("memory"); }
 
 // Repeat attributes
 static inline QString afterAttribute() { return QStringLiteral("after"); }
@@ -558,6 +559,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *method = createAttributeItem(item, attrMap, methodAttribute());
         auto *threshold = createAttributeItem(item, attrMap, thresholdAttribute());
         auto *frequency = createAttributeItem(item, attrMap, frequencyAttribute());
+        auto *memory = createAttributeItem(item, attrMap, memoryAttribute());
 
         OptimizationRule r = OptimizationRule();
         if (method) {
@@ -581,6 +583,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             }
         } else { r.threshold = 0; }
         r.frequency = frequency ? frequency->text(1).toInt() : 0;
+        r.memory = memory ? memory->text(1).toDouble() : 1;
 
         if (design_ptr->optConfig != nullptr) {
             design_ptr->optConfig->rules.push_back(r);
