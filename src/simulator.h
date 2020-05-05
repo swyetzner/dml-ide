@@ -95,6 +95,7 @@ private:
     double totalEnergy_start;
     Vec deflectionPoint_start;
     long steps;
+    double wallClockTime;
 
 
     int n_repeats;

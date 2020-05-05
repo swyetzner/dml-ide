@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include "model.h"
 #include "utils.h"
+#include <ctime>
 
 #undef GRAPHICS
 #include <Titan/sim.h>

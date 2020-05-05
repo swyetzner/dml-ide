@@ -11,6 +11,7 @@ uint Optimizer::minSpringByStress() {
 
     uint msi = -1;
     double minStress = FLT_MAX;
+
     for (uint s = 0; s < sim->springs.size(); s++) {
         bool underExternalForce = sim->springs[s]->_left->extforce.norm() > 1E-6
                                   && sim->springs[s]->_right->extforce.norm() > 1E-6;
@@ -140,16 +141,26 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 
     this->stepRatio = removeRatio;
     this->stopRatio = stopRatio;
+
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 
     // Fill mass to spring map
-    for (Mass *m : sim->masses) {
+    /*vector<Mass*>::iterator iter = sim->masses.begin(); iter != sim->masses.end(); iter++*/
+    qDebug() << "omp attempt";
+    qDebug() << "First make the map init in single thread with just keys";
 
-        massToSpringMap[m] = vector<Spring *> ();
+    for (uint i = 0; i < sim->masses.size(); i++) {
+    	Mass * m = sim->masses[i];
+    	massToSpringMap[m] = vector<Spring*> ();
+    }
+    qDebug() << "second parallel loop through map to assign data";
 
+	#pragma omp parallel for
+    for (uint i = 0; i < sim->masses.size(); i++) {
         for (Spring *s : sim->springs) {
-            if (m == s->_left || m == s->_right) {
-                massToSpringMap[m].push_back(s);
+            if (sim->masses[i] == s->_left || sim->masses[i] == s->_right) {
+				#pragma omp critical
+                massToSpringMap[sim->masses[i]].push_back(s);
             }
         }
     }
