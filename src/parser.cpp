@@ -332,6 +332,7 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         QString method = dml_rul.attribute("method").value();
         QString threshold = dml_rul.attribute("threshold").value();
         int frequency = dml_rul.attribute("frequency").as_int(0);
+        QString regeneration = dml_rul.attribute("regeneration").value();
 
         if (method == "remove_low_stress") {
             rule.method = OptimizationRule::REMOVE_LOW_STRESS;
@@ -344,6 +345,13 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
             rule.threshold = threshold.split('%')[0].trimmed().toDouble() / 100;
         } else {
             rule.threshold = threshold.toDouble();
+        }
+        if (!regeneration.isEmpty()) {
+            if (regeneration.endsWith('%')) {
+                rule.regeneration = regeneration.split('%')[0].trimmed().toDouble() / 100;
+            } else {
+                rule.regeneration = regeneration.toDouble();
+            }
         }
         rule.frequency = frequency;
         optConfig->rules.push_back(rule);

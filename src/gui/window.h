@@ -17,8 +17,8 @@
 #include "gui/properties.h"
 
 #ifdef USE_OpenGL
-#include "designViewer.h"
-#include "simViewer.h"
+#include "opengl/designViewer.h"
+#include "opengl/simViewer.h"
 #endif // USE_OpenGL
 
 #include "simulator.h"

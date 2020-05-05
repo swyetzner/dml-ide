@@ -26,33 +26,33 @@ remove_definitions(Titan PUBLIC GRAPHICS)
 message(WARNING ${COMPILE_DEFINITIONS})
 
 set(SOURCES
-	src/model.h
-	src/loader.h
-	src/simulator.h
-	src/optimizer.h
-	src/utils.h
-	src/parser.h
-	src/polygon.h
-	src/polygonizer.h
-	src/loader.cpp
-	src/simulator.cpp
-	src/optimizer.cpp
-	src/utils.cpp
-	src/parser.cpp
-	src/polygon.cpp
-	src/polygonizer.cpp
-	src/main.cpp
+		src/model.h
+		src/loader.h
+		src/simulator.h
+		src/optimizer.h
+		src/utils.h
+		src/parser.h
+		src/polygon.h
+		src/polygonizer.h
+		src/loader.cpp
+		src/simulator.cpp
+		src/optimizer.cpp
+		src/utils.cpp
+		src/parser.cpp
+		src/polygon.cpp
+		src/polygonizer.cpp
+		src/main.cpp
 )
 
 set (IO_SOURCES 
-    		src/io/commandLine.h
+		src/io/commandLine.h
 		src/io/exportThread.h
 		src/io/commandLine.cpp
 		src/io/exportThread.cpp
 )
 
 set (QT_SOURCES 
-    		src/gui/window.h
+		src/gui/window.h
 		src/gui/dmlTree.h
 		src/gui/properties.h
 		src/gui/exportdialog.h
@@ -65,18 +65,20 @@ set (QT_SOURCES
 )
 
 set (GL_SOURCES 
-    		src/opengl/designViewer.h
+		src/opengl/designViewer.h
 		src/opengl/simViewer.h
 		src/opengl/gUtils.h
 		src/opengl/designViewer.cpp
 		src/opengl/simViewer.cpp
-		src/opengl/gUtils.h
+		src/opengl/gUtils.cpp
 )
 include_directories(src)
+set (QT_RESOURCES src/resources.qrc)
 
 option (USE_OpenGL "Use OpenGL" ON)
 if (USE_OpenGL)
-	add_executable(${PROJECT_NAME} ${SOURCES} ${IO_SOURCES} ${QT_SOURCES} ${GL_SOURCES})
+	add_executable(${PROJECT_NAME} ${SOURCES} ${IO_SOURCES} ${QT_SOURCES} ${QT_RESOURCES} ${GL_SOURCES})
+	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OpenGL)
 else()
 	add_executable(${PROJECT_NAME} ${SOURCES} ${IO_SOURCES} ${QT_SOURCES}	)
 endif()
@@ -110,7 +112,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Gui
     PRIVATE Qt5::Xml
     PRIVATE Titan
-    PRIVATE glm::glm
+    PRIVATE glm
     PRIVATE ${GLEW_LIBRARIES}
     PRIVATE pugixml
 )

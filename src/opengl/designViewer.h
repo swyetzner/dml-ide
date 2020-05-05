@@ -6,6 +6,7 @@
 #include <QOpenGLFunctions>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QOpenGLVertexArrayObject>
 
 #include "gUtils.h"
 #include "model.h"

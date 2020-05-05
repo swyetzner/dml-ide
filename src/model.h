@@ -972,6 +972,7 @@ public:
         method = NONE;
         threshold = 0;
         frequency = 0;
+        regeneration = 0;
     }
     ~OptimizationRule() = default;
 
@@ -980,6 +981,7 @@ public:
     Method method;
     double threshold;
     int frequency;
+    double regeneration;
 
     QString methodName() {
         switch (method) {
