@@ -230,6 +230,7 @@ void Window::reloadSimulation() {
         ui->verticalLayout->removeWidget(simWidget);
 #endif
 
+    delete simulation;
     simulation = new Simulation();
     //loader->loadSimFromLattice(arrays_sim, simulation, 0.035);
     //loader->applyLoadcase(arrays_sim, simulation, design->loadcaseMap["standing"]);

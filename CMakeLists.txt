@@ -30,6 +30,7 @@ set(SOURCES
 		src/loader.h
 		src/simulator.h
 		src/optimizer.h
+		src/oUtils.h
 		src/utils.h
 		src/parser.h
 		src/polygon.h
@@ -37,6 +38,7 @@ set(SOURCES
 		src/loader.cpp
 		src/simulator.cpp
 		src/optimizer.cpp
+		src/oUtils.cpp
 		src/utils.cpp
 		src/parser.cpp
 		src/polygon.cpp

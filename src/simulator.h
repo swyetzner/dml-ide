@@ -9,6 +9,7 @@
 #include <Titan/sim.h>
 
 #include <ctime>
+#include <chrono>
 #include <iomanip>
 #include <fstream>
 #include <QMatrix4x4>
@@ -33,10 +34,11 @@ struct sim_metrics {
 class Simulator {
 public:
     explicit Simulator(Simulation *sim, Loader *loader, SimulationConfig *config,
-            OptimizationConfig * optconfig = nullptr, bool graphics = false);
+            OptimizationConfig * optconfig = nullptr, bool graphics = false, bool endExport = true);
     ~Simulator();
 
     enum Status {
+        NOT_STARTED,
         STARTED,
         PAUSED,
         STOPPED
@@ -56,6 +58,7 @@ public:
 
     Status simStatus;
     bool GRAPHICS;
+    bool EXPORT;
 
     // --------------------------------------------------------------------
     // SIMULATION  FUNCTIONS
@@ -95,6 +98,8 @@ private:
     double totalEnergy_start;
     Vec deflectionPoint_start;
     long steps;
+    std::chrono::time_point<std::chrono::system_clock> startWallClockTime;
+    double prevWallClockTime;
     double wallClockTime;
 
 

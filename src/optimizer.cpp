@@ -3,6 +3,7 @@
 //
 
 #include "optimizer.h"
+#include "../lib/Titan/include/Titan/sim.h"
 
 // Returns index of the spring with the minimum max stress
 //---------------------------------------------------------------------------
@@ -140,21 +141,26 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 
     this->stepRatio = removeRatio;
     this->stopRatio = stopRatio;
+    this->stressMemory = 1;
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 
     // Fill mass to spring map
-    for (Mass *m : sim->masses) {
-
-        massToSpringMap[m] = vector<Spring *> ();
-
-        for (Spring *s : sim->springs) {
-            if (m == s->_left || m == s->_right) {
-                massToSpringMap[m].push_back(s);
-            }
-        }
-    }
+    fillMassSpringMap();
 }
 
+//---------------------------------------------------------------------------
+void SpringRemover::fillMassSpringMap() {
+//---------------------------------------------------------------------------
+
+    massToSpringMap = map<Mass *, vector<Spring *>>();
+    assert(massToSpringMap.size() == 0);
+    for (Spring *s : sim->springs) {
+        massToSpringMap[s->_left].push_back(s);
+        massToSpringMap[s->_right].push_back(s);
+    }
+    assert(massToSpringMap.size() <= sim->masses.size());
+
+}
 
 //---------------------------------------------------------------------------
 void SpringRemover::removeSpringFromMap(Spring *d) {
@@ -169,6 +175,350 @@ void SpringRemover::removeSpringFromMap(Spring *d) {
 }
 
 
+//---------------------------------------------------------------------------
+void SpringRemover::removeMassFromMap(Mass *d) {
+//---------------------------------------------------------------------------
+
+    massToSpringMap.erase(d);
+
+}
+
+//---------------------------------------------------------------------------
+void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
+                                         map<Spring *, bool> &springsToDelete) {
+//---------------------------------------------------------------------------
+
+    // Remove hanging springs (attached to masses with only one attached spring
+    int hangingSprings = 0;
+    while (!hangingCandidates.empty()) {
+        qDebug() << "Hanging spring candidates" << hangingCandidates.size();
+        map<Spring *, bool> newCandidates = map<Spring *, bool>();
+        for (auto hc : hangingCandidates) {
+            if (hc.first == nullptr) continue;
+            Spring *s = hc.first;
+            if (!springsToDelete[s] && s != nullptr) {
+                if (massToSpringMap[s->_left].size()  == 1) {
+                    if (!springsToDelete[s]) hangingSprings++;
+                    springsToDelete[s] = true;
+                    removeSpringFromMap(s);
+
+                    // Add connected springs
+                    for (Spring *c : massToSpringMap[s->_right]) {
+                        if (c != s) newCandidates[c] = true;
+                    }
+                }
+                if (massToSpringMap[s->_right].size() == 1) {
+                    if (!springsToDelete[s]) hangingSprings++;
+                    springsToDelete[s] = true;
+                    removeSpringFromMap(s);
+
+                    // Add connected springs
+                    for (Spring *c : massToSpringMap[s->_left]) {
+                        if (c != s) newCandidates[c] = true;
+                    }
+                }
+
+                // For 2 attached springs, determine angle between them
+                if (massToSpringMap[s->_left].size() == 2) {
+                    for (Spring *h : massToSpringMap[s->_left]) {
+                        if (h != s) {
+                            // h and s might be part of a hanging pair
+                            Vec bar1 = s->_right->pos - s->_left->pos;
+                            Vec bar2 = h->_right->pos - h->_left->pos;
+                            if (Utils::isAcute(bar1, bar2)) {
+                                if (!springsToDelete[s]) hangingSprings++;
+                                if (!springsToDelete[h]) hangingSprings++;
+                                springsToDelete[s] = true;
+                                springsToDelete[h] = true;
+                                removeSpringFromMap(s);
+                                removeSpringFromMap(h);
+
+                                // Add connected springs
+                                if (s->_left == h->_left) {
+                                    for (Spring *c : massToSpringMap[h->_right]) {
+                                        if (c != h) newCandidates[c] = true;
+                                    }
+                                }
+                                if (s->_left == h->_right) {
+                                    for (Spring *c : massToSpringMap[h->_left]) {
+                                        if (c != h) newCandidates[c] = true;
+                                    }
+                                }
+                                for (Spring *c : massToSpringMap[s->_right]) {
+                                    if (c != s) newCandidates[c] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (massToSpringMap[s->_right].size() == 2) {
+                    for (Spring *h : massToSpringMap[s->_right]) {
+                        if (h != s) {
+                            // h and s might be part of a hanging pair
+                            Vec bar1 = s->_right->pos - s->_left->pos;
+                            Vec bar2 = h->_right->pos - h->_left->pos;
+                            if (Utils::isAcute(bar1, bar2)) {
+                                if (!springsToDelete[s]) hangingSprings++;
+                                if (!springsToDelete[h]) hangingSprings++;
+                                springsToDelete[s] = true;
+                                springsToDelete[h] = true;
+                                removeSpringFromMap(s);
+                                removeSpringFromMap(h);
+
+                                // Add connected springs
+                                if (s->_right == h->_left) {
+                                    for (Spring *c : massToSpringMap[h->_left]) {
+                                        if (c != h) newCandidates[c] = true;
+                                    }
+                                }
+                                if (s->_right == h->_right) {
+                                    for (Spring *c : massToSpringMap[h->_right]) {
+                                        if (c != h) newCandidates[c] = true;
+                                    }
+                                }
+                                for (Spring *c : massToSpringMap[s->_left]) {
+                                    if (c != s) newCandidates[c] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        qDebug() << "Hanging springs" << hangingSprings;
+        qDebug() << "New candidates" << newCandidates.size();
+        hangingCandidates = newCandidates;
+    }
+    qDebug() << "massToSpring map" << massToSpringMap.size();
+}
+
+void SpringRemover::regenerateShift() {
+
+    qDebug() << "REGENERATING LATTICE";
+
+    sim->getAll();
+
+    qDebug() << massToSpringMap.size();
+    fillMassSpringMap();
+
+    for (auto &ms : massToSpringMap) {
+
+        if (ms.first == nullptr || ms.second.empty()) continue;
+        qDebug() << ms.first->index;
+
+        Vec dir = Utils::randDirectionVec();
+        double unit = sim->springs.front()->_rest / 4;
+        dir = dir * unit;
+
+        Mass *n = new Mass(*sim->masses.front());
+        Mass *m = sim->createMass(n);
+        m->pos = ms.first->origpos;
+        m->origpos = ms.first->origpos;
+        m->constraints.fixed = ms.first->constraints.fixed;
+        m->m = 0.0;
+        m->ref_count = 1;
+
+
+        for (Spring *t : ms.second) {
+            if (t == nullptr) continue;
+
+            Spring f = Spring(*sim->springs.front());
+            Spring *s = new Spring(f);
+            if (t->_left == ms.first) s->setMasses(m, t->_right);
+            if (t->_right == ms.first) s->setMasses(t->_left, m);
+
+            double origLen = s->_rest;
+            s->_rest = (s->_left->origpos - s->_right->origpos).norm();
+            s->_k *= origLen / s->_rest;
+            s->_max_stress = 0;
+
+            s->_left->m += s->_left->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+            s->_right->m += s->_right->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+
+            sim->createSpring(s);
+            //hangingCandidates[s] = true;
+        }
+    }
+    qDebug() << "Created new masses";
+
+    // Reindex masses
+    for (int i = 0; i < sim->masses.size(); i++) {
+        sim->masses[i]->index = i;
+    }
+    fillMassSpringMap();
+
+    sim->setAll();
+}
+
+
+void SpringRemover::regenerateLattice(SimulationConfig *config) {
+
+  qDebug() << "REGENERATING LATTICE";
+
+  sim->getAll();
+  //double minCut = FLT_MAX;
+
+  /**for (Spring *s : sim->springs) {
+
+    minCut = std::min(minCut, (s->_left->pos - s->_right->pos).norm());
+  }
+  minCut *= 2;*/
+
+  double minCut = 2 * config->lattices.front()->unit[0];
+
+  vector<Vec> lattice;
+    fillMassSpringMap();
+
+    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * 0.1);
+  //oUtils::generateMassesPoisson(minCut, massToSpringMap, lattice);
+
+    fillMassSpringMap();
+
+    int nm = sim->masses.size();
+  for (Vec l : lattice) {
+    Mass *n = new Mass(*sim->masses.front());
+    Mass *m = sim->createMass(n);
+    m->pos = l;
+    m->origpos = l;
+    m->vel = Vec(0,0,0);
+    m->constraints.fixed = false;
+    m->m = 0.0;
+    m->ref_count = 1;
+    //qDebug() << "Added mass" << m->pos[0] << m->pos[1] << m->pos[2];
+  }
+  sim->setAll();
+
+  // Reindex masses
+  for (int i = 0; i < sim->masses.size(); i++) {
+    sim->masses[i]->index = i;
+  }
+
+    map<Spring *, bool> hangingCandidates;
+    for (Spring *s : sim->springs) {
+        hangingCandidates[s] = false;
+    }
+
+    double maxS = 0.5 * 2.9 * minCut;
+  for (int j = 0; j < sim->masses.size() - 1; j++) {
+    for (int k = nm; k < sim->masses.size(); k++) {
+
+      if (j == k) continue;
+
+      Mass *m1 = sim->masses[j];
+      Mass *m2 = sim->masses[k];
+
+        if (massToSpringMap.count(m1) == 0) continue;
+
+        assert(m1 != nullptr);
+      assert(m2 != nullptr);
+      /**if ((m1->pos - m2->pos).norm() < 1E-2) {
+          sim->deleteMass(m2);
+          k--;
+          continue;
+      }**/
+      //assert((m1->pos - m2->pos).norm() > 1E-6);
+      if ((m1->pos - m2->pos).norm() <= maxS && (m1->pos - m2->pos).norm() > maxS / 4) {
+        Spring t = Spring(*sim->springs.front());
+        Spring *s = new Spring(t);
+        s->setMasses(m1, m2);
+        double origLen = s->_rest;
+        s->_rest = (m1->origpos - m2->origpos).norm();
+        s->_k *= origLen / s->_rest;
+        s->_max_stress = 0;
+        // Mass values
+
+        m1->m += m1->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+        m2->m += m2->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+
+        //qDebug() << "Masses" << m1->m << m2->m << m1->index << m2->index;
+        //qDebug() << "Spring" << s->_rest << s->_k;
+
+        sim->createSpring(s);
+        hangingCandidates[s] = true;
+      }
+    }
+  }
+
+  for (Mass *m : sim->masses) {
+      if (m->spring_count < 2) qDebug() << "SPRING COUNT" << m->index << m->spring_count;
+  }
+  /**for (int i = 0; i < sim->masses.size(); i++) {
+    if (sim->masses[i]->m == 0) {
+      sim->deleteMass(sim->masses[i]);
+      i--;
+      qDebug() << "DELETE MASS";
+    }
+  }**/
+
+    fillMassSpringMap();
+
+    map<Spring *, bool> springsToDelete;
+  for (Spring *s : sim->springs) {
+      springsToDelete[s] = false;
+  }
+  removeHangingSprings(hangingCandidates, springsToDelete);
+    // Remove springs
+    uint i = 0;
+    while (i < sim->springs.size()) {
+        if (sim->springs[i] != nullptr && springsToDelete[sim->springs[i]]) {
+            sim->deleteSpring(sim->springs[i]);
+            i--;
+        }
+        i++;
+    }
+    qDebug() << "Deleted springs";
+    for (auto ms : massToSpringMap) {
+        ms.second.erase(remove(ms.second.begin(), ms.second.end(), nullptr), ms.second.end());
+    }
+
+
+    sim->setAllDeltaTValues(sim->masses.front()->dt * 0.1);
+    sim->setAll();
+
+    sim->step(sim->masses.front()->dt * 20000);
+    sim->setAllDeltaTValues(sim->masses.front()->dt * 10);
+    sim->setAll();
+
+}
+
+void SpringRemover::splitSprings() {
+  
+  int n = sim->springs.size();
+  
+  qDebug() << "Springs" << n;
+  for (int i = 0; i < n; i++) {
+  
+    Spring *s = sim->springs[i];
+    
+    // Find midpoint
+    Vec mid = 0.5 * (s->_left->pos + s->_right->pos);
+    
+    // Add mass at midpoint
+    Mass *m = sim->createMass(mid);
+    qDebug() << "Added mass" << m->pos[0] << m->pos[1] << m->pos[2];
+  }
+
+    double maxCut = 0;
+    for (Spring *s : sim->springs) {
+      maxCut = std::max(maxCut, s->_rest);
+    }
+
+
+    for (int j = 0; j < sim->masses.size() - 1; j++) {
+      for (int k = j+1; k < sim->masses.size(); k++) {
+	Mass *m1 = sim->masses[j];
+	Mass *m2 = sim->masses[k];
+
+	if ((m2->pos - m1->pos).norm() <= maxCut) {
+	// Make spring
+	  sim->createSpring(m1, m2);
+	}
+      }
+    }
+    sim->setAll();
+}
+
+
 // Removes stepRatio percent least stressed springs
 //---------------------------------------------------------------------------
 void SpringRemover::optimize() {
@@ -179,6 +529,7 @@ void SpringRemover::optimize() {
 
     if (n_springs > n_springs_start * stopRatio) {
         map<Spring *, bool> springsToDelete = map<Spring *, bool>();
+        map<Mass *, bool> massesToDelete = map<Mass *, bool>();
         map<Spring *, bool> hangingCandidates = map<Spring *, bool>();
 
         uint toRemove = stepRatio > 0 ?  uint(stepRatio * sim->springs.size()): 1;
@@ -220,106 +571,7 @@ void SpringRemover::optimize() {
 
 
         // Remove hanging springs (attached to masses with only one attached spring
-        int hangingSprings = 0;
-        while (!hangingCandidates.empty()) {
-            qDebug() << "Hanging spring candidates" << hangingCandidates.size();
-            map<Spring *, bool> newCandidates = map<Spring *, bool>();
-            for (auto hc : hangingCandidates) {
-                Spring *s = hc.first;
-                if (!springsToDelete[s] && s != nullptr) {
-                    if (massToSpringMap[s->_left].size()  == 1) {
-                        if (!springsToDelete[s]) hangingSprings++;
-                        springsToDelete[s] = true;
-                        removeSpringFromMap(s);
-
-                        // Add connected springs
-                        for (Spring *c : massToSpringMap[s->_right]) {
-                            if (c != s) newCandidates[c] = true;
-                        }
-                    }
-                    if (massToSpringMap[s->_right].size() == 1) {
-                        if (!springsToDelete[s]) hangingSprings++;
-                        springsToDelete[s] = true;
-                        removeSpringFromMap(s);
-
-                        // Add connected springs
-                        for (Spring *c : massToSpringMap[s->_left]) {
-                            if (c != s) newCandidates[c] = true;
-                        }
-                    }
-
-                    // For 2 attached springs, determine angle between them
-                    if (massToSpringMap[s->_left].size() == 2) {
-                        for (Spring *h : massToSpringMap[s->_left]) {
-                            if (h != s) {
-                                // h and s might be part of a hanging pair
-                                Vec bar1 = s->_right->pos - s->_left->pos;
-                                Vec bar2 = h->_right->pos - h->_left->pos;
-                                if (Utils::isAcute(bar1, bar2)) {
-                                    if (!springsToDelete[s]) hangingSprings++;
-                                    if (!springsToDelete[h]) hangingSprings++;
-                                    springsToDelete[s] = true;
-                                    springsToDelete[h] = true;
-                                    removeSpringFromMap(s);
-                                    removeSpringFromMap(h);
-
-                                    // Add connected springs
-                                    if (s->_left == h->_left) {
-                                        for (Spring *c : massToSpringMap[h->_right]) {
-                                            if (c != h) newCandidates[c] = true;
-                                        }
-                                    }
-                                    if (s->_left == h->_right) {
-                                        for (Spring *c : massToSpringMap[h->_left]) {
-                                            if (c != h) newCandidates[c] = true;
-                                        }
-                                    }
-                                    for (Spring *c : massToSpringMap[s->_right]) {
-                                        if (c != s) newCandidates[c] = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (massToSpringMap[s->_right].size() == 2) {
-                        for (Spring *h : massToSpringMap[s->_right]) {
-                            if (h != s) {
-                                // h and s might be part of a hanging pair
-                                Vec bar1 = s->_right->pos - s->_left->pos;
-                                Vec bar2 = h->_right->pos - h->_left->pos;
-                                if (Utils::isAcute(bar1, bar2)) {
-                                    if (!springsToDelete[s]) hangingSprings++;
-                                    if (!springsToDelete[h]) hangingSprings++;
-                                    springsToDelete[s] = true;
-                                    springsToDelete[h] = true;
-                                    removeSpringFromMap(s);
-                                    removeSpringFromMap(h);
-
-                                    // Add connected springs
-                                    if (s->_right == h->_left) {
-                                        for (Spring *c : massToSpringMap[h->_left]) {
-                                            if (c != h) newCandidates[c] = true;
-                                        }
-                                    }
-                                    if (s->_right == h->_right) {
-                                        for (Spring *c : massToSpringMap[h->_right]) {
-                                            if (c != h) newCandidates[c] = true;
-                                        }
-                                    }
-                                    for (Spring *c : massToSpringMap[s->_left]) {
-                                        if (c != s) newCandidates[c] = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            qDebug() << "Hanging springs" << hangingSprings;
-            qDebug() << "New candidates" << newCandidates.size();
-            hangingCandidates.clear();
-            hangingCandidates = newCandidates;
-        }
+        removeHangingSprings(hangingCandidates, springsToDelete);
 
         // Remove springs
         uint i = 0;
@@ -330,18 +582,34 @@ void SpringRemover::optimize() {
             }
             i++;
         }
+        qDebug() << "Deleted springs";
         for (auto ms : massToSpringMap) {
             ms.second.erase(remove(ms.second.begin(), ms.second.end(), nullptr), ms.second.end());
         }
-        qDebug() << "Deleted springs";
+        qDebug() << "Culled map";
         for (Spring *s : sim->springs) {
-            s->_max_stress *= 0.9;
+            s->_max_stress *= stressMemory;
         }
+
+        qDebug() << "Applied stress memory";
+        // Remove masses
+        for (Mass *m : sim->masses) {
+            if (massToSpringMap.count(m) && massToSpringMap[m].empty()) {
+                removeMassFromMap(m);
+            }
+        }
+
+        qDebug() << "Deleted masses";
+        for (i = 0; i < sim->masses.size(); i++) {
+            sim->masses[i]->index = i;
+        }
+        qDebug() << "Reindexed masses";
 
         sim->setAll(); // Set spring stresses and mass value updates on GPU
 
         n_springs = int(sim->springs.size());
         qDebug() << "Springs" << n_springs << "Percent springs left" << 100 * n_springs / n_springs_start;
+    
     } else {
         qDebug() << "Optimization ended";
     }
