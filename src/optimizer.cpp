@@ -145,6 +145,7 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 
     // Fill mass to spring map
+    validSprings = sim->springs;
     fillMassSpringMap();
 }
 
@@ -153,10 +154,14 @@ void SpringRemover::fillMassSpringMap() {
 //---------------------------------------------------------------------------
 
     massToSpringMap = map<Mass *, vector<Spring *>>();
-    assert(massToSpringMap.size() == 0);
+    validSprings = vector<Spring *>();
+    assert(massToSpringMap.empty());
     for (Spring *s : sim->springs) {
-        massToSpringMap[s->_left].push_back(s);
-        massToSpringMap[s->_right].push_back(s);
+        if (s->_k != 0) {
+            massToSpringMap[s->_left].push_back(s);
+            massToSpringMap[s->_right].push_back(s);
+            validSprings.push_back(s);
+        }
     }
     assert(massToSpringMap.size() <= sim->masses.size());
 
@@ -171,6 +176,8 @@ void SpringRemover::removeSpringFromMap(Spring *d) {
 
     auto &m2 = massToSpringMap[d->_right];
     m2.erase(remove(m2.begin(), m2.end(), d), m2.end());
+
+    validSprings.erase(remove(validSprings.begin(), validSprings.end(), d), validSprings.end());
 
 }
 
@@ -461,8 +468,10 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     uint i = 0;
     while (i < sim->springs.size()) {
         if (sim->springs[i] != nullptr && springsToDelete[sim->springs[i]]) {
-            sim->deleteSpring(sim->springs[i]);
-            i--;
+            //sim->deleteSpring(sim->springs[i]);
+            sim->springs[i]->_k = 0;
+            removeSpringFromMap(sim->springs[i]);
+            //i--;
         }
         i++;
     }
@@ -525,20 +534,23 @@ void SpringRemover::optimize() {
 //---------------------------------------------------------------------------
 
     sim->getAll();
-    n_springs = sim->springs.size();
+    fillMassSpringMap();
+    n_springs = validSprings.size();
+    qDebug() << "n_springs" << n_springs;
+    exit(1);
 
     if (n_springs > n_springs_start * stopRatio) {
         map<Spring *, bool> springsToDelete = map<Spring *, bool>();
         map<Mass *, bool> massesToDelete = map<Mass *, bool>();
         map<Spring *, bool> hangingCandidates = map<Spring *, bool>();
 
-        uint toRemove = stepRatio > 0 ?  uint(stepRatio * sim->springs.size()): 1;
+        uint toRemove = stepRatio > 0 ?  uint(stepRatio * n_springs): 1;
 
         if (toRemove > 1) {
             vector<uint> springIndicesToSort;
             sortSprings_stress(springIndicesToSort);
 
-            for (Spring *s : sim->springs) {
+            for (Spring *s : validSprings) {
                 springsToDelete[s] = false;
             }
             for (uint j = 0; j < toRemove; j++) {
@@ -557,13 +569,13 @@ void SpringRemover::optimize() {
             }
         } else {
             uint ms = minSpringByStress();
-            springsToDelete[sim->springs[ms]] = true;
-            removeSpringFromMap(sim->springs[ms]);
+            springsToDelete[validSprings[ms]] = true;
+            removeSpringFromMap(validSprings[ms]);
 
-            for (Spring *c : massToSpringMap[sim->springs[ms]->_left]) {
+            for (Spring *c : massToSpringMap[validSprings[ms]->_left]) {
                 hangingCandidates[c] = true;
             }
-            for (Spring *c : massToSpringMap[sim->springs[ms]->_right]) {
+            for (Spring *c : massToSpringMap[validSprings[ms]->_right]) {
                 hangingCandidates[c] = true;
             }
         }
@@ -575,9 +587,11 @@ void SpringRemover::optimize() {
 
         // Remove springs
         uint i = 0;
-        while (i < sim->springs.size()) {
-            if (sim->springs[i] != nullptr && springsToDelete[sim->springs[i]]) {
-                sim->deleteSpring(sim->springs[i]);
+        while (i < validSprings.size()) {
+            if (validSprings[i] != nullptr && springsToDelete[validSprings[i]]) {
+                validSprings[i]->_k = 0;
+                removeSpringFromMap(validSprings[i]);
+                //sim->deleteSpring(sim->springs[i]);
                 i--;
             }
             i++;
@@ -607,7 +621,7 @@ void SpringRemover::optimize() {
 
         sim->setAll(); // Set spring stresses and mass value updates on GPU
 
-        n_springs = int(sim->springs.size());
+        n_springs = int(validSprings.size());
         qDebug() << "Springs" << n_springs << "Percent springs left" << 100 * n_springs / n_springs_start;
     
     } else {

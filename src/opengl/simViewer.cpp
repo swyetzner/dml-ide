@@ -254,6 +254,7 @@ static const GLfloat expandSpringColor[] = { 0.5, 1.0, 0.0, 1.0 };
 static const GLfloat contractSpringColor[] = { 0.7, 0.0, 1.0, 1.0 };
 static const GLfloat actuatedSpringColor[] = { 0.3, 1.0, 0.9, 1.0 };
 static const GLfloat brokenSpringColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
+static const GLfloat deletedSpringColor[] = { 1.0f, 1.0f, 1.0f, 0.0f };
 
 // --------------------------------------------------------------------
 // OPENGL FUNCTIONS
@@ -400,6 +401,13 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
         addColor(buffer, brokenSpringColor, count);
         return;
 
+    }
+
+    if (spring->_k == 0) {
+
+        addColor(buffer, deletedSpringColor, count);
+        addColor(buffer, deletedSpringColor, count);
+        return;
     }
 
 

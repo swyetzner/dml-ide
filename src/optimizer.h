@@ -64,6 +64,7 @@ public:
 
     double stepRatio;
     double stopRatio;
+    vector<Spring *> validSprings;
     map<Mass *, vector<Spring *>> massToSpringMap;
     double massFactor;
     double stressMemory;
