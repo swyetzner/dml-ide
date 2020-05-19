@@ -363,6 +363,7 @@ void Simulator::run() {
 
         bool stopReached = stopCriteriaMet();
         qDebug() << "Evaluated stop criteria" << stopReached;
+        qDebug() << "Removed springs" << springRemover->removedSprings.size();
 
         if (!optimized) {
             if (varyLoad) {
@@ -456,9 +457,13 @@ void Simulator::run() {
 
                             qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
-                            optimizer->optimize();
-
-                            optimized++;
+                            if (calcDeflection() > 0.001) {
+                                springRemover->resetLastRemoval();
+                            } else {
+                                optimizer->optimize();
+                                qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
+                                optimized++;
+                            }
                             n_repeats = optimizeAfter > 0? optimizeAfter - 1 : 0;
 
 
@@ -485,7 +490,7 @@ void Simulator::run() {
         prevSteps += long(renderTimeStep / sim->masses.front()->dt);
         qDebug() << steps;
 
-        if (stopReached) {
+        if (stopReached || calcDeflection() > 1) {
             simStatus = STOPPED;
             //dumpSpringData();
             //if (EXPORT) exportSimulation();
@@ -593,8 +598,6 @@ void Simulator::loadOptimizers() {
         }
     }
     qDebug() << "Set optimizations";
-
-    springRemover = new SpringRemover(sim, 0.05);
 }
 
 Vec Simulator::getSimCenter() {

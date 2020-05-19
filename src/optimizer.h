@@ -65,8 +65,13 @@ public:
     double stepRatio;
     double stopRatio;
     map<Mass *, vector<Spring *>> massToSpringMap;
+    vector<Spring> removedSprings;
+    vector<Mass *> affectedMasses;
+    vector<double> affectedWeights;
     double massFactor;
     double stressMemory;
+
+    void resetLastRemoval();
     void regenerateLattice(SimulationConfig *config);
     void regenerateShift();
 
