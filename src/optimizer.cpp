@@ -33,21 +33,22 @@ uint Optimizer::minSpringByStress() {
 // Outputs sorted indices (indexing to sim->springs)
 // into parameter output_indices
 //---------------------------------------------------------------------------
-void Optimizer::sortSprings_stress(vector<uint> &output_indices) {
+void Optimizer::sortSprings_stress(vector<Spring *> &spring_list, vector<uint> &output_indices) {
 //---------------------------------------------------------------------------
 
     vector<double> springStress = vector<double>();
     output_indices = vector<uint>();
 
-    for (uint s = 0; s < sim->springs.size(); s++) {
-        bool underExternalForce = sim->springs[s]->_left->extforce.norm() > 1E-6
-                                  && sim->springs[s]->_right->extforce.norm() > 1E-6;
-        bool fixed = sim->springs[s]->_left->constraints.fixed && sim->springs[s]->_right->constraints.fixed;
+    for (uint s = 0; s < spring_list.size(); s++) {
+        bool underExternalForce = spring_list[s]->_left->extforce.norm() > 1E-6
+                                  && spring_list[s]->_right->extforce.norm() > 1E-6;
+        bool fixed = spring_list[s]->_left->constraints.fixed && spring_list[s]->_right->constraints.fixed;
         if (!underExternalForce && !fixed) {
             output_indices.push_back(s);
         }
+        qDebug() << "Output indices" << output_indices.size() << "list" << spring_list.size();
 
-        double force = sim->springs[s]->_max_stress;
+        double force = spring_list[s]->_max_stress;
         springStress.push_back(force);
     }
 
@@ -56,7 +57,7 @@ void Optimizer::sortSprings_stress(vector<uint> &output_indices) {
          [springStress](uint s1, uint s2) -> bool {
              return springStress[s1] < springStress[s2];
          });
-    qDebug() << "Sorted springs by stress" << output_indices.size();
+    qDebug() << "Sorted springs by stress" << output_indices.size() << spring_list[output_indices.front()]->_max_stress;
 }
 
 
@@ -157,7 +158,7 @@ void SpringRemover::fillMassSpringMap() {
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
     for (Spring *s : sim->springs) {
-        if (s->_k != 0) {
+        if (s->_k > 0) {
             massToSpringMap[s->_left].push_back(s);
             massToSpringMap[s->_right].push_back(s);
             validSprings.push_back(s);
@@ -176,8 +177,6 @@ void SpringRemover::removeSpringFromMap(Spring *d) {
 
     auto &m2 = massToSpringMap[d->_right];
     m2.erase(remove(m2.begin(), m2.end(), d), m2.end());
-
-    validSprings.erase(remove(validSprings.begin(), validSprings.end(), d), validSprings.end());
 
 }
 
@@ -467,7 +466,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
   }
 
     map<Spring *, bool> hangingCandidates;
-    for (Spring *s : sim->springs) {
+    for (Spring *s : validSprings) {
         hangingCandidates[s] = false;
     }
 
@@ -491,7 +490,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
       }**/
       //assert((m1->pos - m2->pos).norm() > 1E-6);
       if ((m1->pos - m2->pos).norm() <= maxS && (m1->pos - m2->pos).norm() > maxS / 4) {
-        Spring t = Spring(*sim->springs.front());
+        Spring t = Spring(*validSprings.front());
         Spring *s = new Spring(t);
         s->setMasses(m1, m2);
         double origLen = s->_rest;
@@ -526,17 +525,17 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     fillMassSpringMap();
 
     map<Spring *, bool> springsToDelete;
-  for (Spring *s : sim->springs) {
+  for (Spring *s : validSprings) {
       springsToDelete[s] = false;
   }
   removeHangingSprings(hangingCandidates, springsToDelete);
     // Remove springs
     uint i = 0;
-    while (i < sim->springs.size()) {
-        if (sim->springs[i] != nullptr && springsToDelete[sim->springs[i]]) {
+    while (i < validSprings.size()) {
+        if (validSprings[i] != nullptr && springsToDelete[sim->springs[i]]) {
             //sim->deleteSpring(sim->springs[i]);
-            sim->springs[i]->_k = 0;
-            removeSpringFromMap(sim->springs[i]);
+            validSprings[i]->_k = 0;
+            validSprings.erase(remove(validSprings.begin(), validSprings.end(), validSprings[i]), validSprings.end());
             i--;
         }
         i++;
@@ -544,6 +543,13 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     qDebug() << "Deleted springs";
     for (auto ms : massToSpringMap) {
         ms.second.erase(remove(ms.second.begin(), ms.second.end(), nullptr), ms.second.end());
+    }
+
+    for (int j = 0; j < sim->springs.size(); j++) {
+        if (sim->springs[j]->_k == 0) {
+            sim->deleteSpring(sim->springs[j]);
+            j--;
+        }
     }
 
 
@@ -603,7 +609,6 @@ void SpringRemover::optimize() {
     fillMassSpringMap();
     n_springs = validSprings.size();
     qDebug() << "n_springs" << n_springs;
-    exit(1);
 
     if (n_springs > n_springs_start * stopRatio) {
         map<Spring *, bool> springsToDelete = map<Spring *, bool>();
@@ -611,21 +616,20 @@ void SpringRemover::optimize() {
         map<Spring *, bool> hangingCandidates = map<Spring *, bool>();
 
         uint toRemove = stepRatio > 0 ?  uint(stepRatio * n_springs): 1;
+        qDebug() << "toRemove" << toRemove;
 
-	for (auto &m : massToSpringMap) {
-	  affectedWeights.push_back(m.first->m);
-	}
 	
         if (toRemove > 1) {
             vector<uint> springIndicesToSort;
-            sortSprings_stress(springIndicesToSort);
+            sortSprings_stress(validSprings, springIndicesToSort);
+            qDebug() << springIndicesToSort;
 
             for (Spring *s : validSprings) {
                 springsToDelete[s] = false;
             }
             for (uint j = 0; j < toRemove; j++) {
                 if (j < springIndicesToSort.size()) {
-                    Spring *d = sim->springs[springIndicesToSort[j]];
+                    Spring *d = validSprings[springIndicesToSort[j]];
                     springsToDelete[d] = true;
                     removeSpringFromMap(d);
 
@@ -661,13 +665,14 @@ void SpringRemover::optimize() {
         while (i < validSprings.size()) {
             if (validSprings[i] != nullptr && springsToDelete[validSprings[i]]) {
                 validSprings[i]->_k = 0;
-                removeSpringFromMap(validSprings[i]);
+                validSprings.erase(remove(validSprings.begin(), validSprings.end(), validSprings[i]), validSprings.end());
                 //sim->deleteSpring(sim->springs[i]);
                 i--;
             }
             i++;
         }
-        qDebug() << "Deleted springs";
+        qDebug() << "Deleted springs" << validSprings.size();
+
         for (auto ms : massToSpringMap) {
             ms.second.erase(remove(ms.second.begin(), ms.second.end(), nullptr), ms.second.end());
         }
@@ -748,7 +753,7 @@ void SpringResizer::optimize() {
     qDebug() << "Max stress" << maxObjectStress;
 
     vector<uint> springIndicesToSort = vector<uint>();
-    sortSprings_stress(springIndicesToSort);
+    sortSprings_stress(sim->springs, springIndicesToSort);
 
     /**for (Spring *t : sim->springs) {
         double stress = t->_max_stress;
@@ -2184,7 +2189,7 @@ void SpringInserter::optimize() {
     n_springs = sim->springs.size();
 
     vector<uint> springIndicesToSort;
-    sortSprings_stress(springIndicesToSort);
+    sortSprings_stress(sim->springs, springIndicesToSort);
 
     int added = 0;
     double kFactor = sim->springs.front()->_k * sim->springs.front()->_rest;

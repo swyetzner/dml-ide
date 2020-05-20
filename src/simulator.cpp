@@ -29,7 +29,9 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     double pi = atan(1.0)*4;
     for (Spring *s : sim->springs) {
-        totalLength_start += s->_rest;
+        if (s->_k != 0) {
+            totalLength_start += s->_rest;
+        }
     }
 
     steps = 0;
@@ -339,11 +341,9 @@ void Simulator::run() {
             }
         }
 
-        qDebug() << "About to step" << sim;
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
-        qDebug() << "Synced to CPU" << sim->springs.size() << sim->masses.size();
         totalLength_prev = totalLength;
         totalLength = 0;
         double maxForce = 0;
@@ -351,6 +351,7 @@ void Simulator::run() {
         int i = 0, n = 0;
         for (Spring *s: sim->springs) {
             if (s == nullptr) continue;
+            if (s->_k == 0) continue;
             totalLength += s->_rest;
             if (maxForce < fabs(s->_curr_force)) {
                 maxForce = fabs(s->_curr_force);
@@ -362,7 +363,6 @@ void Simulator::run() {
         if (maxForceSpring != nullptr) qDebug() << "MAX FORCE SPRING" << n << maxForce << maxForceSpring->_rest << (maxForceSpring->_left->pos - maxForceSpring->_right->pos).norm();
 
         bool stopReached = stopCriteriaMet();
-        qDebug() << "Evaluated stop criteria" << stopReached;
         qDebug() << "Removed springs" << springRemover->removedSprings.size();
 
         if (!optimized) {
@@ -457,13 +457,9 @@ void Simulator::run() {
 
                             qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
-                            if (calcDeflection() > 0.001) {
-                                springRemover->resetLastRemoval();
-                            } else {
-                                optimizer->optimize();
-                                qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
-                                optimized++;
-                            }
+                            optimizer->optimize();
+                            qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
+                            optimized++;
                             n_repeats = optimizeAfter > 0? optimizeAfter - 1 : 0;
 
 
@@ -472,7 +468,7 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
-			    if (n_springs <= n_springs_start * 0.5) {
+			    if (totalLength <= totalLength_start * 0.5) {
 			      springRemover->regenerateLattice(config);
 			      //springRemover->regenerateShift();
 			      n_masses = int(sim->masses.size());

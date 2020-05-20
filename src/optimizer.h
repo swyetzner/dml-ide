@@ -39,7 +39,7 @@ public:
     virtual void optimize() = 0;
 
     uint minSpringByStress();
-    void sortSprings_stress(vector<uint> &output_indices);
+    void sortSprings_stress(vector<Spring *> &spring_list, vector<uint> &output_indices);
     void sortMasses_stress(vector<uint> &output_indices);
     int settleSim(double eps, bool use_cap=false, double cap=0);
 
