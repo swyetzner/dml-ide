@@ -72,6 +72,7 @@ public:
     double massFactor;
     double stressMemory;
 
+    void deleteGhostSprings();
     void resetLastRemoval();
     void regenerateLattice(SimulationConfig *config);
     void regenerateShift();
@@ -83,6 +84,7 @@ private:
     void fillMassSpringMap();
     void removeSpringFromMap(Spring *d);
     void removeMassFromMap(Mass *d);
+    void invalidateSpring(Spring *i);
     void removeHangingSprings(map<Spring *, bool> &hangingCandidates, map<Spring *, bool> &springsToDelete);
     void deleteSpring(Spring *d);
     void splitSprings();

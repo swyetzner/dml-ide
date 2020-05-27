@@ -121,7 +121,6 @@ void Simulator::setDataDir(std::string dp) {
 }
 
 void Simulator::runSimulation(bool running) {
-  cout << "Running " << running << "\n";
     if (running) {
         if (simStatus == NOT_STARTED) {
             createDataDir();
@@ -910,7 +909,7 @@ void Simulator::printStatus() {
     getSimMetrics(metrics);
 
     //printf("\033[2J");
-    printf("\033[10;1f");
+    //printf("\033[10;1f");
     printf("\033[J");
     cout << "\033[0K" << "\n\n========================================" << std::endl;
     cout << "\033[0K" << "\033[92m" << "SIMULATING" << "\033[97m" << std::endl;
