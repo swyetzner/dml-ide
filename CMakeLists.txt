@@ -101,6 +101,6 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Xml
     PRIVATE Titan
     PRIVATE glm
-    PRIVATE ${GLEW_LIBRARIES}
+    PRIVATE GLEW
     PRIVATE pugixml
 )
