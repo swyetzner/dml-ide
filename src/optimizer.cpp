@@ -339,64 +339,21 @@ void SpringRemover::resetLastRemoval() {
 //---------------------------------------------------------------------------
 
     qDebug() << "Resetting" << removedSprings.size() << "Springs";
-    /*for (int i = 0; i < 1; i++) {
-      if (removedSprings.empty()) return;
-        Spring *t = new Spring(removedSprings[i]);
-        t->setMasses(affectedMasses[i*2], affectedMasses[i*2+1]);
-	sim->createSpring(t);
-	cout << "Spring " << sim->springs.back() << " " << sim->springs.back()->_rest << "\n";
-	cout << "Masses " << sim->springs.back()->_left->index << " "  << sim->springs.back()->_right->index << "\n";
-	}*/
-    //fillMassSpringMap();
-    //qDebug() << "Filled map";
 
-    Vec forcePoint = Vec(0,0,0);
-    int nf = 0;
-    for (Mass *m : sim->masses) {
-        if (m->extforce.norm() > 0) {
-            forcePoint = forcePoint + m->pos;
-            nf++;
-        }
-    }
-    if (nf) forcePoint = forcePoint / nf;
-    double mindf = FLT_MAX;
-    Spring *add = nullptr;
-    int a = 0;
-    int b = 0;
-    cout << "NF " << nf<< " force " << forcePoint[0] << "," << forcePoint[1] << "," << forcePoint[2] << "\n";
-    for (Spring &s : removedSprings) {
-      double d = (affectedMasses[a*2]->pos - forcePoint).norm() + (affectedMasses[a*2 + 1]->pos - forcePoint).norm();
-      if (d < mindf) {
-	mindf = d;
-	cout << "d " << d << "\n";
-	add = &s;
-	b = a;
-      }
-      a++;
-    }
-    cout << "mindf " << mindf << "\n";
-													
-    Spring *t = new Spring(*add);
-        t->setMasses(affectedMasses[b*2], affectedMasses[b*2+1]);
-        sim->createSpring(t);
-        cout << "Spring " << sim->springs.back() << " " << sim->springs.back()->_rest << "\n";
-        cout << "Masses " << sim->springs.back()->_left->index << " "  << sim->springs.back()->_right->index << "\n";
+    for (int i = 0; i < removedSprings.size(); i++) {
+        Spring *s = removedSprings[i];
 
-	removedSprings.erase(removedSprings.begin(), removedSprings.begin() + b);
-    int i = 0;
-    for (auto &m : massToSpringMap) {
+        s->_k = removedSprings_k[i];
 
-	m.first->pos = m.first->origpos;
-	m.first->vel = Vec(0,0,0);
-	m.first->m = affectedWeights[i];
+        s->_left->m += s->_left->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
+        s->_right->m += s->_right->density * s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
 
-	cout << "Mass " << m.first->index << " " << m.first->m << "\n";
-	i++;
+        validSprings.push_back(s);
     }
 
+    removedSprings = vector<Spring *>();
     sim->setAll();
 
-    cout << "Set springs " << sim->springs.size() << "\n";
 }
 
 
@@ -556,7 +513,8 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     while (i < validSprings.size()) {
         if (validSprings[i] != nullptr && springsToDelete[sim->springs[i]]) {
             //sim->deleteSpring(sim->springs[i]);
-            removedSprings.push_back(Spring(*validSprings[i]));
+            removedSprings.push_back(validSprings[i]);
+            removedSprings_k.push_back(validSprings[i]->_k);
             //validSprings[i]->_k = 0;
             //validSprings.erase(remove(validSprings.begin(), validSprings.end(), validSprings[i]), validSprings.end());
             invalidateSpring(validSprings[i]);
@@ -633,7 +591,7 @@ void SpringRemover::optimize() {
         map<Mass *, bool> massesToDelete = map<Mass *, bool>();
         map<Spring *, bool> hangingCandidates = map<Spring *, bool>();
 
-        removedSprings = vector<Spring>();
+        removedSprings = vector<Spring *>();
 
         uint toRemove = stepRatio > 0 ?  uint(stepRatio * n_springs): 1;
         qDebug() << "toRemove" << toRemove;
@@ -683,7 +641,8 @@ void SpringRemover::optimize() {
 
         while (i < validSprings.size()) {
             if (validSprings[i] != nullptr && springsToDelete[validSprings[i]]) {
-                removedSprings.push_back(Spring(*validSprings[i]));
+                removedSprings.push_back(validSprings[i]);
+                removedSprings_k.push_back(validSprings[i]->_k);
                 //validSprings[i]->_k = 0;
                 //validSprings.erase(remove(validSprings.begin(), validSprings.end(), validSprings[i]), validSprings.end());
                 invalidateSpring(validSprings[i]);

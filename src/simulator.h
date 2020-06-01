@@ -96,6 +96,7 @@ private:
     double totalEnergy_prev;
     double totalLength_start;
     double totalEnergy_start;
+    double deflection_start;
     Vec deflectionPoint_start;
     long steps;
     std::chrono::time_point<std::chrono::system_clock> startWallClockTime;

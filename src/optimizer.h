@@ -66,7 +66,8 @@ public:
     double stopRatio;
     vector<Spring *> validSprings;
     map<Mass *, vector<Spring *>> massToSpringMap;
-    vector<Spring> removedSprings;
+    vector<Spring *> removedSprings;
+    vector<double> removedSprings_k;
     vector<Mass *> affectedMasses;
     vector<double> affectedWeights;
     double massFactor;

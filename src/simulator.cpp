@@ -452,14 +452,22 @@ void Simulator::run() {
 
                             if (!optimized && n_repeats == 0) {
                                 writeMetricHeader(metricFile);
+                                deflection_start = calcDeflection();
                             }
 
                             qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
-                            optimizer->optimize();
-                            qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
-                            optimized++;
-                            n_repeats = optimizeAfter > 0? optimizeAfter - 1 : 0;
+
+                            if (calcDeflection() > deflection_start * 2) {
+                                qDebug() << "Deflection" << calcDeflection() << deflection_start;
+                                springRemover->resetLastRemoval();
+                                exit(0);
+                            } else {
+                                optimizer->optimize();
+                                qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
+                                optimized++;
+                                n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
+                            }
 
 
                             n_masses = int(sim->masses.size());
@@ -485,7 +493,8 @@ void Simulator::run() {
         prevSteps += long(renderTimeStep / sim->masses.front()->dt);
         qDebug() << steps;
 
-        if (stopReached || calcDeflection() > 1) {
+
+        if (stopReached) {
             simStatus = STOPPED;
             //dumpSpringData();
             //if (EXPORT) exportSimulation();
