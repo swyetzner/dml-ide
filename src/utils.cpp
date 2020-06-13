@@ -24,9 +24,10 @@ inline bool Utils::endsWith(const string &s, const string &e) {
 }
 
 string Utils::left(const string &s, int n) {
-    char *buffer = new char[n];
-    s.copy(buffer, size_t(n));
-    return string(buffer);
+    char buffer[n];
+    s.copy(buffer, n);
+    string t = buffer;
+    return t;
 }
 
 string Utils::trim(string &s) {

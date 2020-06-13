@@ -20,7 +20,9 @@ void Loader::loadDesignModels(Design *design) {
     for (uint v = 0; v < design->volumes.size(); v++) {
         loadVolumeModel(design->volumes[v]);
         loadVolumeGeometry(design->volumes[v]);
+	#ifdef USE_OpenGL
         design->volumes[v]->model->createGraphicsData();
+	#endif
     }
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
@@ -452,11 +454,12 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     case LatticeConfig::BARS:
                         for (Mass *m : sim->masses) {
                             m->m = 0;
+                            m->density = d * unit;
                         }
                         double totalM = 0;
                         for (Spring *s : sim->springs) {
                             // get volume for half
-                            double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
+                            double vol = s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
                             qDebug() << vol << s->_rest / 2 << s->_diam / 2;
                             double m = vol * d * unit;
                             //s->_mass = 2 * m;
@@ -505,7 +508,9 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_volume) {
 
     // Create graphics data
+    #ifdef USE_OpenGL
     arrays->createGraphicsData();
+    #endif
 
     // Already existing triangle edges/springs
     // Stored in form key=(mass m), value=(masses connected to mass m)
