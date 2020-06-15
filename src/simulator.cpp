@@ -460,12 +460,10 @@ void Simulator::run() {
 
                             if (calcDeflection() > deflection_start * 2) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
-                                springRemover->resetLastRemoval();
-                                exit(0);
+                                springRemover->resetHalfLastRemoval();
                             } else {
                                 optimizer->optimize();
                                 qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
-                                optimized++;
                                 n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
                             }
 
@@ -477,6 +475,7 @@ void Simulator::run() {
                             currentLoad = 0;
 			    if (totalLength <= totalLength_start * 0.5) {
 			      springRemover->regenerateLattice(config);
+			      optimized++;
 			      //springRemover->regenerateShift();
 			      n_masses = int(sim->masses.size());
 			      n_springs = int(sim->springs.size());

@@ -335,12 +335,28 @@ void SpringRemover::deleteGhostSprings() {
 
 
 //---------------------------------------------------------------------------
-void SpringRemover::resetLastRemoval() {
+void SpringRemover::resetHalfLastRemoval() {
 //---------------------------------------------------------------------------
 
     qDebug() << "Resetting" << removedSprings.size() << "Springs";
+    sim->getAll();
 
-    for (int i = 0; i < removedSprings.size(); i++) {
+    if (removedSprings.empty()) return;
+
+    int start = 0;
+    int end = removedSprings.size();
+    if (removedSprings.front()->_k == 0) {
+        end = end/2;
+    } else {
+        start = end/2;
+        for (int i = 0; i < start; i++) {
+            Spring *s = removedSprings[i];
+
+            invalidateSpring(s);
+        }
+    }
+
+    for (int i = start; i < end; i++) {
         Spring *s = removedSprings[i];
 
         s->_k = removedSprings_k[i];
@@ -351,9 +367,12 @@ void SpringRemover::resetLastRemoval() {
         validSprings.push_back(s);
     }
 
-    removedSprings = vector<Spring *>();
-    sim->setAll();
+    for (Mass *m : sim->masses) {
+        m->pos = m->origpos;
+    }
 
+    fillMassSpringMap();
+    sim->setAll();
 }
 
 
@@ -443,6 +462,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
         m->constraints.fixed = false;
         m->m = 0.0;
         m->ref_count = 1;
+        m->density = sim->masses.front()->density;
     }
 
   // Reindex masses

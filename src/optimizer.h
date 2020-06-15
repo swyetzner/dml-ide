@@ -74,7 +74,7 @@ public:
     double stressMemory;
 
     void deleteGhostSprings();
-    void resetLastRemoval();
+    void resetHalfLastRemoval();
     void regenerateLattice(SimulationConfig *config);
     void regenerateShift();
 
