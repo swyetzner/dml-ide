@@ -972,7 +972,8 @@ public:
         method = NONE;
         threshold = 0;
         frequency = 0;
-        regeneration = 0;
+        regenRate = 0;
+        regenThreshold = 0;
         memory = 1;
     }
     ~OptimizationRule() = default;
@@ -982,7 +983,8 @@ public:
     Method method;
     double threshold;
     int frequency;
-    double regeneration;
+    double regenRate;
+    double regenThreshold;
     double memory;
 
     QString methodName() {

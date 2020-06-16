@@ -463,6 +463,7 @@ void Simulator::run() {
                                 springRemover->resetHalfLastRemoval();
                             } else {
                                 optimizer->optimize();
+                                if (!springRemover->regeneration) optimized++;
                                 qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
                                 n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
                             }
@@ -473,14 +474,16 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
-			    if (totalLength <= totalLength_start * 0.5) {
-			      springRemover->regenerateLattice(config);
-			      optimized++;
-			      //springRemover->regenerateShift();
-			      n_masses = int(sim->masses.size());
-			      n_springs = int(sim->springs.size());
-			    }
+                                if (springRemover->regeneration && !optConfig->rules.empty()) {
+                                    if (totalLength <= totalLength_start * optConfig->rules.front().regenThreshold) {
+                                        springRemover->regenerateLattice(config);
+                                        optimized++;
+                                        //springRemover->regenerateShift();
+                                        n_masses = int(sim->masses.size());
+                                        n_springs = int(sim->springs.size());
+                                    }
 
+                                }
                         }
                     }
                 }
@@ -569,6 +572,10 @@ void Simulator::loadOptimizers() {
                     springRemover->massFactor = M_PI * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
                                                 config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
                     springRemover->stressMemory = r.memory;
+                    if (r.regenThreshold > 0) {
+                        springRemover->regeneration = true;
+                        springRemover->regenRate = r.regenRate;
+                    }
                     this->optimizer = springRemover;
                     qDebug() << "Created SpringRemover" << r.threshold;
                     break;
