@@ -332,7 +332,8 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         QString method = dml_rul.attribute("method").value();
         QString threshold = dml_rul.attribute("threshold").value();
         int frequency = dml_rul.attribute("frequency").as_int(0);
-        QString regeneration = dml_rul.attribute("regeneration").value();
+        QString regenRate = dml_rul.attribute("regenRate").value();
+        QString regenThreshold = dml_rul.attribute("regenThreshold").value();
         double memory = dml_rul.attribute("memory").as_double(1);
 
         if (method == "remove_low_stress") {
@@ -347,11 +348,18 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         } else {
             rule.threshold = threshold.toDouble();
         }
-        if (!regeneration.isEmpty()) {
-            if (regeneration.endsWith('%')) {
-                rule.regeneration = regeneration.split('%')[0].trimmed().toDouble() / 100;
+        if (!regenRate.isEmpty()) {
+            if (regenRate.endsWith('%')) {
+                rule.regenRate = regenRate.split('%')[0].trimmed().toDouble() / 100;
             } else {
-                rule.regeneration = regeneration.toDouble();
+                rule.regenRate = regenRate.toDouble();
+            }
+        }
+        if (!regenThreshold.isEmpty()) {
+            if (regenThreshold.endsWith('%')) {
+                rule.regenThreshold = regenThreshold.split('%')[0].trimmed().toDouble() / 100;
+            } else {
+                rule.regenThreshold = regenThreshold.toDouble();
             }
         }
         rule.frequency = frequency;

@@ -140,9 +140,11 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
     : Optimizer(sim) {
 //---------------------------------------------------------------------------
 
+    this->regeneration = false;
     this->stepRatio = removeRatio;
     this->stopRatio = stopRatio;
     this->stressMemory = 1;
+    this->regenRate = 0;
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
 
     // Fill mass to spring map
@@ -446,7 +448,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     fillMassSpringMap();
 
     deleteGhostSprings();
-    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * 0.1);
+    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * this->regenRate);
     //oUtils::generateMassesPoisson(minCut, massToSpringMap, lattice);
 
     fillMassSpringMap();

@@ -62,6 +62,8 @@ class SpringRemover : public Optimizer {
 public:
     SpringRemover(Simulation *sim, double removeRatio, double stopRatio = 0);
 
+    bool regeneration;
+
     double stepRatio;
     double stopRatio;
     vector<Spring *> validSprings;
@@ -72,6 +74,7 @@ public:
     vector<double> affectedWeights;
     double massFactor;
     double stressMemory;
+    double regenRate;
 
     void deleteGhostSprings();
     void resetHalfLastRemoval();
