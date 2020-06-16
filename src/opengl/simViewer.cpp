@@ -31,7 +31,7 @@ SimViewer::SimViewer(Simulator *simulator, QWidget *parent)
     RECORDING = false;
     outputDir = "output";
     sampleDir = "output/sample";
-    framerate = 50;
+    framerate = 500;
     renderNumber = 0;
     simFrameInterval = 0;
     sampleNumber = 0;
@@ -155,7 +155,7 @@ static const char *vertexShaderPlaneSource =
         "void main() {\n"
         "   vertPos = projMatrix * mvMatrix * vec4(vertexPos, 1.0);\n"
         "   gl_Position = vertPos;\n"
-        "   vertexColor = vec4(0.6, 0.6, 0.6, 0.9);\n"
+        "   vertexColor = vec4(0.8, 0.8, 0.8, 0.9);\n"
         "   fragPosLightSpace = lightSpaceMatrix * vec4(vertexPos, 1.0);\n"
         "}\n";
 
@@ -254,6 +254,7 @@ static const GLfloat expandSpringColor[] = { 0.5, 1.0, 0.0, 1.0 };
 static const GLfloat contractSpringColor[] = { 0.7, 0.0, 1.0, 1.0 };
 static const GLfloat actuatedSpringColor[] = { 0.3, 1.0, 0.9, 1.0 };
 static const GLfloat brokenSpringColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
+static const GLfloat deletedSpringColor[] = { 1.0f, 1.0f, 1.0f, 0.0f };
 
 // --------------------------------------------------------------------
 // OPENGL FUNCTIONS
@@ -266,6 +267,7 @@ void SimViewer::updatePairVertices() {
 
     if (resizeBuffers) {
         n_springs = simulator->sim->springs.size();
+        n_masses = simulator->sim->masses.size();
         delete pairVertices;
         pairVertices = new GLfloat[2 * 3 * n_springs];
     }
@@ -278,12 +280,14 @@ void SimViewer::updatePairVertices() {
         Spring *s = simulator->sim->getSpringByIndex(i);
 
         Mass *m = s->_left;
+        assert(m != nullptr);
 
         *p++ = GLfloat(m->pos[0]);
         *p++ = GLfloat(m->pos[1]);
         *p++ = GLfloat(m->pos[2]);
 
         m = s->_right;
+        assert(m != nullptr);
 
         *p++ = GLfloat(m->pos[0]);
         *p++ = GLfloat(m->pos[1]);
@@ -377,11 +381,11 @@ void SimViewer::addMassColor(Mass *mass, GLfloat *buffer, int &count) {
 
         addColor(buffer, fixedMassColor, count);
 
-    } else if (fabs(mass->force[0]) > 1E-6 || fabs(mass->force[1]) > 1E-6 || fabs(mass->force[2]) > 1E-6) {
+    } /**else if (fabs(mass->force[0]) > 1E-6 || fabs(mass->force[1]) > 1E-6 || fabs(mass->force[2]) > 1E-6) {
 
         addColor(buffer, forceMassColor, count);
 
-    } else {
+    }**/ else {
 
         addColor(buffer, defaultMassColor, count);
     }
@@ -397,6 +401,13 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
         addColor(buffer, brokenSpringColor, count);
         return;
 
+    }
+
+    if (spring->_k == 0) {
+
+        addColor(buffer, deletedSpringColor, count);
+        addColor(buffer, deletedSpringColor, count);
+        return;
     }
 
 
@@ -820,7 +831,7 @@ void SimViewer::updateBuffers() {
     glBufferData(GL_ARRAY_BUFFER, 2 * n_springs * long(sizeof(GLfloat)), diameters, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, planeVertexBuff_id);
-    glBufferData(GL_ARRAY_BUFFER, 3 * 4 * long(sizeof(GLfloat)), planeVertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * 4 * long(sizeof(GLfloat)) * n_planes, planeVertices, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, forceVertexBuff_id);
     glBufferData(GL_ARRAY_BUFFER, 3 * extForces.size() * long(sizeof(GLfloat)), forceVertices, GL_DYNAMIC_DRAW);
@@ -843,7 +854,7 @@ void SimViewer::drawSolids() {
     glBindBuffer(GL_ARRAY_BUFFER, planeVertexBuff_id);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4 * GLsizei(n_planes));
+    //glDrawArrays(GL_TRIANGLE_FAN, 0, 4 * GLsizei(n_planes));
 
     glDisableVertexAttribArray(3);
     planeShaderProgram->release();
@@ -929,7 +940,7 @@ void SimViewer::drawVertexArray() {
     axesShaderProgram->bind();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    GUtils::drawMainAxes(4, axesVertexBuff_id);
+    //GUtils::drawMainAxes(4, axesVertexBuff_id);
     axesShaderProgram->release();
 
 
@@ -987,12 +998,12 @@ void SimViewer::drawVertexArray() {
 //
 void SimViewer::cleanUp() {
 
-    delete pairVertices;
-    delete anchorVertices;
-    delete forceVertices;
-    delete colors;
-    delete diameters;
-    delete planeVertices;
+    delete [] pairVertices;
+    delete [] anchorVertices;
+    delete [] forceVertices;
+    delete [] colors;
+    delete [] diameters;
+    delete [] planeVertices;
 
     delete timer;
 
@@ -1027,7 +1038,7 @@ void SimViewer::initCamera() {
     up.normalize();
     if (up == QVector3D(0, 0, 0)) { up = QVector3D(0, 0, 1); }
 
-    eye = QVector3D(4, 3, 3);
+    eye = QVector3D(0, 3, 3);
 
     float span = (bounds[0] - bounds[1]).length();
     m_zoom =  span > 1E-5? float(1/span) : 1.0f;
@@ -1143,9 +1154,9 @@ void SimViewer::paintGL() {
     glEnable(GL_DEPTH_CLAMP);
     glEnable(GL_MULTISAMPLE);
 
-    glClearColor(0, 0, 0, 0);
+    glClearColor(1, 1, 1, 1);
 
-    if (n_springs != int(simulator->sim->springs.size())) {
+    if (n_springs != int(simulator->sim->springs.size() || n_masses != simulator->sim->masses.size())) {
         resizeBuffers = true;
     }
     if (springVisual.colorScheme != SpringVisual::NOTHING || getVisualizeScheme() != springVisual.colorScheme || resizeBuffers) {
@@ -1202,7 +1213,7 @@ void SimViewer::resizeGL(int width, int height) {
 //
 void SimViewer::renderText(const QString &text, int flags) {
     QPainter painter(this);
-    painter.setPen(Qt::white);
+    painter.setPen(Qt::black);
     painter.setFont(QFont("Helvetica [Cronyx]", 14));
     painter.drawText(rect(), flags, text);
 }

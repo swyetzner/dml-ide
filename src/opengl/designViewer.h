@@ -6,9 +6,10 @@
 #include <QOpenGLFunctions>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QOpenGLVertexArrayObject>
 
-#include "src/gUtils.h"
-#include "src/model.h"
+#include "gUtils.h"
+#include "model.h"
 
 class DesignViewer : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -45,7 +46,7 @@ private:
     // --------------------------------------------------------------------
     long n_models;
     long n_vertices;
-    long *n_modelVertices;
+    int *n_modelVertices;
     bool *activateModel;
 
     // --------------------------------------------------------------------
