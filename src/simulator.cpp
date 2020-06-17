@@ -144,6 +144,7 @@ void Simulator::runStep() {
 }
 
 void Simulator::getSimMetrics(sim_metrics &metrics) {
+    metrics.clockTime = wallClockTime;
     metrics.time = sim->time();
     metrics.nbars = sim->springs.size();
     metrics.totalLength = totalLength;
