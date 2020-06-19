@@ -833,10 +833,11 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
 
     for (Anchor *anchor : load->anchors) {
         Volume *anchorVol = anchor->volume;
-
+		
         anchor->masses.clear(); // Clear mass ptr cache
 
         int fixedMasses = 0;
+        
         for (Mass *mass : sim->masses) {
             if (anchorVol->model != nullptr) {
                 glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
@@ -855,6 +856,7 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                     fixedMasses++;
                 }
             }
+            if (fixedMasses > surfacePoints) { break; }
         }
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
         cout << "Anchored " << fixedMasses << " masses with volume " << anchorVol->id.toStdString() << ".\n";
@@ -1136,9 +1138,8 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     vector<glm::vec3> lattice = vector<glm::vec3>();
     vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
 
-
     if (includeHull) {
-
+		surfacePoints = 0;
         // Add hull vertices
         for (uint i = 0; i < arrays->vertices.size(); i++) {
             bool existsInLattice = false;
@@ -1152,7 +1153,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
-
+				surfacePoints++;
                 for(LatticeConfig *latticeBox : latticeConfigs) {
                     if (latticeBox->volume->model->isInside(arrays->vertices[i], 0)) {
                         pointOrigins.push_back(latticeBox);
@@ -1415,6 +1416,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             if (!existsInLattice) {
                 space.push_back(n.first);
             }
+            // save number of hull points 
         }
         // Interpolate edges based on cutoff
         while (geometryBound->isCloseToEdge(point, cutoff) || !geometryBound->isInside(point)) {
