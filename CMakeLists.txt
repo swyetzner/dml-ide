@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0.0)
-
+set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+set(CMAKE_PREFIX_PATH ~/Qt/5.14.2/gcc_64/lib/cmake)
+set(CMAKE_TOOLCHAIN_FILE ~/Downloads/vcpkg/scripts/buildsystems/vcpkg.cmake)
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -115,6 +117,6 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Xml
     PRIVATE Titan
     PRIVATE glm
-    PRIVATE GLEW
+    PRIVATE GLEW::GLEW
     PRIVATE pugixml
 )
