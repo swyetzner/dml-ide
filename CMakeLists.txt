@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -11,6 +12,11 @@ set(CMAKE_TOOLCHAIN_FILE /home/salvy/Downloads/vcpkg/scripts/buildsystems/vcpkg.
 =======
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 >>>>>>> remove computer specific build
+=======
+set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+set(CMAKE_PREFIX_PATH ~/Qt/5.14.2/gcc_64/lib/cmake)
+set(CMAKE_TOOLCHAIN_FILE ~/Downloads/vcpkg/scripts/buildsystems/vcpkg.cmake)
+>>>>>>> fixSurface
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -126,6 +132,6 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Xml
     PRIVATE Titan
     PRIVATE glm
-    PRIVATE GLEW
+    PRIVATE GLEW::GLEW
     PRIVATE pugixml
 )
