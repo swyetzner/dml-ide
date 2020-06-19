@@ -16,6 +16,7 @@
 
 struct sim_metrics {
     sim_metrics() = default;
+    double clockTime;
     int nbars;
     double time;
     double totalLength;

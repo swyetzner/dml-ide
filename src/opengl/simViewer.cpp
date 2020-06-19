@@ -1242,12 +1242,14 @@ void SimViewer::updateTextPanel() {
     switch(metrics.optimize_rule.method) {
         case OptimizationRule::REMOVE_LOW_STRESS:
             upperPanel.sprintf("%s --- %s\n\n"
+                               "Clock Time: %.2lf s\n"
                                "Bars: %d\n"
-                               "Time: %.2lf s\n"
+                               "Sim Time: %.2lf s\n"
                                "Weight remaining: %.2lf%%\n"
                                "Deflection: %.4lf m\n"
                                "Optimization iterations: %d\n"
                                "Optimization threshold: %.1lf%% bars per iteration",
+                               metrics.clockTime,
                                simName.toUpper().toStdString().c_str(),
                                metrics.optimize_rule.methodName().replace(QChar('_'), QChar(' ')).toStdString().c_str(),
                                metrics.nbars, metrics.time,
