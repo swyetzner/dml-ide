@@ -776,6 +776,7 @@ public:
 
     Volume * volume;
     vector<Mass *> masses;
+    string type = "full";
 };
 
 
@@ -843,6 +844,7 @@ public:
     double totalDuration;
 
     ulong index;
+    
 };
 
 

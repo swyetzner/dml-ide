@@ -182,6 +182,7 @@ void SpringRemover::fillMassSpringMap() {
     massToSpringMap = map<Mass *, vector<Spring *>>();
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
+    
     for (Spring *s : sim->springs) {
         if (s->_k > 0) {
             massToSpringMap[s->_left].push_back(s);

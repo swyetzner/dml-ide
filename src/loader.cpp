@@ -832,8 +832,11 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         anchor->masses.clear(); // Clear mass ptr cache
 
         int fixedMasses = 0;
+        int nToFix = sim->masses.size();
+        if (anchor->type == "surface") { nToFix = surfacePoints; }
         
-        for (Mass *mass : sim->masses) {
+        // rewrite with i loop and then if statement to reduce ntofix with surf points
+        for (int i = 0; i < nToFix; i++) {
             if (anchorVol->model != nullptr) {
                 glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
@@ -851,8 +854,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                     fixedMasses++;
                 }
             }
-            if (fixedMasses > surfacePoints) { break; }
         }
+        
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
         cout << "Anchored " << fixedMasses << " masses with volume " << anchorVol->id.toStdString() << ".\n";
     }
