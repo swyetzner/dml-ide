@@ -147,7 +147,7 @@ void Parser::parseLoadcase(pugi::xml_node dml_load, Loadcase *loadcase, Design *
         Anchor *anchor = new Anchor();
         QString volume = anc.attribute("volume").value();
         anchor->volume = design->volumeMap[volume];
-        anchor->type = anc.attrribute("type").value();
+        anchor->type = anc.attribute("type").value();
         
         if (!(anchor->volume)) {
             cerr << "Volume '" << volume.toStdString() << "' not found.";
