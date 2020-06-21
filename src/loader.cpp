@@ -842,6 +842,7 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
         
         // rewrite with i loop and then if statement to reduce ntofix with surf points
         for (int i = 0; i < nToFix; i++) {
+            mass* mass = sim->masses[i];
             if (anchorVol->model != nullptr) {
                 glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
@@ -860,7 +861,6 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 }
             }
         }
-    }
 
         
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
