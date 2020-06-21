@@ -95,6 +95,7 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
     qDebug() << "Set probablities";
 
     qDebug() << "Generating" << n << "points";
+    #pragma omp parallel for
     for (int i = 0; i < n; i++) {
 
         // Generate new point
@@ -110,6 +111,7 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
         for (auto l : lattice) {
             if ((l - p).norm() <= 1E-6) tooClose = true;
         }
+        #pragma omp critical
         if (!tooClose) lattice.push_back(p);
     }
 }
