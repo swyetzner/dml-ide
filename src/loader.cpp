@@ -860,6 +860,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 }
             }
         }
+    }
+
         
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
         cout << "Anchored " << fixedMasses << " masses with volume " << anchorVol->id.toStdString() << ".\n";
