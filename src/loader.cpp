@@ -725,6 +725,9 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
     output->bars = vector<Bar>();
 
     for (Spring *s : sim->springs) {
+
+        if (s->_k == 0) continue;
+
         springPos.push_back(s->_left->origpos);
         springPos.push_back(s->_right->origpos);
 
@@ -760,6 +763,8 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
     }
 
     for (Spring *s : sim->springs) {
+
+        if (s->_k == 0) continue;
 
         if (bounds->isWithin(s->_left->origpos) && bounds->isWithin(s->_right->origpos)) {
 
