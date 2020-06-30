@@ -459,7 +459,7 @@ void Simulator::run() {
                             qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
 
-                            if (calcDeflection() > deflection_start * 2) {
+                            if (calcDeflection() > deflection_start) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
                                 springRemover->resetHalfLastRemoval();
                             } else {
