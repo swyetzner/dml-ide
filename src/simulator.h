@@ -130,6 +130,7 @@ private:
 
     int currentLoad;
     float pastLoadTime;
+    float optimizeTime;
     bool varyLoad;
     void clearLoads();
     void applyLoad(Loadcase * load);
