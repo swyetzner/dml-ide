@@ -10,6 +10,7 @@
 
 #include <Titan/sim.h>
 
+#include "oUtils.h"
 #include "utils.h"
 #include "model.h"
 
@@ -38,7 +39,7 @@ public:
     virtual void optimize() = 0;
 
     uint minSpringByStress();
-    void sortSprings_stress(vector<uint> &output_indices);
+    void sortSprings_stress(vector<Spring *> &spring_list, vector<uint> &output_indices);
     void sortMasses_stress(vector<uint> &output_indices);
     int settleSim(double eps, bool use_cap=false, double cap=0);
 
@@ -61,17 +62,36 @@ class SpringRemover : public Optimizer {
 public:
     SpringRemover(Simulation *sim, double removeRatio, double stopRatio = 0);
 
+    bool regeneration;
+
     double stepRatio;
     double stopRatio;
+    vector<Spring *> validSprings;
     map<Mass *, vector<Spring *>> massToSpringMap;
+    vector<Spring *> removedSprings;
+    vector<double> removedSprings_k;
+    vector<Mass *> affectedMasses;
+    vector<double> affectedWeights;
     double massFactor;
+    double stressMemory;
+    double regenRate;
+
+    void deleteGhostSprings();
+    void resetHalfLastRemoval();
+    void regenerateLattice(SimulationConfig *config);
+    void regenerateShift();
 
 protected:
     void optimize() override;
 
 private:
+    void fillMassSpringMap();
     void removeSpringFromMap(Spring *d);
+    void removeMassFromMap(Mass *d);
+    void invalidateSpring(Spring *i);
+    void removeHangingSprings(map<Spring *, bool> &hangingCandidates, map<Spring *, bool> &springsToDelete);
     void deleteSpring(Spring *d);
+    void splitSprings();
 };
 
 /**

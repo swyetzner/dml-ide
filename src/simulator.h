@@ -1,20 +1,22 @@
 #ifndef TITANVIEWER_H
 #define TITANVIEWER_H
 
-#include "model.h"
 #include "optimizer.h"
 #include "loader.h"
-#include "exportThread.h"
+#include "io/exportThread.h"
 
 #undef GRAPHICS
 #include <Titan/sim.h>
 
 #include <ctime>
+#include <chrono>
 #include <iomanip>
 #include <fstream>
+#include <QMatrix4x4>
 
 struct sim_metrics {
     sim_metrics() = default;
+    double clockTime;
     int nbars;
     double time;
     double totalLength;
@@ -33,10 +35,11 @@ struct sim_metrics {
 class Simulator {
 public:
     explicit Simulator(Simulation *sim, Loader *loader, SimulationConfig *config,
-            OptimizationConfig * optconfig = nullptr, bool graphics = false);
+            OptimizationConfig * optconfig = nullptr, bool graphics = false, bool endExport = true);
     ~Simulator();
 
     enum Status {
+        NOT_STARTED,
         STARTED,
         PAUSED,
         STOPPED
@@ -56,6 +59,7 @@ public:
 
     Status simStatus;
     bool GRAPHICS;
+    bool EXPORT;
 
     // --------------------------------------------------------------------
     // SIMULATION  FUNCTIONS
@@ -93,8 +97,11 @@ private:
     double totalEnergy_prev;
     double totalLength_start;
     double totalEnergy_start;
+    double deflection_start;
     Vec deflectionPoint_start;
     long steps;
+    std::chrono::time_point<std::chrono::system_clock> startWallClockTime;
+    double prevWallClockTime;
     double wallClockTime;
 
 

@@ -12,6 +12,7 @@ namespace CommandLine {
     extern args::HelpFlag help;
     extern args::Positional<std::string> inputPath;
     extern args::Flag graphicsUI;
+    extern args::Flag noExportSTL;
     extern args::ValueFlag<double> gpuTimestep;
     extern args::ValueFlag<double> renderTimestep;
     extern args::ValueFlag<std::string> outputDataPath;
