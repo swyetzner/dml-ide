@@ -833,14 +833,12 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
 
     for (Anchor *anchor : load->anchors) {
         Volume *anchorVol = anchor->volume;
-		
         anchor->masses.clear(); // Clear mass ptr cache
 
         int fixedMasses = 0;
         int nToFix = sim->masses.size();
-        if (anchor->type == "surface") { nToFix = surfacePoints; }
+        //if (anchor->type == "surface") { nToFix = surfacePoints; }
         
-        // rewrite with i loop and then if statement to reduce ntofix with surf points
         for (int i = 0; i < nToFix; i++) {
             Mass* mass = sim->masses[i];
             if (anchorVol->model != nullptr) {
@@ -1142,9 +1140,10 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
     vector<glm::vec3> lattice = vector<glm::vec3>();
     vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
-
+    surfacePoints = 0;
+    
     if (includeHull) {
-		surfacePoints = 0;
+		
         // Add hull vertices
         for (uint i = 0; i < arrays->vertices.size(); i++) {
             bool existsInLattice = false;

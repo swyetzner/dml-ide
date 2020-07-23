@@ -305,6 +305,7 @@ struct model_data {
 
     // make something that checks for the ray of the spring
     // this tells us if a spring is spanning a point outside the model
+    // THIS IS STILL A WIP -> NOT IMPLEMENTED ANYWHERE
     bool springCrossover(glm::vec3 point, vec3 pointB, int n_model) {
 
     	vec3 dir = glm::normalize(point-pointB);

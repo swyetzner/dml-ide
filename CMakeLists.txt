@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
+
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
@@ -115,6 +116,6 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Xml
     PRIVATE Titan
     PRIVATE glm
-    PRIVATE GLEW::GLEW
+    PRIVATE GLEW
     PRIVATE pugixml
 )
