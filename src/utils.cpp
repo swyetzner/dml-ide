@@ -401,7 +401,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
     qDebug() << "Path...";
     qDebug() << "*** " << path << " ***";
 
-       // Salvy is a BOSS //
     if (!file) { 
         qDebug() << "Attempting to correct file endings...";
         // this  is gonna check to see if the file exists with 
@@ -420,13 +419,11 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
         file.close();
         file.open(path);        
     }
-    // Salvy is a BOSS //
     if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
 
-    // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 
@@ -507,13 +504,11 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
         file.close();
         file.open(path);       
     }
-    // Salvy is a BOSS //
     if (!file) {
             qDebug() << "File in path: " << path << " not found!";
             return;
     }
 
-    // Salvy is a BOSS // 
     if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
 

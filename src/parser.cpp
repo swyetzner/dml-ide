@@ -147,6 +147,7 @@ void Parser::parseLoadcase(pugi::xml_node dml_load, Loadcase *loadcase, Design *
         Anchor *anchor = new Anchor();
         QString volume = anc.attribute("volume").value();
         anchor->volume = design->volumeMap[volume];
+        // THIS TYPE FOR SURFACE FIX -> NOT IMPLEMENTED STILL WIP
         anchor->type = anc.attribute("type").value();
         
         if (!(anchor->volume)) {
