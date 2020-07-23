@@ -170,7 +170,8 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 				#pragma omp critical
                 massToSpringMap[sim->masses[i]].push_back(s);
             }
-
+        }
+    }
     this->stressMemory = 1;
     this->regenRate = 0;
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
