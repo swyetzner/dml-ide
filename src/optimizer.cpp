@@ -144,34 +144,6 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
     this->regeneration = false;
     this->stepRatio = removeRatio;
     this->stopRatio = stopRatio;
-
-    massToSpringMap = map<Mass *, vector<Spring *>>();
-    validSprings = vector<Spring *>();
-    assert(massToSpringMap.empty());
-
-    qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
-
-    // Fill mass to spring map
-    /*vector<Mass*>::iterator iter = sim->masses.begin(); iter != sim->masses.end(); iter++*/
-
-    qDebug() << "omp attempt";
-    qDebug() << "First make the map init in single thread with just keys";
-
-    for (uint i = 0; i < sim->masses.size(); i++) {
-    	Mass * m = sim->masses[i];
-    	massToSpringMap[m] = vector<Spring*> ();
-    }
-    qDebug() << "second parallel loop through map to assign data";
-
-	#pragma omp parallel for
-    for (uint i = 0; i < sim->masses.size(); i++) {
-        for (Spring *s : sim->springs) {
-            if (sim->masses[i] == s->_left || sim->masses[i] == s->_right) {
-				#pragma omp critical
-                massToSpringMap[sim->masses[i]].push_back(s);
-            }
-        }
-    }
     this->stressMemory = 1;
     this->regenRate = 0;
     qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
@@ -184,38 +156,14 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 //---------------------------------------------------------------------------
 void SpringRemover::fillMassSpringMap() {
 //---------------------------------------------------------------------------
-    massToSpringMap = map<Mass *, vector<Spring *>>();
+        massToSpringMap = map<Mass *, vector<Spring *>>();
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
-    
-    /*for (Spring *s : sim->springs) {
-
     for (Spring *s : sim->springs) {
         if (s->_k > 0) {
             massToSpringMap[s->_left].push_back(s);
             massToSpringMap[s->_right].push_back(s);
             validSprings.push_back(s);
-*/
-    qDebug() << "Set spring remover ratios" << this->stepRatio << this->stopRatio;
-
-    // Fill mass to spring map
-    /*vector<Mass*>::iterator iter = sim->masses.begin(); iter != sim->masses.end(); iter++*/
-    qDebug() << "omp attempt";
-    qDebug() << "First make the map init in single thread with just keys";
-
-    for (uint i = 0; i < sim->masses.size(); i++) {
-    	Mass * m = sim->masses[i];
-    	massToSpringMap[m] = vector<Spring*> ();
-    }
-    qDebug() << "second parallel loop through map to assign data";
-
-	#pragma omp parallel for
-    for (uint i = 0; i < sim->masses.size(); i++) {
-        for (Spring *s : sim->springs) {
-            if (sim->masses[i] == s->_left || sim->masses[i] == s->_right) {
-				#pragma omp critical
-                massToSpringMap[sim->masses[i]].push_back(s);
-            }
         }
     }
     qDebug() << "fillMassSpringMap():  map size:" << massToSpringMap.size() << " valid size:" << validSprings.size();
