@@ -1,28 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
-<<<<<<< HEAD
-<<<<<<< HEAD
+set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-set(CMAKE_CUDA_COMPILER /usr/local/cuda-10.2/bin/nvcc)
-set(CMAKE_PREFIX_PATH /home/salvy/Qt/5.14.1/gcc_64/lib/cmake)
-set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-10.2/)
-set(CMAKE_TOOLCHAIN_FILE /home/salvy/Downloads/vcpkg/scripts/buildsystems/vcpkg.cmake)
->>>>>>> parrellelize the space lattice generation
-=======
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
->>>>>>> remove computer specific build
-=======
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
-set(CMAKE_PREFIX_PATH ~/Qt/5.14.2/gcc_64/lib/cmake)
-set(CMAKE_TOOLCHAIN_FILE ~/Downloads/vcpkg/scripts/buildsystems/vcpkg.cmake)
->>>>>>> fixSurface
-=======
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
-set(CMAKE_PREFIX_PATH ~/Qt/5.14.2/gcc_64/lib/cmake)
-set(CMAKE_TOOLCHAIN_FILE ~/Downloads/vcpkg/scripts/buildsystems/vcpkg.cmake)
->>>>>>> 4c15ef8b8157eb613de48fd45bef187ddf743e12
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
