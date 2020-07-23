@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
-
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
