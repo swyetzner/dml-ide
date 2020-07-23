@@ -183,10 +183,6 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 //---------------------------------------------------------------------------
 void SpringRemover::fillMassSpringMap() {
 //---------------------------------------------------------------------------
-    for (auto iter = sim->masses.begin(); iter != sim->masses.end(); iter++) {
-    	Mass * m = *iter;
-        massToSpringMap[m] = vector<Spring *> ();
-
     massToSpringMap = map<Mass *, vector<Spring *>>();
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
