@@ -7,7 +7,7 @@ scripts/*
 data/*
 output/*
 cmake/*
-
+build/*
 ### Source Files ###
 *.stl
 *.mp4
