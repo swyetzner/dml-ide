@@ -12,6 +12,7 @@ uint Optimizer::minSpringByStress() {
 
     uint msi = -1;
     double minStress = FLT_MAX;
+
     for (uint s = 0; s < sim->springs.size(); s++) {
         bool underExternalForce = sim->springs[s]->_left->extforce.norm() > 1E-6
                                   && sim->springs[s]->_right->extforce.norm() > 1E-6;
@@ -155,8 +156,7 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 //---------------------------------------------------------------------------
 void SpringRemover::fillMassSpringMap() {
 //---------------------------------------------------------------------------
-
-    massToSpringMap = map<Mass *, vector<Spring *>>();
+        massToSpringMap = map<Mass *, vector<Spring *>>();
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
     for (Spring *s : sim->springs) {
@@ -499,7 +499,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
                 double origLen = s->_rest;
                 s->_rest = (m1->origpos - m2->pos).norm();
                 s->_k *= origLen / s->_rest;
-                qDebug() << "K" << s->_k;
+                // qDebug() << "K" << s->_k;
                 s->_max_stress = 0;
 
                 // Mass values
