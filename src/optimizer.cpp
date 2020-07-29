@@ -12,6 +12,7 @@ uint Optimizer::minSpringByStress() {
 
     uint msi = -1;
     double minStress = FLT_MAX;
+
     for (uint s = 0; s < sim->springs.size(); s++) {
         bool underExternalForce = sim->springs[s]->_left->extforce.norm() > 1E-6
                                   && sim->springs[s]->_right->extforce.norm() > 1E-6;
@@ -154,8 +155,7 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 //---------------------------------------------------------------------------
 void SpringRemover::fillMassSpringMap() {
 //---------------------------------------------------------------------------
-
-    massToSpringMap = map<Mass *, vector<Spring *>>();
+        massToSpringMap = map<Mass *, vector<Spring *>>();
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
     for (Spring *s : sim->springs) {

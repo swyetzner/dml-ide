@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include "model.h"
 #include "utils.h"
+#include <ctime>
 
 #undef GRAPHICS
 #include <Titan/sim.h>
@@ -39,7 +40,8 @@ public:
     void loadSimFromLattice(LatticeConfig *lattice, Simulation *sim, double springCutoff);
     void loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSection, bool markers);
     void applyLoadcase(Simulation *sim, Loadcase *load);
-
+	int surfacePoints;
+	
 signals:
     void log(const QString &message);
 

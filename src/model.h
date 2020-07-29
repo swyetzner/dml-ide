@@ -302,6 +302,44 @@ struct model_data {
             return false;
     }
 
+
+    // make something that checks for the ray of the spring
+    // this tells us if a spring is spanning a point outside the model
+    // THIS IS STILL A WIP -> NOT IMPLEMENTED ANYWHERE
+    bool springCrossover(glm::vec3 point, vec3 pointB, int n_model) {
+
+    	vec3 dir = glm::normalize(point-pointB);
+
+		uint modelStart = 0;
+		uint modelEnd = 0;
+		bool intersection = false;
+
+		if (n_model != 0)
+			modelStart = model_indices[n_model-1];
+
+		modelEnd = model_indices[n_model];
+
+		glm::vec3 p;
+		float pu, pv;
+
+    	for (uint i = modelStart; i < modelEnd; i+=3) {
+
+    	            bool intersectPlane = Utils::intersectPlane(&vertices[i], point, dir, p, pu, pv);
+
+    	            //qDebug() << "p " << p.x << p.y << p.z;
+
+    	            if (intersectPlane && p.x > point.x + 1E-6 && p.y > point.y + 1E-6 && p.z > point.z + 1E-6) {
+
+    	                if (Utils::insideTriangle(vertices[i], vertices[i+1], vertices[i+2], p)) {
+    	                    qDebug() << "found spanning spring";
+    	                	return true;
+    	                }
+    	            }
+    	        }
+    	return false;
+    }
+
+
     // Check if a point is too close to the hull of a model
     bool isCloseToEdge(glm::vec3 point, float cutoff, int n_model) {
 
@@ -739,6 +777,7 @@ public:
 
     Volume * volume;
     vector<Mass *> masses;
+    string type = "full";
 };
 
 
@@ -806,6 +845,7 @@ public:
     double totalDuration;
 
     ulong index;
+    
 };
 
 
