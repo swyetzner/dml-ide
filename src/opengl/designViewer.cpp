@@ -22,6 +22,7 @@ DesignViewer::DesignViewer(Design *design, QWidget *parent)
     // Set model constants
     n_models = long(design->volumes.size());
     n_modelVertices = new int[n_models];
+
     for (uint i = 0; i < uint(n_models); i++) {
         n_modelVertices[i] = design->volumes[i]->model->n_vertices;
     }

@@ -311,7 +311,7 @@ void SimViewer::updateOverlays() {
     for (int i = 0; i < n_masses; i++) {
         Mass *m = simulator->sim->getMassByIndex(i);
 
-        if (m->force.norm() > 1E-6) {
+        if (m->extforce.norm() > 1E-6) {
             extForces.push_back(m->pos);
 
             Vec av = m->force.normalized();
@@ -972,8 +972,8 @@ void SimViewer::drawVertexArray() {
     glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
 
     glPointSize(10.0f);
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
+    //glEnable(GL_DEPTH_TEST);
+    //glDisable(GL_BLEND);
     glDrawArrays(GL_POINTS, 0, GLsizei(extForces.size()));
 
     glDisableVertexAttribArray(6);

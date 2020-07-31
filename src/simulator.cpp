@@ -59,6 +59,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     // LOAD QUEUE
     currentLoad = 0;
     pastLoadTime = 0;
+    optimizeTime = 0;
     varyLoad = false;
     if (config->load != nullptr) {
         for (Force *f : config->load->forces) {
@@ -351,6 +352,7 @@ void Simulator::run() {
         int i = 0, n = 0;
         for (Spring *s: sim->springs) {
             if (s == nullptr) continue;
+
             if (s->_k == 0) continue;
             totalLength += s->_rest;
             if (maxForce < fabs(s->_curr_force)) {
@@ -458,8 +460,9 @@ void Simulator::run() {
 
                             qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
+                            double simTimeBeforeOpt = sim->time();
 
-                            if (calcDeflection() > deflection_start) {
+                            if (calcDeflection() > deflection_start * 10) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
                                 springRemover->resetHalfLastRemoval();
                             } else {
@@ -485,6 +488,11 @@ void Simulator::run() {
                                     }
 
                                 }
+                            // Account for time shift
+                            optimizeTime = sim->time() - simTimeBeforeOpt;
+                            qDebug() << "OPTIMIZE TIME" << optimizeTime;
+                            pastLoadTime += optimizeTime;
+
                         }
                     }
                 }
@@ -979,7 +987,8 @@ void Simulator::applyLoad(Loadcase *load) {
             bool valid = false;
             for (Mass *m : sim->masses) {
                     if (m == fm) {
-                    m->extduration += f->duration;
+                    m->extduration = f->duration + pastLoadTime;
+                    qDebug() << "DURATION" << m->extduration;
                     if (m->extduration < 0) {
                         m->extduration = DBL_MAX;
                     }

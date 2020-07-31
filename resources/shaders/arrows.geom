@@ -27,7 +27,7 @@ void createCylinder(float r1, float r2, float offset, float length, int res) {
 
     // Find two perpendicular vectors (a, b)
     vec3 ax = vec3(0.0, 0.0, 1.0);
-    if (p == ax) {
+    if (forceVec[0] == ax[0] && forceVec[1] == ax[1]) {
         ax = vec3(0.0, 1.0, 0.0);
     }
     vec3 a = cross(p, ax);
