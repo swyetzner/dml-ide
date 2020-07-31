@@ -22,7 +22,7 @@ install_qt() {
 
 install_ffmpeg() {
     _wget https://ffmpeg.org/releases/ffmpeg-4.1.3.tar.bz2
-    cd ffmepg-4.1.3
+    cd ffmpeg-4.1.3
     ./configure --disable-x86asm
     make
     make install DESTDIR=$INSTALL_PREFIX
@@ -64,16 +64,6 @@ install_args() {
     echo "Installed args"
 }
 
-install_ffmpeg() {
-    _wget https://ffmpeg.org/releases/ffmpeg-4.1.3.tar.bz2
-    cd ffmepg-4.1.3
-    ./configure --disable-x86asm
-    make
-    make install DESTDIR=$INSTALL_PREFIX
-    cd ..
-    echo "Installed ffmpeg"
-}
-
 install_pugixml() {
   _wget https://github.com/zeux/pugixml/releases/download/v1.9/pugixml-1.9.tar.gz
   cd pugixml-1.9
@@ -82,6 +72,7 @@ install_pugixml() {
   cmake .. -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX/pugixml
   make
   make install
+  cd ../..
   echo "Installed pugixml"
 }
 

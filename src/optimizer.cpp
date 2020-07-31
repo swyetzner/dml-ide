@@ -57,7 +57,6 @@ void Optimizer::sortSprings_stress(vector<Spring *> &spring_list, vector<uint> &
          [springStress](uint s1, uint s2) -> bool {
              return springStress[s1] < springStress[s2];
          });
-    qDebug() << springStress;
     qDebug() << "Sorted springs by stress" << output_indices.size() << output_indices.front() << spring_list[output_indices.front()]->_max_stress;
 }
 
@@ -456,6 +455,16 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     // Add masses to simulation
     int nm = sim->masses.size();
     for (Vec l : lattice) {
+        if (config->plane) {
+            Vec proj;
+            double d = Utils::distPointPlane(l, config->plane->normal, config->plane->offset, proj);
+            Vec projV = (l - proj).normalized();
+            qDebug() << "Projection and dist" << projV[0]  << projV[1] << projV[2] << d;
+            if (d == 0 || !((l - proj).normalized() == config->plane->normal)) {
+                qDebug() << "CONTINUE";
+                continue;
+            }
+        }
         Mass *n = new Mass(*sim->masses.front());
         Mass *m = sim->createMass(n);
         m->pos = l;

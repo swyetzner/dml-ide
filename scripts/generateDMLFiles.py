@@ -33,3 +33,21 @@ for par in sys.argv[3:-1]:
                         opt.attrib["memory"] = par
                         print(opt.attrib["memory"])
         tree.write(outputDML + "/" + fileName + "_" + par + ext)
+
+    if varyProp == "REGEN_RATE":
+        for child in root:
+            if child.tag == "optimization":
+                for opt in child:
+                    if opt.tag == "rule":
+                        opt.attrib["regenRate"] = par + "%"
+                        print(opt.attrib["regenRate"])
+        tree.write(outputDML + "/" + fileName + "_" + par + ext)
+
+    if varyProp == "REGEN_THRESHOLD":
+        for child in root:
+            if child.tag == "optimization":
+                for opt in child:
+                    if opt.tag == "rule":
+                        opt.attrib["regenThreshold"] = par + "%"
+                        print(opt.attrib["regenThreshold"])
+        tree.write(outputDML + "/" + fileName + "_" + par + ext)
