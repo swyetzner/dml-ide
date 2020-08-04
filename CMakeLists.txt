@@ -14,11 +14,17 @@ find_package(Qt5Xml CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(GLEW CONFIG REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
+find_package(Spectra CONFIG REQUIRED)
 
 set(OpenGL_GL_PREFERENCE "GLVND")
 
 add_subdirectory(lib/Titan)
-include_directories(lib/Titan/include)
+include_directories(
+        lib/Titan/include
+        ${Eigen_INCLUDE_DIRS}
+        ${Spectra_INCLUDE_DIRS}
+        )
 
 remove_definitions(Titan PUBLIC GRAPHICS)
 
@@ -99,6 +105,8 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Widgets
     PRIVATE Qt5::Gui
     PRIVATE Qt5::Xml
+    PRIVATE Eigen3::Eigen
+    PRIVATE Spectra::Spectra
     PRIVATE Titan
     PRIVATE glm
     PRIVATE ${GLEW_LIBRARIES}

@@ -6,11 +6,12 @@
 #include <QProgressDialog>
 #include <QTextStream>
 #include <glm/glm.hpp>
+#include <Eigen/SparseCore>
+#include <Spectra/SymGEigsSolver.h>
+#include <Spectra/MatOp/SparseCholesky.h>
 #include "model.h"
 #include "utils.h"
-#include "Eigen/SparseCore"
-#include "Spectra/SymGEigsSolver.h"
-#include "Spectra/MatOp/SparseCholesky.h"
+
 
 #undef GRAPHICS
 #include <Titan/sim.h>
