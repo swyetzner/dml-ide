@@ -11,6 +11,7 @@
 #include <Spectra/MatOp/SparseCholesky.h>
 #include "model.h"
 #include "utils.h"
+#include <ctime>
 
 
 #undef GRAPHICS
@@ -46,6 +47,8 @@ public:
 
     double calculateNaturalPeriod(Simulation *sim);
     void suggestParams(Simulation *sim, SimulationConfig *simConfig);
+
+	  int surfacePoints;
 
 signals:
     void log(const QString &message);

@@ -1,7 +1,8 @@
 #include "simulator.h"
 #include <QDir>
 
-Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, OptimizationConfig *optConfig, bool graphics) {
+Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, OptimizationConfig *optConfig,
+        bool graphics, bool endExport) {
     this->sim = sim;
     this->config = config;
     this->optConfig = optConfig;
@@ -28,12 +29,14 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     double pi = atan(1.0)*4;
     for (Spring *s : sim->springs) {
-        totalLength_start += s->_rest;
+        if (s->_k != 0) {
+            totalLength_start += s->_rest;
+        }
     }
 
     steps = 0;
 
-    simStatus = PAUSED;
+    simStatus = NOT_STARTED;
     dataDir = QDir::currentPath() + QDir::separator() + "data";
 
     n_repeats = 0;
@@ -44,6 +47,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
 
     barData = nullptr;
     GRAPHICS = graphics;
+    EXPORT = endExport;
 
     relaxation = 3000;
 
@@ -55,6 +59,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     // LOAD QUEUE
     currentLoad = 0;
     pastLoadTime = 0;
+    optimizeTime = 0;
     varyLoad = false;
     if (config->load != nullptr) {
         for (Force *f : config->load->forces) {
@@ -84,6 +89,9 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
         }
         printf("\033[10;1f");
     }
+
+    wallClockTime = 0;
+    prevWallClockTime = 0;
 
     qDebug() << "Initialized Simulator";
 }
@@ -115,11 +123,13 @@ void Simulator::setDataDir(std::string dp) {
 
 void Simulator::runSimulation(bool running) {
     if (running) {
-        if (simStatus != STARTED) {
-            sim->initCudaParameters();
+        if (simStatus == NOT_STARTED) {
             createDataDir();
+            sim->initCudaParameters();
             dumpSpringData();
+            startWallClockTime = std::chrono::system_clock::now();
         }
+        //if (simStatus == PAUSED) dumpSpringData();
         simStatus = STARTED;
         run();
         if (!GRAPHICS) printStatus();
@@ -135,6 +145,7 @@ void Simulator::runStep() {
 }
 
 void Simulator::getSimMetrics(sim_metrics &metrics) {
+    metrics.clockTime = wallClockTime;
     metrics.time = sim->time();
     metrics.nbars = sim->springs.size();
     metrics.totalLength = totalLength;
@@ -277,6 +288,7 @@ void Simulator::loadSimDump(std::string sp) {
 void Simulator::exportSimulation() {
     int NUM_THREADS = 32;
 
+    qDebug() << "In exportSimulation";
     delete barData;
     barData = new bar_data();
     loader->loadBarsFromSim(sim, barData, false, false);
@@ -306,6 +318,7 @@ void Simulator::exportSimulation() {
 }
 
 void Simulator::run() {
+
     if (!sim->running()) {
         qDebug() << "Next Load" << currentLoad << "Queue size" << config->loadQueue.size() << "Switch at time" << pastLoadTime;
         bool loadQueueDone = false;
@@ -329,17 +342,18 @@ void Simulator::run() {
             }
         }
 
-        qDebug() << "About to step" << sim;
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
-        qDebug() << "Synced to CPU" << sim->springs.size();
         totalLength_prev = totalLength;
         totalLength = 0;
         double maxForce = 0;
         Spring *maxForceSpring = nullptr;
         int i = 0, n = 0;
         for (Spring *s: sim->springs) {
+            if (s == nullptr) continue;
+
+            if (s->_k == 0) continue;
             totalLength += s->_rest;
             if (maxForce < fabs(s->_curr_force)) {
                 maxForce = fabs(s->_curr_force);
@@ -351,7 +365,7 @@ void Simulator::run() {
         if (maxForceSpring != nullptr) qDebug() << "MAX FORCE SPRING" << n << maxForce << maxForceSpring->_rest << (maxForceSpring->_left->pos - maxForceSpring->_right->pos).norm();
 
         bool stopReached = stopCriteriaMet();
-        qDebug() << "Evaluated stop criteria" << stopReached;
+        qDebug() << "Removed springs" << springRemover->removedSprings.size();
 
         if (!optimized) {
             if (varyLoad) {
@@ -411,7 +425,6 @@ void Simulator::run() {
                         writeCustomMetric(customMetricFile);
                     optimized++;
 
-                    if (dumpCriteriaMet()) dumpSpringData();
                     cout << "Average iteration time (simulation): " << massDisplacer->totalTrialTime / optimized << "s \n";
                 }
 
@@ -440,15 +453,24 @@ void Simulator::run() {
                         if ((loadQueueDone || config->repeat.afterExplicit) && optimizeAfter <= n_repeats &&
                             prevSteps >= r.frequency && !stopReached) {
 
-                            if (!optimized) {
+                            if (!optimized && n_repeats == 0) {
                                 writeMetricHeader(metricFile);
+                                deflection_start = calcDeflection();
                             }
 
-                            optimizer->optimize();
+                            qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
+                            double simTimeBeforeOpt = sim->time();
 
-                            optimized++;
-                            n_repeats = 0;
+                            if (calcDeflection() > deflection_start * 10) {
+                                qDebug() << "Deflection" << calcDeflection() << deflection_start;
+                                springRemover->resetHalfLastRemoval();
+                            } else {
+                                optimizer->optimize();
+                                if (!springRemover->regeneration) optimized++;
+                                qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
+                                n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
+                            }
 
 
                             n_masses = int(sim->masses.size());
@@ -456,8 +478,20 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
+                                if (springRemover->regeneration && !optConfig->rules.empty()) {
+                                    if (totalLength <= totalLength_start * optConfig->rules.front().regenThreshold) {
+                                        springRemover->regenerateLattice(config);
+                                        optimized++;
+                                        //springRemover->regenerateShift();
+                                        n_masses = int(sim->masses.size());
+                                        n_springs = int(sim->springs.size());
+                                    }
 
-                            if (dumpCriteriaMet()) dumpSpringData();
+                                }
+                            // Account for time shift
+                            optimizeTime = sim->time() - simTimeBeforeOpt;
+                            qDebug() << "OPTIMIZE TIME" << optimizeTime;
+                            pastLoadTime += optimizeTime;
 
                         }
                     }
@@ -470,19 +504,34 @@ void Simulator::run() {
         prevSteps += long(renderTimeStep / sim->masses.front()->dt);
         qDebug() << steps;
 
+
         if (stopReached) {
             simStatus = STOPPED;
-            dumpSpringData();
-            exportSimulation();
+            //dumpSpringData();
+            //if (EXPORT) exportSimulation();
             exit(0);
         }
     }
+
+    auto currentWallClockTime = std::chrono::system_clock::now();
+    std::chrono::duration<double> diff = (currentWallClockTime - startWallClockTime);
+    prevWallClockTime = wallClockTime;
+    wallClockTime = diff.count();
+
+    if (dumpCriteriaMet()) dumpSpringData();
+
+    qDebug() << "WALL CLOCK TIME" << wallClockTime;
 }
 
 
 void Simulator::repeatLoad() {
 
     if (!sim->running()) {
+
+        if (n_repeats == 0) {
+            writeMetricHeader(metricFile);
+        }
+        writeMetric(metricFile);
 
         // Get rotation
         Vec rotation;
@@ -531,6 +580,11 @@ void Simulator::loadOptimizers() {
                     springRemover = new SpringRemover(sim, r.threshold);
                     springRemover->massFactor = M_PI * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
                                                 config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
+                    springRemover->stressMemory = r.memory;
+                    if (r.regenThreshold > 0) {
+                        springRemover->regeneration = true;
+                        springRemover->regenRate = r.regenRate;
+                    }
                     this->optimizer = springRemover;
                     qDebug() << "Created SpringRemover" << r.threshold;
                     break;
@@ -563,8 +617,6 @@ void Simulator::loadOptimizers() {
         }
     }
     qDebug() << "Set optimizations";
-
-    springRemover = new SpringRemover(sim, 0.05);
 }
 
 Vec Simulator::getSimCenter() {
@@ -645,6 +697,11 @@ bool Simulator::stopCriteriaMet() {
 
 bool Simulator::dumpCriteriaMet() {
     bool dump = false;
+    qDebug() << "Dump criteria" << int(floor(wallClockTime)) % (60 * 5) <<  int(floor(prevWallClockTime)) % (60 * 5);
+    if (int(floor(wallClockTime)) % 60 < int(floor(prevWallClockTime)) % 60) {
+        return true;
+    } return false;
+
     if (OPTIMIZER) {
         for (auto s : optConfig->stopCriteria) {
             double interval = (1 - s.threshold) / 10;
@@ -698,6 +755,14 @@ double Simulator::calcDeflection() {
             }
         }
         deflection /= points.size();
+    } else {
+        assert(!sim->masses.empty());
+        Mass *refMass = sim->masses.front();
+        for (Mass *m : sim->masses) {
+            double origDist = (m->origpos - refMass->origpos).norm();
+            double newDist = (m->pos - refMass->pos).norm();
+            deflection += fabs(newDist - origDist);
+        }
     }
     return deflection;
 }
@@ -724,6 +789,7 @@ Vec Simulator::getDeflectionPoint() {
 
 void Simulator::createDataDir() {
 
+    qDebug() << "CREATE DATA DIR";
     QDir data(dataDir);
     if (!data.exists()) {
         qDebug() << "Data folder does not exist. Creating...";
@@ -749,9 +815,9 @@ void Simulator::writeMetricHeader(const QString &outputFile) {
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            file.write("Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
+            file.write("Wall Clock,Time,Iteration,Deflection,Displacement,Attempts,Total Energy,Total Weight\n");
         } else {
-            file.write("Time,Iteration,Deflection,Total Weight,Bar Number\n");
+            file.write("Wall Clock,Time,Iteration,Deflection,Total Weight,Bar Number\n");
         }
     }
 }
@@ -772,13 +838,15 @@ void Simulator::writeCustomMetricHeader(const QString &outputFile) {
 void Simulator::writeMetric(const QString &outputFile) {
 
     QFile file(outputFile);
+    qDebug() << "WRITE METRIC";
     if (!file.open(QFile::WriteOnly | QIODevice::Append | QFile::Text)) {
         return;
     }
 
     if (!optConfig->rules.empty()) {
         if (optConfig->rules.front().method == OptimizationRule::MASS_DISPLACE) {
-            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7\n")
+            QString mLine = QString("%1,%2,%3,%4,%5,%6,%7,%8\n")
+                    .arg(wallClockTime)
                     .arg(optimized? massDisplacer->totalTrialTime / optimized : 0)
                     .arg(optimized)
                     .arg(calcDeflection())
@@ -788,7 +856,8 @@ void Simulator::writeMetric(const QString &outputFile) {
                     .arg(totalLength);
             file.write(mLine.toUtf8());
         } else if (optConfig->rules.front().method == OptimizationRule::REMOVE_LOW_STRESS) {
-            QString mLine = QString("%1,%2,%3,%4,%5\n")
+            QString mLine = QString("%1,%2,%3,%4,%5,%6\n")
+                    .arg(wallClockTime)
                     .arg(sim->time())
                     .arg(optimized)
                     .arg(calcDeflection())
@@ -864,12 +933,13 @@ void Simulator::printStatus() {
     getSimMetrics(metrics);
 
     //printf("\033[2J");
-    printf("\033[10;1f");
+    //printf("\033[10;1f");
     printf("\033[J");
     cout << "\033[0K" << "\n\n========================================" << std::endl;
     cout << "\033[0K" << "\033[92m" << "SIMULATING" << "\033[97m" << std::endl;
     cout << "\033[0K" << "========================================\n" << std::endl;
 
+    cout << "\033[0K" << "Wall Clock: " << wallClockTime << " s" << std::endl;
     cout << "\033[0K" << "Optimization Iterations: " << metrics.optimize_iterations << std::endl;
     cout << "\033[0K" << "Bars: " << metrics.nbars << std::endl;
     cout << "\033[0K" << "Time: " << setw(5) << std::left << std::setfill('0') << metrics.time << " s"  << std::endl;
@@ -917,7 +987,8 @@ void Simulator::applyLoad(Loadcase *load) {
             bool valid = false;
             for (Mass *m : sim->masses) {
                     if (m == fm) {
-                    m->extduration += f->duration;
+                    m->extduration = f->duration + pastLoadTime;
+                    qDebug() << "DURATION" << m->extduration;
                     if (m->extduration < 0) {
                         m->extduration = DBL_MAX;
                     }

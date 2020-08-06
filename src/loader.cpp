@@ -20,7 +20,9 @@ void Loader::loadDesignModels(Design *design) {
     for (uint v = 0; v < design->volumes.size(); v++) {
         loadVolumeModel(design->volumes[v]);
         loadVolumeGeometry(design->volumes[v]);
+	#ifdef USE_OpenGL
         design->volumes[v]->model->createGraphicsData();
+	#endif
     }
     for (uint s = 0; s < design->simConfigs.size(); s++) {
         design->simConfigs[s] = *design->simConfigMap[design->simConfigs[s].id];
@@ -452,11 +454,12 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                     case LatticeConfig::BARS:
                         for (Mass *m : sim->masses) {
                             m->m = 0;
+                            m->density = d * unit;
                         }
                         double totalM = 0;
                         for (Spring *s : sim->springs) {
                             // get volume for half
-                            double vol = s->_rest / 2 * 3.14159 * s->_diam / 2 * s->_diam / 2;
+                            double vol = s->_rest / 2 * M_PI * s->_diam / 2 * s->_diam / 2;
                             qDebug() << vol << s->_rest / 2 << s->_diam / 2;
                             double m = vol * d * unit;
                             //s->_mass = 2 * m;
@@ -507,7 +510,9 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
 void Loader::loadSimulation(simulation_data *arrays, Simulation *sim, uint n_volume) {
 
     // Create graphics data
+    #ifdef USE_OpenGL
     arrays->createGraphicsData();
+    #endif
 
     // Already existing triangle edges/springs
     // Stored in form key=(mass m), value=(masses connected to mass m)
@@ -598,7 +603,7 @@ void Loader::loadSimFromLattice(simulation_data *arrays, Simulation *sim, vector
 
         for (int k = j+1; k < sim->masses.size(); k++) {
             Mass *massk = sim->masses[k];
-            double dist = (massj->pos - massk->pos).norm();
+            double dist = (massj->origpos - massk->origpos).norm();
 
             kCutoff = arrays->pointOrigins.at(k)->unit[0] * springMult;
 
@@ -722,6 +727,9 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
     output->bars = vector<Bar>();
 
     for (Spring *s : sim->springs) {
+
+        if (s->_k == 0) continue;
+
         springPos.push_back(s->_left->origpos);
         springPos.push_back(s->_right->origpos);
 
@@ -757,6 +765,8 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
     }
 
     for (Spring *s : sim->springs) {
+
+        if (s->_k == 0) continue;
 
         if (bounds->isWithin(s->_left->origpos) && bounds->isWithin(s->_right->origpos)) {
 
@@ -825,11 +835,14 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
 
     for (Anchor *anchor : load->anchors) {
         Volume *anchorVol = anchor->volume;
-
         anchor->masses.clear(); // Clear mass ptr cache
 
         int fixedMasses = 0;
-        for (Mass *mass : sim->masses) {
+        int nToFix = sim->masses.size();
+        //if (anchor->type == "surface") { nToFix = surfacePoints; }
+        
+        for (int i = 0; i < nToFix; i++) {
+            Mass* mass = sim->masses[i];
             if (anchorVol->model != nullptr) {
                 glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
@@ -848,6 +861,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 }
             }
         }
+
+        
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
         cout << "Anchored " << fixedMasses << " masses with volume " << anchorVol->id.toStdString() << ".\n";
     }
@@ -1127,10 +1142,10 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
     vector<glm::vec3> lattice = vector<glm::vec3>();
     vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
-
-
+    surfacePoints = 0;
+    
     if (includeHull) {
-
+		
         // Add hull vertices
         for (uint i = 0; i < arrays->vertices.size(); i++) {
             bool existsInLattice = false;
@@ -1144,7 +1159,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
-
+				surfacePoints++;
                 for(LatticeConfig *latticeBox : latticeConfigs) {
                     if (latticeBox->volume->model->isInside(arrays->vertices[i], 0)) {
                         pointOrigins.push_back(latticeBox);
@@ -1160,6 +1175,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     }
 
     for(auto&& latticeBox: latticeConfigs) {
+
 
         vector<glm::vec3> latticeTemp = vector<glm::vec3>();
         float cutoff = float(latticeBox->unit[0]);
@@ -1185,6 +1201,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         glm::vec3 point = Utils::randPoint(startCorner, endCorner);
 
+
         if (includeHull) {
             while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point) || !latticeVol->isInside(point, 0)) {
 
@@ -1199,7 +1216,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 point = Utils::randPoint(startCorner, endCorner);
             }
         }
-
         // Add point to lattice
         latticeTemp.push_back(point);
         pointOrigins.push_back(latticeBox);
@@ -1207,13 +1223,11 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         int k;
         qDebug() << "First point" << point.x << point.y << point.z;
 
-        vector<glm::vec3> candidates = vector<glm::vec3>();
+        vector<glm::vec3> candidates =  vector<glm::vec3>(kNewPoints);
 
-    // Spawn k new points
-    int threads = 1;
-
-    for (int t = 0; t < threads; t++) {
-        for (k = 0; k < kNewPoints/threads; k++) {
+    	time_t tinit = time(0);
+		#pragma omp parallel for
+        for (k = 0; k < kNewPoints; k++) {
 
                 glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 
@@ -1231,66 +1245,140 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 }
-
-            candidates.push_back(newPoint);
+            candidates[k] = newPoint;
         }
-    }
+
+        vector<float> sumDistsStore = vector<float>();
+        for (auto c: candidates) {
+            sumDistsStore.push_back(0.0f);
+        }
 
 
+        int latticePrintFrequency = 1000;
+        time_t tstart,tend;
+        tstart = time(0);
+
+        qDebug() << "maxL" << maxLength << " cutoff " << cutoff << " size " << candidates.size();
         while (maxLength >= cutoff && candidates.size() > 0) {
+            // Find point furthest from existing points
+        	// THIS IS THE ORIGINAL LOOP DONT DELETE IT
+        	/*
+        	  // Find point furthest from existing points
+        	            uint iFarthest = 0;
+        	            float maxDistFromPoints = 0.0f;
 
-            // Find point furthest from original point
+
+        	            for (uint i = 0; i < candidates.size(); i++) {
+        	                bool reject = false;
+
+        	                float sumDists = 0.0f;
+        	                float distFromPoint;
+
+        	                vec3 l = latticeTemp.back();
+        	                distFromPoint = length(candidates[i] - l);
+
+        	                if (distFromPoint < cutoff) {
+        	                    candidates.erase(candidates.begin() + i);
+        	                    sumDistsStore.erase(sumDistsStore.begin() + i);
+        	                    i--;
+        	                    continue;
+        	                }
+        	                assert(sumDistsStore.size() == candidates.size());
+        	                sumDistsStore[i] += distFromPoint;
+
+        	                if (sumDistsStore[i] > maxDistFromPoints) {
+        	                    maxDistFromPoints = sumDistsStore[i];
+        	                    iFarthest = i;
+        	                }
+        	            }
+*/
+
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
-            vector<float> sumDistsStore = vector<float>();
-            for (auto c: candidates) {
-                sumDistsStore.push_back(0.0f);
+/*
+            vec3 l = latticeTemp.back();
+            float distFromPoint;
+            int nToRemove = 0;
+            int candidateSize = candidates.size();
+            qDebug() << "Candidates: " << candidateSize;
+            for (uint i = 0; i < candidateSize; i++) {
+                if (candidateSize-nToRemove > i) { /*do nothing}
+                else {
+                    distFromPoint = length(candidates[i] - l);
+                	if (distFromPoint < cutoff) {
+                		nToRemove++;
+                		candidates[i] = candidates[candidates.size()-nToRemove];
+                		sumDistsStore[i] = sumDistsStore[sumDistsStore.size()-nToRemove];
+						i--;
+                	}
+                	else {
+						sumDistsStore[i] += distFromPoint;
+						if (sumDistsStore[i] > maxDistFromPoints) {
+							maxDistFromPoints = sumDistsStore[i];
+							iFarthest = i;
+						}
+                	}
+                }
             }
 
+            candidates.erase(candidates.end()-nToRemove,candidates.end());
+            sumDistsStore.erase(sumDistsStore.end()-nToRemove,sumDistsStore.end());
+            assert(sumDistsStore.size() == candidates.size());
+*/
+            vec3 l = latticeTemp.back();
             for (uint i = 0; i < candidates.size(); i++) {
-                bool reject = false;
+                float distFromPoint = length(candidates[i] - l);
 
-                float sumDists = 0.0f;
-                float distFromPoint;
-
-                if (latticeTemp.size() > 0) {
-                    vec3 l = latticeTemp.back();
-                    distFromPoint = length(candidates[i] - l);
-
-                    if (distFromPoint < cutoff) {
-                        candidates.erase(candidates.begin() + i);
-                        sumDistsStore.erase(sumDistsStore.begin() + i);
-                        i--;
-                        continue;
-                    }
+                if (distFromPoint < cutoff) {
+                    candidates.erase(candidates.begin() + i);
+                    sumDistsStore.erase(sumDistsStore.begin() + i);
+                    i--;
+                }
+                else {
+                    assert(sumDistsStore.size() == candidates.size());
                     sumDistsStore[i] += distFromPoint;
-                }
 
-                if (sumDistsStore[i] > maxDistFromPoints) {
-                    maxDistFromPoints = sumDistsStore[i];
-                    iFarthest = i;
-                }
+                    if (sumDistsStore[i] > maxDistFromPoints) {
+                            maxDistFromPoints = sumDistsStore[i];
+                            iFarthest = i;
+                    }
+
+                    }
             }
 
             if (candidates.size() > 0) {
                 maxLength = maxDistFromPoints;
                 // Update maxLength to minimum distance between
                 //   an existing point and the point chosen
-                for (vec3 l : latticeTemp)
-                    maxLength = std::min(maxLength, length(candidates[iFarthest] - l));
 
+				#pragma omp parallel for
+                for (int i = 0; i < latticeTemp.size(); i++) {
+                    maxLength = std::min(maxLength, length(candidates[iFarthest] - latticeTemp[i]));
+                }
+                assert(iFarthest <= candidates.size());
                 // Add point to lattice
                 latticeTemp.push_back(candidates[iFarthest]);
                 pointOrigins.push_back(latticeBox);
                 candidates.erase(candidates.begin() + iFarthest);
+                sumDistsStore.erase(sumDistsStore.begin() + iFarthest);
             }
-            qDebug() << "Added to lattice" << latticeTemp.size();
+
+            if (latticePrintFrequency == 0) {
+            	tend = time(0);
+                qDebug() << "Added to lattice" << latticeTemp.size() << " Time: " << difftime(tend, tstart) << " second(s)";
+                latticePrintFrequency = 1000;
+                tstart = time(0);
+            }
+            latticePrintFrequency--;
         }
-      
+
+        // PROBLEM HERE
         lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
         // Set lattice property
-        qDebug() << "Found all points in lattice" << latticeBox->volume->id;
+        qDebug() << "Found all points in lattice" << latticeBox->volume->id ;
+        qDebug() << "Total time: " << difftime(tend, tinit) << " second(s)";
     }
+
     arrays->lattice = lattice;
     arrays->pointOrigins = pointOrigins;
     qDebug() << "Set lattice";
@@ -1334,6 +1422,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             if (!existsInLattice) {
                 space.push_back(n.first);
             }
+            // save number of hull points 
         }
         // Interpolate edges based on cutoff
         while (geometryBound->isCloseToEdge(point, cutoff) || !geometryBound->isInside(point)) {
@@ -1365,6 +1454,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
     // Spawn k new points
     int threads = 64;
 
+
 #pragma omp parallel for
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
@@ -1386,36 +1476,40 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
                 }
             }
 
-#pragma omp critical
+    #pragma omp critical
             candidates.push_back(newPoint);
         }
 
         qDebug() << "Lattice Thread" << t << "done";
     }
 
+int latticePrintFrequency = 100; 
 
     while (maxLength >= cutoff && !candidates.empty()) {
 
         // Find point furthest from original point
         uint iFarthest = 0;
         float maxDistFromPoints = 0.0f;
-        vector<float> sumDistsStore = vector<float>();
-        for (auto c: candidates) {
-            sumDistsStore.push_back(0.0f);
+        vector<float> sumDistsStore(candidates.size());
+
+		#pragma omp parallel for
+        for (size_t i = 0; i < sumDistsStore.size(); ++i) {
+            sumDistsStore[i]= maxDistFromPoints;
         }
 
-        for (uint i = 0; i < candidates.size(); i++) {
-            bool reject = false;
+        vector<int> candidatesToErase();
+        Vec l_temp = space.back();
 
-            float sumDists = 0.0f;
-            float distFromPoint;
+		#pragma omp parallel for
+        for (uint i = 0; i < candidates.size(); i++) {
+        	// this is defined but never used?
 
             if (space.size() > 0) {
-                Vec l = space.back();
-                distFromPoint = (candidates[i] - l).norm();
+                float distFromPoint = (candidates[i] - l_temp).norm();
 
-                if (distFromPoint < cutoff) {
-                    candidates.erase(candidates.begin() + i);
+                if (distFromPoint < cutoff ) {
+					#pragma omp critical
+                   candidates.erase(candidates.begin() + i);
                     i--;
                     continue;
                 }
@@ -1432,14 +1526,19 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             maxLength = maxDistFromPoints;
             // Update maxLength to minimum distance between
             //   an existing point and the point chosen
-            for (Vec l : space)
-                maxLength = std::min(maxLength, float((candidates[iFarthest] - l).norm()));
-
+			#pragma omp parallel for
+            for (size_t i = 0; i <space.size(); ++i) {
+                maxLength = std::min(maxLength, float((candidates[iFarthest] - space[i]).norm()));
+            }
             // Add point to lattice
             space.push_back(candidates[iFarthest]);
             candidates.erase(candidates.begin() + iFarthest);
         }
-        qDebug() << "Added to lattice" << space.size();
+        if (latticePrintFrequency == 0) {
+   	        qDebug() << "Added to lattice" << space.size();
+ 	       latticePrintFrequency = 100;
+        }
+        latticePrintFrequency--;
     }
 
     // Set lattice property

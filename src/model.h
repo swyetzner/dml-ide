@@ -11,11 +11,15 @@
 #include<QVector3D>
 #include<QVector4D>
 #include<glm/glm.hpp>
+
+#ifdef USE_OpenGL
 #include<QOpenGLWidget>
 #include<QOpenGLFunctions>
 #include<QOpenGLBuffer>
 #include<QOpenGLVertexArrayObject>
 #include<QOpenGLShaderProgram>
+#endif
+
 #include<float.h>
 #include<QDebug>
 
@@ -120,6 +124,7 @@ struct model_data {
 
     boundingBox<glm::vec3> bounds;
 
+  #ifdef USE_OpenGL
     const GLfloat *constData() const { return m_data.constData(); }
     const GLuint *constIndicies() const { return indices.data(); }
     const GLfloat *constColor() { return m_colors.constData(); }
@@ -259,6 +264,7 @@ struct model_data {
         m_center = QVector3D(bounds.center.x, bounds.center.y, bounds.center.z);
         m_dim = (bounds.maxCorner - bounds.maxCorner).length();
     }
+  #endif
 
     bool isInside(glm::vec3 point, int n_model) {
 
@@ -280,7 +286,7 @@ struct model_data {
 
             //qDebug() << "p " << p.x << p.y << p.z;
 
-            if (intersectPlane && p.x > point.x && p.y > point.y && p.z > point.z) {
+            if (intersectPlane && p.x > point.x + 1E-6 && p.y > point.y + 1E-6 && p.z > point.z + 1E-6) {
 
                 if (Utils::insideTriangle(vertices[i], vertices[i+1], vertices[i+2], p)) {
                     intersections++;
@@ -295,6 +301,44 @@ struct model_data {
         else
             return false;
     }
+
+
+    // make something that checks for the ray of the spring
+    // this tells us if a spring is spanning a point outside the model
+    // THIS IS STILL A WIP -> NOT IMPLEMENTED ANYWHERE
+    bool springCrossover(glm::vec3 point, vec3 pointB, int n_model) {
+
+    	vec3 dir = glm::normalize(point-pointB);
+
+		uint modelStart = 0;
+		uint modelEnd = 0;
+		bool intersection = false;
+
+		if (n_model != 0)
+			modelStart = model_indices[n_model-1];
+
+		modelEnd = model_indices[n_model];
+
+		glm::vec3 p;
+		float pu, pv;
+
+    	for (uint i = modelStart; i < modelEnd; i+=3) {
+
+    	            bool intersectPlane = Utils::intersectPlane(&vertices[i], point, dir, p, pu, pv);
+
+    	            //qDebug() << "p " << p.x << p.y << p.z;
+
+    	            if (intersectPlane && p.x > point.x + 1E-6 && p.y > point.y + 1E-6 && p.z > point.z + 1E-6) {
+
+    	                if (Utils::insideTriangle(vertices[i], vertices[i+1], vertices[i+2], p)) {
+    	                    qDebug() << "found spanning spring";
+    	                	return true;
+    	                }
+    	            }
+    	        }
+    	return false;
+    }
+
 
     // Check if a point is too close to the hull of a model
     bool isCloseToEdge(glm::vec3 point, float cutoff, int n_model) {
@@ -436,6 +480,7 @@ struct simulation_data {
 
     boundingBox<vec3> bounds;
 
+  #ifdef USE_OpenGL
     const GLfloat *constData() const { return m_data.constData(); }
     const GLuint *constIndices() const { return m_index.constData(); }
     int count() const { return m_count; }
@@ -463,6 +508,7 @@ struct simulation_data {
             m_indexCount++;
         }
     }
+#endif
 
     void indexVertices(int n_model) {
         qDebug() << "Indexing vertices for model " << n_model;
@@ -636,15 +682,7 @@ struct bar_data {
 class Volume
 {
 public:
-    Volume();
-    Volume(QString id);
-    Volume(QString id,
-           QString primitive,
-           QString url,
-           QString units,
-           QString rendering,
-           QString alpha,
-           QString color);
+  Volume() {}
 
     QString id;
     QString primitive;
@@ -667,6 +705,43 @@ public:
         vec4 cvec = vec4(color.x(), color.y(), color.z(), color.w());
         model->colors.insert(model->colors.begin(), cvec);
     }
+
+    Volume(QString s_id,
+           QString s_primitive,
+           QString s_url,
+           QString s_units,
+           QString s_rendering,
+           QString s_alpha,
+           QString s_color) {
+      id = s_id;
+      primitive = s_primitive;
+      rendering = s_rendering;
+      units = s_units;
+      color = QVector4D(1.0f, 1.0f, 1.0f, 1.0f);
+
+      url = QUrl(s_url);
+
+      if (s_color != nullptr) {
+        QList<QString> s_colors = s_color.split(" ");
+        QList<float> f_colors;
+        for (auto c : s_colors) {
+	  float f_c = c.toFloat();
+	  f_colors.append(f_c);
+        }
+        color.setX(f_colors.at(0));
+        color.setY(f_colors.at(1));
+        color.setZ(f_colors.at(2));
+      }
+
+      if (s_alpha != nullptr) {
+        float f_alpha = s_alpha.toFloat();
+        color.setW(f_alpha);
+      }
+
+      model = new model_data();
+
+    }
+
 
 signals:
     void log(const QString message);
@@ -702,6 +777,7 @@ public:
 
     Volume * volume;
     vector<Mass *> masses;
+    string type = "full";
 };
 
 
@@ -769,6 +845,7 @@ public:
     double totalDuration;
 
     ulong index;
+    
 };
 
 
@@ -935,6 +1012,9 @@ public:
         method = NONE;
         threshold = 0;
         frequency = 0;
+        regenRate = 0;
+        regenThreshold = 0;
+        memory = 1;
     }
     ~OptimizationRule() = default;
 
@@ -943,6 +1023,9 @@ public:
     Method method;
     double threshold;
     int frequency;
+    double regenRate;
+    double regenThreshold;
+    double memory;
 
     QString methodName() {
         switch (method) {
@@ -1000,7 +1083,7 @@ struct output_data {
 class Design
 {
 public:
-    Design();
+    Design() {};
     ~Design() {
         delete optConfig;
     }
@@ -1025,5 +1108,11 @@ public:
 
 
 
+/*Design::Design() {
+  volumes = std::vector<Volume *>();
+}
+*/
 
 #endif // MODEL_H
+
+

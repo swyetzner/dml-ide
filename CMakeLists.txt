@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 project(DMLIDE VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -12,7 +11,9 @@ find_package(Qt5Widgets CONFIG REQUIRED)
 find_package(Qt5Gui CONFIG REQUIRED)
 find_package(Qt5Xml CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-find_package(GLEW CONFIG REQUIRED)
+message(STATUS "GLM included at ${GLM_INCLUDE_DIRS}")
+include_directories(${GLM_INCLUDE_DIRS})
+find_package(GLEW CONFIG)
 find_package(pugixml CONFIG REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 find_package(Spectra CONFIG REQUIRED)
@@ -31,52 +32,64 @@ remove_definitions(Titan PUBLIC GRAPHICS)
 message(WARNING ${COMPILE_DEFINITIONS})
 
 set(SOURCES
-        src/window.ui
-        src/exportdialog.ui
-        src/resources.qrc
-        src/window.h
-        src/designViewer.h
-        src/dmlTree.h
-        src/loader.h
-        src/model.h
-        src/properties.h
-        src/simulator.h
-        src/gUtils.h
-        src/utils.h
-        src/main.cpp
-        src/window.cpp
-        src/designViewer.cpp
-        src/dmlTree.cpp
-        src/loader.cpp
-        src/properties.cpp
-        src/simulator.cpp
-        src/gUtils.cpp
-        src/utils.cpp
-        src/polygonizer.cpp
-        src/polygonizer.h
-        src/polygon.cpp
-        src/polygon.h
-        src/exportdialog.h
-        src/exportdialog.cpp
-        src/exportThread.cpp
-        src/exportThread.h
-        src/optimizer.cpp
-        src/optimizer.h
-        src/commandLine.cpp
-        src/commandLine.h
-        src/parser.cpp
-        src/parser.h
-        src/simViewer.cpp
-        src/simViewer.h
+		src/model.h
+		src/loader.h
+		src/simulator.h
+		src/optimizer.h
+		src/oUtils.h
+		src/utils.h
+		src/parser.h
+		src/polygon.h
+		src/polygonizer.h
+		src/loader.cpp
+		src/simulator.cpp
+		src/optimizer.cpp
+		src/oUtils.cpp
+		src/utils.cpp
+		src/parser.cpp
+		src/polygon.cpp
+		src/polygonizer.cpp
+		src/main.cpp
 )
 
-set(CU_SOURCES
-        src/model.cu
+set (IO_SOURCES 
+		src/io/commandLine.h
+		src/io/exportThread.h
+		src/io/commandLine.cpp
+		src/io/exportThread.cpp
 )
 
+set (QT_SOURCES 
+		src/gui/window.h
+		src/gui/dmlTree.h
+		src/gui/properties.h
+		src/gui/exportdialog.h
+		src/gui/dmlTree.cpp
+		src/gui/properties.cpp
+		src/gui/exportdialog.cpp
+		src/gui/exportdialog.ui
+		src/gui/window.cpp
+		src/gui/window.ui
+)
+
+set (GL_SOURCES 
+		src/opengl/designViewer.h
+		src/opengl/simViewer.h
+		src/opengl/gUtils.h
+		src/opengl/designViewer.cpp
+		src/opengl/simViewer.cpp
+		src/opengl/gUtils.cpp
+)
+include_directories(src)
 set (QT_RESOURCES src/resources.qrc)
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${CU_SOURCES} ${QT_RESOURCES})
+option (USE_OpenGL "Use OpenGL" ON)
+if (USE_OpenGL)
+	add_executable(${PROJECT_NAME} ${SOURCES} ${IO_SOURCES} ${QT_SOURCES} ${QT_RESOURCES} ${GL_SOURCES})
+	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OpenGL)
+else()
+	add_executable(${PROJECT_NAME} ${SOURCES} ${IO_SOURCES} ${QT_SOURCES}	)
+endif()
 
 # Enable OpenMP compiler options if available
 option (USE_OpenMP "Use OpenMP" ON)
@@ -96,10 +109,11 @@ if ( TARGET Qt5::Core )
         set_property( TARGET Qt5::Core PROPERTY INTERFACE_POSITION_INDEPENDENT_CODE "ON" )
         set( CMAKE_CXX_COMPILE_OPTIONS_PIE "-fPIC" )
 endif()
-set_source_files_properties(${CU_SOURCES} PROPERTIES COMPILE_FLAGS "-Xcompiler=-fPIC")
+
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS " -fPIC")
 
 target_include_directories(${PROJECT_NAME} PUBLIC inc)
+
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Widgets
@@ -107,8 +121,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Xml
     PRIVATE Eigen3::Eigen
     PRIVATE Spectra::Spectra
+    PRIVATE ${glm_LIBRARIES}
     PRIVATE Titan
-    PRIVATE glm
-    PRIVATE ${GLEW_LIBRARIES}
     PRIVATE pugixml
 )

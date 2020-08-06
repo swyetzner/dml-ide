@@ -24,9 +24,10 @@ inline bool Utils::endsWith(const string &s, const string &e) {
 }
 
 string Utils::left(const string &s, int n) {
-    char *buffer = new char[n];
-    s.copy(buffer, size_t(n));
-    return string(buffer);
+    char buffer[n];
+    s.copy(buffer, n);
+    string t = buffer;
+    return t;
 }
 
 string Utils::trim(string &s) {
@@ -249,6 +250,8 @@ bool Utils::intersectPlane(vec3 *triangle, vec3 o, vec3 dir, vec3 &p, float &pu,
 
 }
 
+
+
 // True if point p projects to within triangle (v0;v1;v2)
 // http://www.blackpawn.com/texts/pointinpoly/
 bool Utils::insideTriangle(vec3 a, vec3 b, vec3 c, vec3 &point) {
@@ -367,6 +370,13 @@ void Utils::createCube(vec3 center, float edgeLength, vector<vec3> &vs, vector<v
     ns.push_back(ntop); ns.push_back(ntop); ns.push_back(ntop);
 }
 
+// Qdebug overload to accept std::string class
+inline QDebug operator<<(QDebug dbg, const std::string& str)
+{
+    dbg.nospace() << QString::fromStdString(str);
+    return dbg.space();
+}
+
 
 // createModelFromFile(string fileName, vector<vec3> &vs, vector<vec3> &ns)
 //
@@ -376,7 +386,6 @@ void Utils::createCube(vec3 center, float edgeLength, vector<vec3> &vs, vector<v
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vector<vec3> &ns) {
-
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -387,13 +396,41 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 
     ifstream file(path, ios::in | ios::binary);
     string header;
+    qDebug() << "Header...";
+    qDebug() << "*** " << header << " ***";
+    qDebug() << "Path...";
+    qDebug() << "*** " << path << " ***";
 
+    if (!file) { 
+        qDebug() << "Attempting to correct file endings...";
+        // this  is gonna check to see if the file exists with 
+        // a different capitalization
+        if (endsWith(path,".stl")) { 
+            qDebug() << 2; 
+            path.replace(path.end()-3,path.end(),"STL");
+        } 
+        
+        if (endsWith(path,".STL")) {
+            qDebug() << 1;  
+            path.replace(path.end()-3,path.end(),"stl"); 
+        } 
+        
+        qDebug() << "New path: " << path; 
+        file.close();
+        file.open(path);        
+    }
     if (!file) {
-        return;
+            qDebug() << "File in path: " << path << " not found!";
+            return;
     }
 
-    if (endsWith(path, ".stl")) {
+    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
+
+        qDebug() << "Header...";
+        qDebug() << "*** " << header << " ***";
+
+
 
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;
@@ -433,7 +470,6 @@ void Utils::createModelFromFile(string path, float scale, vector<vec3> &vs, vect
 //   -- Binary STL
 //
 void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vector<Vec> &ns) {
-
     enum Format {
         STL_ASCII,
         STL_BINARY,
@@ -444,13 +480,40 @@ void Utils::createModelFromFile(string path, float scale, vector<Vec> &vs, vecto
 
     ifstream file(path, ios::in | ios::binary);
     string header;
+    qDebug() << "Header...";
+    qDebug() << "*** " << header << " ***";
+    qDebug() << "Path...";
+    qDebug() << "*** " << path << " ***";
 
+    if (!file) { 
+        qDebug() << "Attempting to correct file endings...";
+        // this  is gonna check to see if the file exists with 
+        // a different capitalization
+        if (endsWith(path,".stl")) { 
+            qDebug() << 3; 
+            path.replace(path.end()-3,path.end(),"STL");
+        //   path = path.substr(0,path.length()-3) + "STL";
+        }
+        else if (endsWith(path,".STL")) { 
+            qDebug() << 4; 
+            path.replace(path.end()-3,path.end(),"stl");
+        //  path = path.substr(0,path.length()-3) + "stl";
+        } 
+        
+        qDebug() << "New path: " << path;  
+        file.close();
+        file.open(path);       
+    }
     if (!file) {
-        return;
+            qDebug() << "File in path: " << path << " not found!";
+            return;
     }
 
-    if (endsWith(path, ".stl")) {
+    if (endsWith(path, ".stl") || endsWith(path, ".STL")) {
         getline(file, header);
+
+        qDebug() << "Header...";
+        qDebug() << "*** " << header << " ***";
 
         if (startsWith(trim(header), "solid")) {
             fileFormat = STL_ASCII;

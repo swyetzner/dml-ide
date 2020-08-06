@@ -3,49 +3,31 @@
 # Specifically meant for TACC systems (https://www.tacc.utexas.edu/)
 
 export_shell_variables() {
-    export LD_LIBRARY_PATH=$WORK/bin/lib:$WORK/bin/lib64:$LD_LIBRARY_PATH
-    export LIBRARY_PATH=$WORK/bin/lib:$WORK/bin/lib64:$LIBRARY_PATH
-    export INSTALL_PREFIX=$WORK/bin
+    export LD_LIBRARY_PATH=$HOME/bin/lib:$HOME/bin/lib64:$LD_LIBRARY_PATH
+    export LIBRARY_PATH=$HOME/bin/lib:$HOME/bin/lib64:$LIBRARY_PATH
+    export INSTALL_PREFIX=$HOME/bin
     export PATH=$INSTALL_PREFIX/bin:$PATH
     export CMAKE_PREFIX_PATH=$INSTALL_PREFIX:$CMAKE_PREFIX_PATH
-}
-
-install_all_vcpkg() {
-    cd $WORK
-    if [ ! -d "vcpkg" ] ; then
-        git clone https://github.com/Microsoft/vcpkg.git
-    fi
-    cd vcpkg
-    ./bootstrap-vcpkg.sh
-
-    ./vcpkg install glm
-    ./vcpkg install glew
-    ./vcpkg install glfw3
-    ./vcpkg install args
-    ./vcpkg install pugixml
 }
 
 install_qt() {
     _wget https://download.qt.io/archive/qt/5.12/5.12.1/submodules/qtbase-everywhere-src-5.12.1.tar.xz
     cd qtbase-everywhere-src-5.12.1
+    ./configure --prefix=$INSTALL_PREFIX -no-opengl
+    gmake
+    gmake install
+    cd ..
+    echo "Installed Qt 5"
 }
 
 install_ffmpeg() {
     _wget https://ffmpeg.org/releases/ffmpeg-4.1.3.tar.bz2
-    cd ffmepg-4.1.3
+    cd ffmpeg-4.1.3
     ./configure --disable-x86asm
     make
     make install DESTDIR=$INSTALL_PREFIX
     cd ..
     echo "Installed ffmpeg"
-}
-
-install_qt() {
-    _wget https://download.qt.io/archive/qt/5.12/5.12.1/submodules/qtbase-everywhere-src-5.12.1.tar.xz
-    cd qtbase-everywhere-src-5.12.1
-    ./configure
-    cd ..
-    echo "Installed Qt 5.12.1"
 }
 
 install_glew() {
@@ -82,19 +64,16 @@ install_args() {
     echo "Installed args"
 }
 
-install_ffmpeg() {
-    _wget https://ffmpeg.org/releases/ffmpeg-4.1.3.tar.bz2
-    cd ffmepg-4.1.3
-    ./configure --disable-x86asm
-    make
-    make install DESTDIR=$INSTALL_PREFIX
-    cd ..
-    echo "Installed ffmpeg"
-}
-
 install_pugixml() {
   _wget https://github.com/zeux/pugixml/releases/download/v1.9/pugixml-1.9.tar.gz
-  echo "Install pugixml"
+  cd pugixml-1.9
+  mkdir build
+  cd build
+  cmake .. -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX/pugixml
+  make
+  make install
+  cd ../..
+  echo "Installed pugixml"
 }
 
 _wget() {

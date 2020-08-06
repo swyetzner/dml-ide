@@ -11,6 +11,7 @@ cmake/*
 ### Source Files ###
 *.stl
 *.mp4
+*.zip
 
 ### C++ ###
 # Prerequisites
