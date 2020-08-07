@@ -6,13 +6,9 @@
 #include <QProgressDialog>
 #include <QTextStream>
 #include <glm/glm.hpp>
-#include <Eigen/SparseCore>
-#include <Spectra/SymGEigsSolver.h>
-#include <Spectra/MatOp/SparseCholesky.h>
 #include "model.h"
 #include "utils.h"
 #include <ctime>
-
 
 #undef GRAPHICS
 #include <Titan/sim.h>
@@ -44,12 +40,8 @@ public:
     void loadSimFromLattice(LatticeConfig *lattice, Simulation *sim, double springCutoff);
     void loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSection, bool markers);
     void applyLoadcase(Simulation *sim, Loadcase *load);
-
-    double calculateNaturalPeriod(Simulation *sim);
-    void suggestParams(Simulation *sim, SimulationConfig *simConfig);
-
-	  int surfacePoints;
-
+	int surfacePoints;
+	
 signals:
     void log(const QString &message);
 
