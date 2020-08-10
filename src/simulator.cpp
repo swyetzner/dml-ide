@@ -343,6 +343,15 @@ void Simulator::run() {
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
+
+        // NaN CHECKS
+        for (Spring *s : sim->springs) {
+            if (isnan(s->_curr_force)) {
+                qDebug() << "NaN found in spring forces. Exiting.";
+                exit(1);
+            }
+        }
+
         totalLength_prev = totalLength;
         totalLength = 0;
         double maxForce = 0;
@@ -748,6 +757,10 @@ double Simulator::calcDeflection() {
             double newDist = (m->pos - refMass->pos).norm();
             deflection += fabs(newDist - origDist);
         }
+    }
+    if (isnan(deflection)) {
+        qDebug() << "NaN found in deflection. Exiting.";
+        exit(1);
     }
     return deflection;
 }
