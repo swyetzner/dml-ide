@@ -36,6 +36,7 @@ void Loader::loadDesignModels(Design *design) {
  * Populates model_data in a given Volume
  * Note that model_data here will have only one mesh per volume
  */
+
 void Loader::loadVolumeModel(Volume *volume) {
 
     volume->model = new model_data();
