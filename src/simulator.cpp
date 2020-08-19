@@ -1020,14 +1020,14 @@ void Simulator::applyLoad(Loadcase *load) {
             }
         }
     }
-    for (Torque *f : load->torques) {
+    for (Torque *t : load->torques) {
         int torqueMasses = 0;
 
-        for (Mass *fm : f->masses) {
+        for (Mass *tm : t->masses) {
             bool valid = false;
             for (Mass *m : sim->masses) {
-                    if (m == fm) {
-                    m->extduration = f->duration + pastLoadTime;
+                    if (m == tm) {
+                    m->extduration = t->duration + pastLoadTime;
                     qDebug() << "DURATION" << m->extduration;
                     if (m->extduration < 0) {
                         m->extduration = DBL_MAX;
@@ -1037,14 +1037,14 @@ void Simulator::applyLoad(Loadcase *load) {
                 }
             }
             if (!valid) {
-                f->masses.erase(remove(f->masses.begin(), f->masses.end(), fm), f->masses.end());
+                t->masses.erase(remove(t->masses.begin(), t->masses.end(), tm), t->masses.end());
             }
         }
         if (torqueMasses > 0) {
-            Vec torqueMag = f->magnitude / torqueMasses;
-            for (Mass *fm : f->masses) {
-                Vec distance = Vec(torque->origin[0]-m->pos[0] , torque->origin[1]-m->pos[1] , torque->origin[2]-m->pos[2]);
-                Vec forceProjection = cross(torque->magnitude,distance)/distance.norm();
+            Vec torqueMag = t->magnitude / torqueMasses;
+            for (Mass *m : t->masses) {
+                Vec distance = Vec(t->origin[0]-m->pos[0] , t->origin[1]-m->pos[1] , t->origin[2]-m->pos[2]);
+                Vec forceProjection = cross(t->magnitude,distance)/distance.norm();
                 m->force += forceProjection;
                 m->extforce += forceProjection;
             }
