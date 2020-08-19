@@ -35,6 +35,7 @@ static inline QString expansionAttribute() { return QStringLiteral("expansion");
 // Loadcase elements
 static inline QString anchorElement() { return QStringLiteral("anchor"); }
 static inline QString forceElement() { return QStringLiteral("force"); }
+static inline QString torqueElement() { return QStringLiteral("torque"); }
 static inline QString actuationElement() { return QStringLiteral("actuation"); }
 
 // Anchor attributes
@@ -44,6 +45,7 @@ static inline QString volumeAttribute() { return QStringLiteral("volume"); }
 static inline QString magnitudeAttribute() {return QStringLiteral("magnitude"); }
 static inline QString durationAttribute() { return QStringLiteral("duration"); }
 static inline QString varyAttribute() { return QStringLiteral("vary"); }
+static inline QString originAttribute() { return QStringLiteral("origin"); }
 
 // Actuation attributes
 static inline QString waveAttribute() {return QStringLiteral("wave");}
@@ -301,6 +303,33 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         design_ptr->loadcaseMap[loadId]->totalDuration = std::max(design_ptr->loadcaseMap[loadId]->totalDuration,
                 f->duration);
         log(QString("Loaded Force: '%1'").arg(f->volume->id));
+    }
+
+     // ---- <force> ----
+    if (element.tagName() == torqueElement()) {
+        auto *volume = createAttributeItem(item, attrMap, volumeAttribute());
+        auto *magnitude = createAttributeItem(item, attrMap, magnitudeAttribute());
+        auto *duration = createAttributeItem(item, attrMap, durationAttribute());
+        auto *vary = createAttributeItem(item, attrMap, varyAttribute());
+        auto *origin = createAttributeItem(item, attrMap, originAttribute());
+
+        // TODO add error checking for non-existent volume
+        Torque *t = new Torque();
+        t->volume = volume ? design_ptr->volumeMap[volume->text(1)] : nullptr;
+        t->magnitude = magnitude ? parseVec(magnitude->text(1)) : Vec(0, 0, 0);
+        t->duration = duration ? duration->text(1).toDouble() : -1;
+        t->vary = vary ? parseVec(vary->text(1)) : Vec(0,0,0);
+        t->origin = origin ? parseVec(origin->text(1)) : Vec(0,0,0);
+        
+        if (!(t->volume))
+            qDebug() << "Volume" << volume->text(1) << "not found";
+
+        QString loadId = parentItem->child(0)->text(1);
+        design_ptr->loadcaseMap[loadId]->torques.push_back(t);
+        design_ptr->loadcaseMap[loadId]->torqueMap[t->volume->id] = t;
+        design_ptr->loadcaseMap[loadId]->totalDuration = std::max(design_ptr->loadcaseMap[loadId]->totalDuration,
+                t->duration);
+        log(QString("Loaded Torque: '%1'").arg(t->volume->id));
     }
 
     // ---- <actuation> ----

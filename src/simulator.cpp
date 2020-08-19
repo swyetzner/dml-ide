@@ -1020,6 +1020,36 @@ void Simulator::applyLoad(Loadcase *load) {
             }
         }
     }
+    for (Torque *f : load->torques) {
+        int torqueMasses = 0;
+
+        for (Mass *fm : f->masses) {
+            bool valid = false;
+            for (Mass *m : sim->masses) {
+                    if (m == fm) {
+                    m->extduration = f->duration + pastLoadTime;
+                    qDebug() << "DURATION" << m->extduration;
+                    if (m->extduration < 0) {
+                        m->extduration = DBL_MAX;
+                    }
+                    torqueMasses ++;
+                    valid = true;
+                }
+            }
+            if (!valid) {
+                f->masses.erase(remove(f->masses.begin(), f->masses.end(), fm), f->masses.end());
+            }
+        }
+        if (torqueMasses > 0) {
+            Vec torqueMag = f->magnitude / torqueMasses;
+            for (Mass *fm : f->masses) {
+                Vec distance = Vec(torque->origin[0]-m->pos[0] , torque->origin[1]-m->pos[1] , torque->origin[2]-m->pos[2]);
+                Vec forceProjection = cross(torque->magnitude,distance)/norm(distance);
+                m->force =+ forceProjection;
+                m->extforce += forceProjection;
+            }
+        }
+    }
     sim->setAll();
 }
 
