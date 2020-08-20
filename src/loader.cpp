@@ -1113,7 +1113,7 @@ void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, f
     qDebug() << "Lattice bottom corner " << xLines[0] << "," << yLines[0] << "," << zLines[0];
     qDebug() << "Lattice top corner " << xLines.back() << "," << yLines.back() << "," << zLines.back();
 
-    // Populate grid and check inside
+
     for (ulong z = 0; z < zLines.size(); z++) {
         for (ulong y = 0; y < yLines.size(); y++) {
             for (ulong x = 0; x < xLines.size(); x++) {
@@ -1131,7 +1131,6 @@ void Loader::createGridLattice(Polygon *geometryBound, LatticeConfig &lattice, f
     lattice.vertices = grid;
     qDebug() << "Created grid lattice" << lattice.vertices.size();
 }
-
 // Creates a lattice with random pseudo-evenly-spacedd interal points
 void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simConfig) {
     log("Creating space lattice.");
@@ -1142,16 +1141,10 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
     vector<glm::vec3> lattice = vector<glm::vec3>();
     vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
-<<<<<<< HEAD
     surfacePoints = 0;
     
     if (includeHull) {
         
-=======
-
-    if (includeHull) {
-		surfacePoints = 0;
->>>>>>> fixSurface
         // Add hull vertices
         for (uint i = 0; i < arrays->vertices.size(); i++) {
             bool existsInLattice = false;
@@ -1165,11 +1158,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
-<<<<<<< HEAD
                 surfacePoints++;
-=======
-				surfacePoints++;
->>>>>>> fixSurface
                 for(LatticeConfig *latticeBox : latticeConfigs) {
                     if (latticeBox->volume->model->isInside(arrays->vertices[i], 0)) {
                         pointOrigins.push_back(latticeBox);
@@ -1386,6 +1375,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     arrays->pointOrigins = pointOrigins;
     qDebug() << "Set lattice";
 }
+
 
 // Creates a lattice with random pseudo-evenly-spacedd interal points
 void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, float cutoff, bool includeHull) {
