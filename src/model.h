@@ -756,6 +756,21 @@ public:
     vector<Mass *> masses;
 };
 
+class Torque
+{
+public:
+    Torque() {}
+    ~Torque() {}
+
+    Volume * volume;
+    Vec magnitude;
+    double duration;
+    Vec vary;
+    Vec origin; 
+
+    vector<Mass *> masses;
+};
+
 class Actuation
 {
 public:

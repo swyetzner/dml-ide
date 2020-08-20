@@ -178,6 +178,30 @@ void Parser::parseLoadcase(pugi::xml_node dml_load, Loadcase *loadcase, Design *
         std::cout << "\tForce '" << volume.toStdString() << "' PARSED\n";
     }
 
+    for (pugi::xml_node frc : dml_load.children("torque")) {
+        Torque *torque = new Torque();
+        QString volume = frc.attribute("volume").value();
+        Vec magnitude = parseVec(frc.attribute("magnitude").value());
+        double duration = frc.attribute("duration").as_double(-1);
+        Vec vary = parseVec(frc.attribute("vary").value());
+        Vec origin = parseVec(frc.attribute("origin").value());
+
+
+        torque->volume = design->volumeMap[volume];
+        if (!(torque->volume)) {
+            cerr << "Volume '" << volume.toStdString() << "' not found.";
+            exit(EXIT_FAILURE);
+        }
+        torque->magnitude = magnitude;
+        torque->duration = duration;
+        torque->vary = vary;
+        torque->origin = origin;
+
+        loadcase->torques.push_back(torque);
+        loadcase->torqueMap[volume] = torque;
+        std::cout << "\tTorque '" << volume.toStdString() << "' PARSED\n";
+    }
+    
     loadcase->id = id;
     loadcase->totalDuration = 0;
 }
