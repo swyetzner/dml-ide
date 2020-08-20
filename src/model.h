@@ -815,6 +815,9 @@ public:
     vector<Force *> forces;
     map<QString, Force *> forceMap;
 
+    vector<Torque *> torques;
+    map<QString, Torque *> torqueMap;
+
     vector<Actuation *> actuations;
     map<QString, Actuation *> actuationMap;
 
