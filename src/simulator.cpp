@@ -1044,7 +1044,7 @@ void Simulator::applyLoad(Loadcase *load) {
             Vec torqueMag = t->magnitude / torqueMasses;
             for (Mass *m : t->masses) {
                 Vec distance = Vec(t->origin[0]-m->pos[0] , t->origin[1]-m->pos[1] , t->origin[2]-m->pos[2]);
-                Vec forceProjection = cross(t->magnitude,distance)/distance.norm();
+                Vec forceProjection = cross(torqueMag,distance)/distance.norm();
                 m->force += forceProjection;
                 m->extforce += forceProjection;
             }
