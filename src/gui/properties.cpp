@@ -141,6 +141,17 @@ void PropertiesTable::displayLoadcase(QString id) {
         createPropertyItem(++rowCount, 1, "vary");
         createVecValueItem(rowCount++, 2, f->vary);
     }
+    for (const Torque *t : load->torques) {
+        createNodeItem(rowCount, 0, "torque");
+        createPropertyItem(++rowCount, 1, "volume");
+        createValueItem(rowCount, 2, t->volume->id);
+        createPropertyItem(++rowCount, 1, "magnitude");
+        createVecValueItem(rowCount, 2, t->magnitude);
+        createPropertyItem(++rowCount, 1, "duration");
+        createValueItem(rowCount, 2, t->duration > 0 ? QString::number(t->duration) : "");
+        createPropertyItem(++rowCount, 1, "vary");
+        createVecValueItem(rowCount++, 2, t->vary);
+    }
     for (Actuation *a : load->actuations) {
         createNodeItem(rowCount, 0, "actuation");
         createPropertyItem(++rowCount, 1, "volume");
