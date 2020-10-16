@@ -221,6 +221,8 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
             if (hc.first == nullptr) continue;
             Spring *s = hc.first;
             if (!springsToDelete[s] && s != nullptr) {
+                float EPSILON = 1E-6;
+
                 if (massToSpringMap[s->_left].size()  == 1) {
                     if (!springsToDelete[s]) hangingSprings++;
                     springsToDelete[s] = true;
@@ -247,9 +249,17 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
                     for (Spring *h : massToSpringMap[s->_left]) {
                         if (h != s) {
                             // h and s might be part of a hanging pair
-                            Vec bar1 = s->_right->pos - s->_left->pos;
-                            Vec bar2 = h->_right->pos - h->_left->pos;
-                            if (Utils::isAcute(bar1, bar2)) {
+                            bool colinear = false;
+                            if (s->_left->pos == h->_right->pos) {
+                                if (Utils::areCloseToColinear(s->_right->pos, s->_left->pos, h->_left->pos, EPSILON)) {
+                                    colinear = true;
+                                }
+                            } else {
+                                if (Utils::areCloseToColinear(s->_right->pos, s->_left->pos, h->_right->pos, EPSILON)) {
+                                    colinear = true;
+                                }
+                            }
+                            if (!colinear) {
                                 if (!springsToDelete[s]) hangingSprings++;
                                 if (!springsToDelete[h]) hangingSprings++;
                                 springsToDelete[s] = true;
@@ -279,9 +289,17 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
                     for (Spring *h : massToSpringMap[s->_right]) {
                         if (h != s) {
                             // h and s might be part of a hanging pair
-                            Vec bar1 = s->_right->pos - s->_left->pos;
-                            Vec bar2 = h->_right->pos - h->_left->pos;
-                            if (Utils::isAcute(bar1, bar2)) {
+                            bool colinear = false;
+                            if (s->_right->pos == h->_right->pos) {
+                                if (Utils::areCloseToColinear(s->_left->pos, s->_right->pos, h->_left->pos, EPSILON)) {
+                                    colinear = true;
+                                }
+                            } else {
+                                if (Utils::areCloseToColinear(s->_left->pos, s->_right->pos, h->_right->pos, EPSILON)) {
+                                    colinear = true;
+                                }
+                            }
+                            if (!colinear) {
                                 if (!springsToDelete[s]) hangingSprings++;
                                 if (!springsToDelete[h]) hangingSprings++;
                                 springsToDelete[s] = true;
@@ -302,6 +320,72 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
                                 }
                                 for (Spring *c : massToSpringMap[s->_left]) {
                                     if (c != s) newCandidates[c] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (massToSpringMap[s->_left].size() == 3) {
+                    Vec commonVertex = s->_left->pos;
+                    std::vector<Vec> points = std::vector<Vec>();
+                    points.push_back(commonVertex);
+                    for (Spring *h : massToSpringMap[s->_left]) {
+                        if (h->_left->pos == commonVertex){
+                            points.push_back(h->_right->pos);
+                        }
+                        else {
+                            points.push_back(h->_left->pos);
+                        }
+                    }
+                    assert(points.size() == 4);
+                    if (Utils::areCloseToCoplanar(points[0], points[1], points[2], points[3], EPSILON)) {
+                        for (Spring *h : massToSpringMap[s->_left]) {
+                            if (!springsToDelete[h]) hangingSprings++;
+                            springsToDelete[h] = true;
+                            removeSpringFromMap(h);
+
+                            // Add connected springs
+                            if (h->_left->pos == commonVertex) {
+                                for (Spring *c : massToSpringMap[h->_right]) {
+                                    if (c != h) newCandidates[c] = true;
+                                }
+                            }
+                            if (h->_right->pos == commonVertex) {
+                                for (Spring *c : massToSpringMap[h->_left]) {
+                                    if (c != h) newCandidates[c] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (massToSpringMap[s->_right].size() == 3) {
+                    Vec commonVertex = s->_right->pos;
+                    std::vector<Vec> points = std::vector<Vec>();
+                    points.push_back(commonVertex);
+                    for (Spring *h : massToSpringMap[s->_right]) {
+                        if (h->_left->pos == commonVertex){
+                            points.push_back(h->_right->pos);
+                        }
+                        else {
+                            points.push_back(h->_left->pos);
+                        }
+                    }
+                    assert(points.size() == 4);
+                    if (Utils::areCloseToCoplanar(points[0], points[1], points[2], points[3], EPSILON)) {
+                        for (Spring *h : massToSpringMap[s->_right]) {
+                            if (!springsToDelete[h]) hangingSprings++;
+                            springsToDelete[h] = true;
+                            removeSpringFromMap(h);
+
+                            // Add connected springs
+                            if (h->_left->pos == commonVertex) {
+                                for (Spring *c : massToSpringMap[h->_right]) {
+                                    if (c != h) newCandidates[c] = true;
+                                }
+                            }
+                            if (h->_right->pos == commonVertex) {
+                                for (Spring *c : massToSpringMap[h->_left]) {
+                                    if (c != h) newCandidates[c] = true;
                                 }
                             }
                         }
