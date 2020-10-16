@@ -330,13 +330,11 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
                     std::vector<Vec> points = std::vector<Vec>();
                     points.push_back(commonVertex);
                     for (Spring *h : massToSpringMap[s->_left]) {
-                        if (h != s) {
-                            if (h->_left->pos == commonVertex){
-                                points.push_back(h->_right->pos);
-                            }
-                            else {
-                                points.push_back(h->_left->pos);
-                            }
+                        if (h->_left->pos == commonVertex){
+                            points.push_back(h->_right->pos);
+                        }
+                        else {
+                            points.push_back(h->_left->pos);
                         }
                     }
                     assert(points.size() == 4);
@@ -365,13 +363,11 @@ void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
                     std::vector<Vec> points = std::vector<Vec>();
                     points.push_back(commonVertex);
                     for (Spring *h : massToSpringMap[s->_right]) {
-                        if (h != s) {
-                            if (h->_left->pos == commonVertex){
-                                points.push_back(h->_right->pos);
-                            }
-                            else {
-                                points.push_back(h->_left->pos);
-                            }
+                        if (h->_left->pos == commonVertex){
+                            points.push_back(h->_right->pos);
+                        }
+                        else {
+                            points.push_back(h->_left->pos);
                         }
                     }
                     assert(points.size() == 4);
