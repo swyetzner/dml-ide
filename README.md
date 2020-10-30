@@ -9,7 +9,7 @@ The DML-IDE utilizes [Titan](https://github.com/swyetzner/Titan) as its underlyi
 * At least one CUDA-compataible GPU. See [here](https://developer.nvidia.com/cuda-gpus) for a list.
 
 ## Build
-DML-IDE has the following dependencies. Download and setup them up individually from the links below *OR* use a package manager (for everything but Qt); [vcpkg](https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=vs-2019) is highly recommended.
+DML-IDE has the following dependencies. Download and setup them up individually from the links below *OR* use a package manager (for everything but Qt and Lib3MF); [vcpkg](https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=vs-2019) is highly recommended.
 * [Qt](https://www.qt.io/download)
 * [CUDA](https://developer.nvidia.com/cuda-toolkit)
 * [GLEW](http://glew.sourceforge.net/)
@@ -19,7 +19,7 @@ DML-IDE has the following dependencies. Download and setup them up individually 
 * [pugixml](https://github.com/zeux/pugixml)
 * [Eigen](http://eigen.tuxfamily.org)
 * [Spectra](https://github.com/yixuan/spectra)
-
+* [Lib3MF](https://github.com/3MFConsortium/lib3mf)
 
 Download DML-IDE from the GitHub source along with its submodules. Once downloaded, move into the repository:
 ````
