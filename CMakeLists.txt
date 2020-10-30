@@ -29,6 +29,13 @@ include_directories(
 
 remove_definitions(Titan PUBLIC GRAPHICS)
 
+set(LSUFFIX "dylib")
+set(LSUFFIXOUT ".2.dylib")
+include_directories(/usr/local/include/Bindings/Cpp)
+link_directories(/usr/local/lib/)
+link_libraries(3mf)
+link_directories(${CMAKE_CURRENT_BINARY_DIR})	
+
 message(WARNING ${COMPILE_DEFINITIONS})
 
 set(SOURCES
@@ -38,10 +45,12 @@ set(SOURCES
 		src/optimizer.h
 		src/oUtils.h
 		src/utils.h
+		src/3MFutils.h
 		src/parser.h
 		src/polygon.h
 		src/polygonizer.h
 		src/loader.cpp
+		src/3MFutils.cpp
 		src/simulator.cpp
 		src/optimizer.cpp
 		src/oUtils.cpp

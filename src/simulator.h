@@ -4,6 +4,7 @@
 #include "optimizer.h"
 #include "loader.h"
 #include "io/exportThread.h"
+#include "3MFutils.h"
 
 #undef GRAPHICS
 #include <Titan/sim.h>
@@ -153,6 +154,7 @@ private:
     void writeMetric(const QString &outputFile);
     void writeCustomMetric(const QString &outputFile);
     void writeSimDump(const QString &outputFile);
+    void write3MF(const QString &outputFile);
 
     // --------------------------------------------------------------------
 };
