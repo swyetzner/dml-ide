@@ -21,6 +21,25 @@ DML-IDE has the following dependencies. Download and setup them up individually 
 * [Spectra](https://github.com/yixuan/spectra)
 * [Lib3MF](https://github.com/3MFConsortium/lib3mf)
 
+For installing Lib3MF first clone the repository from [Lib3MF](https://github.com/3MFConsortium/lib3mf). Download along with submodule and move into the repository.
+````
+$ git clone --recurse-submodules https://github.com/3MFConsortium/lib3mf
+$ cd lib3mf
+````
+Call GenerateMake.sh (Linux, Mac) or define other targets by specifying custom CMake generators (default is best unless you know what you're doing).
+A new folder “build” is created and contains projects for the IDE/build target you selected.
+For Linux/Mac:
+  * navigate to the “build”-folder
+  * Call “make” to build the projects
+  * Run/debug a project and install the library in the default location
+````
+$ cmake ..
+$ make
+$ make tests
+$ make install
+````
+Lib3MF should now be ready to go. 
+
 Download DML-IDE from the GitHub source along with its submodules. Once downloaded, move into the repository:
 ````
 $ git clone --recurse-submodules https://github.com/swyetzner/dml-ide
