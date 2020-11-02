@@ -96,6 +96,8 @@ static inline QString frequencyAttribute() { return QStringLiteral("frequency");
 static inline QString memoryAttribute() { return QStringLiteral("memory"); }
 static inline QString regenRateAttribute() { return QStringLiteral("regenRate"); }
 static inline QString regenThresholdAttribute() { return QStringLiteral("regenThreshold"); }
+static inline QString upperFrequencyAttribute() { return QStringLiteral("upperFrequency"); }
+static inline QString lowerFrequencyAttribute() { return QStringLiteral("lowerFrequency"); }
 
 
 // Repeat attributes
@@ -565,6 +567,8 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *memory = createAttributeItem(item, attrMap, memoryAttribute());
         auto *regenRate = createAttributeItem(item, attrMap, regenRateAttribute());
         auto *regenThreshold = createAttributeItem(item, attrMap, regenThresholdAttribute());
+        auto *upperFrequency = createAttributeItem(item, attrMap, upperFrequencyAttribute());
+        auto *lowerFrequency = createAttributeItem(item, attrMap, lowerFrequencyAttribute());
 
         OptimizationRule r = OptimizationRule();
         if (method) {
@@ -572,6 +576,8 @@ void DMLTree::parseExpandElement(const QDomElement &element,
                 r.method = OptimizationRule::REMOVE_LOW_STRESS;
             } else if (method->text(1) == "mass_displace") {
                 r.method = OptimizationRule::MASS_DISPLACE;
+            } else if (method->text(1) == "freq_mass_displace") {
+                r.method = OptimizationRule::FREQ_MASS_DISPLACE;
             } else {
                 r.method = OptimizationRule::NONE;
             }
@@ -605,6 +611,32 @@ void DMLTree::parseExpandElement(const QDomElement &element,
                 r.regenThreshold = rt.remove(QChar('%')).trimmed().toDouble() / 100;
             } else {
                 r.regenThreshold = rt.toDouble();
+            }
+        }
+        if (upperFrequency) {
+            QString uF = upperFrequency->text(1);
+            qDebug() << "Upper Frequency Limit" << uF;
+            if (uF.endsWith(QString("Hz"))) {
+                r.upperFrequency = uF.remove(QString("Hz")).trimmed().toDouble();
+            } else if (uF.endsWith(QString("kHz"))) {
+                r.upperFrequency = uF.remove(QString("kHz")).trimmed().toDouble();
+            } else if (uF.endsWith(QString("MHz"))) {
+                r.upperFrequency = uF.remove(QString("MHz")).trimmed().toDouble();
+            } else {
+                r.upperFrequency = uf.toDouble();
+            }
+        }
+        if (lowerFrequency) {
+            QString lF = lowerFrequency->text(1);
+            qDebug() << "Lower Frequency Limit" << lF;
+            if (lF.endsWith(QString("Hz"))) {
+                r.lowerFrequency = lF.remove(QString("Hz")).trimmed().toDouble();
+            } else if (lF.endsWith(QString("kHz"))) {
+                r.lowerFrequency = lF.remove(QString("kHz")).trimmed().toDouble();
+            } else if (lF.endsWith(QString("MHz"))) {
+                r.lowerFrequency = lF.remove(QString("MHz")).trimmed().toDouble();
+            } else {
+                r.lowerFrequency = lf.toDouble();
             }
         }
 

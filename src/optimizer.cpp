@@ -2572,3 +2572,219 @@ void SpringInserter::joinSprings(Spring *s1, Spring *s2) {
 
     sim->setAll();
 }
+
+//---------------------------------------------------------------------------
+// FREQUENCY MASS MOVER
+//---------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------
+MassMigratorFreq::MassMigratorFreq(Simulation *sim, double dxMax, bool shapeConstraint = true)
+        : Optimizer(sim) {
+//---------------------------------------------------------------------------
+
+    this->dxMax = dxMax;
+    this->shapeConstraint = shapeConstraint;
+    fillMassSpringMap()
+
+
+
+    qDebug() << "Created frequency mass displacement optimization";
+}
+
+//---------------------------------------------------------------------------
+void MassMigratorFreq::optimize() {
+//---------------------------------------------------------------------------
+    Fourier *f = sim->fouriers[0];
+
+    sim->getAll();
+    sim->getModeShapes(f);
+    // Get the results of the fourier transform as real Vecs instead of complex ones
+
+    Vec** modeShapes = f->modeShapes;
+
+    int numMasses = sim->masses.size();
+
+    // First, randomly check just 1% of the masses to determine which of the frequency bins
+    // contain natural frequencies
+    srand(time(NULL));
+    std::set<int> natFreqs = {};
+    for(int i=0; i<numMasses/100; i++) {
+        int n = rand%numMasses;
+
+        Mass *m = sim->getMassByIndex(n);
+        natFreqs.merge(findPeaks(modeShapes, n, f->bands)); // Find the bands with active natural frequencies
+    }
+
+    Vec displacements[numMasses];
+
+    double maxDisp = 0;
+
+    // Then, go through every mass and calculate grad w for each of those bands. Keep track of max magnitude
+    for (int i : natFreqs) {
+        double T = calcT(modeShapes[i], sim, nmasses)
+        for (int j = 0; j < numMasses; j++) {
+            Mass *m = sim->getMassByIndex(j);
+            Vec gT = gradT(modeShapes[i], m);
+            Vec gV = gradV(modeShapes[i], m);
+            double wSq = f->frequencies[i]*f->frequencies[i];
+
+            disp = (gV + wSq*gT)/T;
+            if (disp.norm() > maxDisp) {
+                maxDisp = disp.Norm();
+            }
+            displacements[j] += disp;
+        }
+    }
+
+    for (int i = 0; i < numMasses; i++) {
+        displacements[i] /= maxDisp;
+        displacements[i] *= dxMax;
+    }
+
+    // Then, go through every mass again, and for each band, move the mass by (mag(grad w)/max(grad w))*dx*grad w
+    shiftMassPos(sim, displacements);
+
+    sim->clearFourierTransforms();
+}
+
+std::set<int> MassMigratorFreq::findPeaks(Vec ** modeShapes, int massNum, int bands) {
+    std::set<int> freqs = {};
+    for (int i = 1; i < bands-1; i++) {
+        if ( (modeShapes[i-1, massNum]*1.1 < modeShapes[i,massNum]) && (modeShapes[i, massNum] > modeShapes[i+1, massNum]) ) {
+            freqs.insert(i);
+        }
+    }
+    return freqs;
+}
+
+
+// Calculates the kinetic energy gradient for a single mass
+//---------------------------------------------------------------------------
+Vec MassMigratorFreq::gradT(Vec* modeShapes, Mass* mass) {
+//---------------------------------------------------------------------------
+    Vec gT = Vec();
+    for (Spring *s : massToSpringMap[mass]) {
+        double area = 0.25*(s->_diam*s->_diam)*pi;
+        Vec sHat = (_left -> pos) - (_right -> pos);
+        sHat = sHat/sHat.norm()
+        double v1sq = dot(modeShapes[s->_left->index], modeShapes[s->_left->index]);
+        double v2sq = dot(modeShapes[s->_right->index], modeShapes[s->_right->index]);
+        int dir = s->_left ? 1 : -1; // Double check that this is the right direction
+        gT += 0.25*area*mass->density*dir*(v1sq+v2sq)*sHat;
+    }
+    return gT;
+
+}
+
+double MassMigratorFreq::calcT(Vec* modeShapes, Simulation *sim) {
+    double T = 0;
+    int nmasses = sim->masses.size();
+    for (int i = 0; i < nmasses, i++) {
+        double m = sim->getMassByIndex(i)->m;
+        T += m*dot(modeShapes[i]*modeShapes[i]);
+    }
+    T *= 0.5;
+    return T;
+}
+
+// Calculates the potential energy gradient for a single mass
+//---------------------------------------------------------------------------
+Vec MassMigratorFreq::gradV(Vec* modeShapes, Mass* mass) {
+//---------------------------------------------------------------------------
+    Vec gV = Vec();
+    for (Spring *s : massToSpringMap[mass]) {
+        Vec sHat = (_left -> pos) - (_right -> pos);
+        double l = sHat.norm();
+        sHat = sHat/l;
+
+        Vec springModeShape = modeShapes[s->_left->index] - modeShapes[s->_right->index];
+
+        double ktemp = s->_k;
+
+        double Vs = 0.5*ktemp*dot(sHat, springModeShape)*dot(sHat, springModeShape);
+
+        int dir = s->_left ? 1 : -1;
+
+        Vec grads = ktemp*dot(springModeShape, sHat)*springModeShape/l;
+        grads -= 3*Vs*sHat/l;
+        grads *= dir;
+        gV += grads;
+    }
+    return gV;
+}
+
+
+//---------------------------------------------------------------------------
+void MassMigratorFreq::fillMassSpringMap() {
+//---------------------------------------------------------------------------
+    massToSpringMap = map<Mass *, vector<Spring *>>();
+    validSprings = vector<Spring *>();
+    assert(massToSpringMap.empty());
+    for (Spring *s : sim->springs) {
+        if (s->_k > 0) {
+            massToSpringMap[s->_left].push_back(s);
+            massToSpringMap[s->_right].push_back(s);
+            validSprings.push_back(s);
+        }
+    }
+    qDebug() << "fillMassSpringMap():  map size:" << massToSpringMap.size() << " valid size:" << validSprings.size();
+    assert(massToSpringMap.size() <= sim->masses.size());
+
+}
+
+//---------------------------------------------------------------------------
+void MassMigratorFreq::shiftMassPos(Simulation *sim, Vec *disp) {
+//---------------------------------------------------------------------------
+    // Probably change masses too
+    int numMasses = sim->masses.size();
+
+    for (int i = 0; i < numMasses; i++) {
+        Mass *mt = sim->getMassByIndex(i);
+        Vec orig = mt->origpos + disp[i];
+
+        double origMass[massToSpringMap[i].size()+1];
+        double origL[massToSpringMap[i].size()];
+
+        origMass[massToSpringMap[i].size()] = mt->mass;
+
+        int j;
+        for (j = 0; j < massToSpringMap[i].size(); j++)  {
+            Spring *s = massToSpringMap[i][j];
+            Mass * m2 = s->_left==mt ? s->_right : s->_left;
+
+            origL[j] = s->_rest;
+            origMass[j] = m2->mass;
+
+            s->_rest = (m2->origpos - orig).norm();
+            if (s->_rest < 0.001) {
+                s->_rest = origL[j];
+                qDebug() << "SMALL REST";
+                break;
+            }
+
+            s->_k *= origL[j] / s->_rest;
+
+            double dV = (s->_rest - origL[j])*(s->_diam*s->_diam)*pi/4.0;
+
+            m2->mass += dV*m2->density;
+            mt->mass += dV*mt->density;
+        }
+
+        // If the loop didn't run to completion, then there was an error, and we reset
+        if (j < massToSpringMap[i].size()) {
+            mt->mass = origMass[massToSpringMap[i].size()];
+            for (int k=0; k<j; k++) {
+                Spring *s = massToSpringMap[i][k];
+                Mass * m2 = s->_left==mt ? s->_right : s->_left;
+                m2->mass = origMass[k];
+                s->_k *= s->_rest/origL[k];
+                s->_rest = origL[k];
+            }
+        } else {
+            mt->origpos += disp[i];
+            mt->pos += disp[i];
+            mt->vel = Vec(0, 0, 0);
+        }
+    }
+    sim->setAll();
+}

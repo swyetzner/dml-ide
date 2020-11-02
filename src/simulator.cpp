@@ -25,6 +25,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     springInserter = nullptr;
     springRemover = nullptr;
     massDisplacer = nullptr;
+    freqMassDisplacer = nullptr;
     OPTIMIZER = optConfig != nullptr;
 
     double pi = atan(1.0)*4;
@@ -101,6 +102,7 @@ Simulator::~Simulator() {
     delete springInserter;
     delete springRemover;
     delete massDisplacer;
+    delete freqMassDisplacer;
 }
 
 // --------------------------------------------------------------------
@@ -436,7 +438,7 @@ void Simulator::run() {
         } else {
 
             if (optConfig != nullptr) {
-                if (switched) {
+                if (switched) { // NEVER TRUE
                     optimizer->optimize();
                     //writeMetric(metricFile);
 
@@ -606,6 +608,15 @@ void Simulator::loadOptimizers() {
                     massDisplacer->unit = massDisplacer->springUnit * 6;
                     this->optimizer = massDisplacer;
                     qDebug() << "Created MassDisplacer" << r.threshold;
+                    break;
+                }
+
+                case OptimizationRule::FREQ_MASS_DISPLACE: {
+                    // TODO: Choose the dx from the minimum of the units
+                    freqMassDisplacer = new MassMigratorFreq(sim, config->lattices[0]->unit[0], r.upperFrequency, r.lowerFrequency);
+                    this->optimizer = freqMassDisplacer;
+                    sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 50, 100);
+                    qDebug() << "Created FrequencyMassDisplacer";
                     break;
                 }
 

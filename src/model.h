@@ -974,6 +974,8 @@ public:
     vector<Loadcase *> loadQueue;
     vector<Stop> stops;
 
+    // Store natural frequencies here for Fourier calculations
+
     ulong index;
 
     simulation_data *model = nullptr;
@@ -1015,10 +1017,12 @@ public:
         regenRate = 0;
         regenThreshold = 0;
         memory = 1;
+        upperFrequency = 0;
+        lowerFrequency = 0;
     }
     ~OptimizationRule() = default;
 
-    enum Method { REMOVE_LOW_STRESS, MASS_DISPLACE, NONE };
+    enum Method { REMOVE_LOW_STRESS, MASS_DISPLACE, FREQ_MASS_DISPLACE, NONE };
 
     Method method;
     double threshold;
@@ -1026,6 +1030,9 @@ public:
     double regenRate;
     double regenThreshold;
     double memory;
+    // These are only used for frequency optimizations
+    double upperFrequency;
+    double lowerFrequency;
 
     QString methodName() {
         switch (method) {
@@ -1033,6 +1040,8 @@ public:
                 return "REMOVE_LOW_STRESS";
             case MASS_DISPLACE:
                 return "MASS_DISPLACE";
+            case FREQ_MASS_DISPLACE:
+                return "FREQ_MASS_DISPLACE";
             case NONE:
                 return "NONE";
         }

@@ -7,6 +7,7 @@
 
 #include <QDebug>
 #include <chrono>
+#include <stdlib.h>
 
 #include <Titan/sim.h>
 
@@ -272,6 +273,27 @@ private:
 
 class MassMigrator : public Optimizer {
 
+};
+
+class MassMigratorFreq : public Optimizer {
+public:
+    MassMigratorFreq(Simulation *sim, double dxMax, double upperFreq, double lowerFreq, bool shapeConstraint = false);
+
+    const double pi = 4*atan(1);
+    double dxMax;
+    bool shapeConstraint;
+    map<Mass *, vector<Spring *>> massToSpringMap;
+    vector<Spring *> validSprings;
+
+    void optimize() override;
+
+private:
+    void fillMassSpringMap();
+    void findPeaks(Vec ** modeShapes, int massNum, int bands);
+    Vec gradT(Vec * modeShapes, Mass* mass);
+    Vec calcT(Vec * modeShapes, Simulation *sim);
+    Vec gradV(Vec * modeShapes, Mass* mass);
+    void shiftMassPos(Simulation *sim, Vec *disp);
 };
 
 #endif //DMLIDE_OPTIMIZER_H

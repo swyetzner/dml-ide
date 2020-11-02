@@ -336,15 +336,20 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         int frequency = dml_rul.attribute("frequency").as_int(0);
         QString regenRate = dml_rul.attribute("regenRate").value();
         QString regenThreshold = dml_rul.attribute("regenThreshold").value();
+        QString upperFrequency = dml_dml.attribute("upperFrequency").value();
+        QString lowerFrequency = dml_dml.attribute("lowerFrequency").value();
         double memory = dml_rul.attribute("memory").as_double(1);
 
         if (method == "remove_low_stress") {
             rule.method = OptimizationRule::REMOVE_LOW_STRESS;
         } else if (method == "mass_displace") {
             rule.method = OptimizationRule::MASS_DISPLACE;
+        } else if (method == "freq_mass_displace") {
+            rule.method = OptimizationRule::FREQ_MASS_DISPLACE;
         } else {
             rule.method = OptimizationRule::NONE;
         }
+
         if (threshold.endsWith('%')) {
             rule.threshold = threshold.split('%')[0].trimmed().toDouble() / 100;
         } else {
@@ -363,6 +368,15 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
             } else {
                 rule.regenThreshold = regenThreshold.toDouble();
             }
+        }
+
+        // TODO: Check if these end in Hz, kHz, etc, and do appropriate stripping and scaling
+        if (!upperFrequency.isEmpty()) {
+            rule.upperFrequency = upperFrequency.toDouble();
+        }
+
+        if (!lowerFrequency.isEmpty()) {
+            rule.lowerFrequency = lowerFrequency.toDouble();
         }
         rule.frequency = frequency;
         rule.memory = memory;
