@@ -336,8 +336,8 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         int frequency = dml_rul.attribute("frequency").as_int(0);
         QString regenRate = dml_rul.attribute("regenRate").value();
         QString regenThreshold = dml_rul.attribute("regenThreshold").value();
-        QString upperFrequency = dml_dml.attribute("upperFrequency").value();
-        QString lowerFrequency = dml_dml.attribute("lowerFrequency").value();
+        QString upperFrequency = dml_rul.attribute("upperFrequency").value();
+        QString lowerFrequency = dml_rul.attribute("lowerFrequency").value();
         double memory = dml_rul.attribute("memory").as_double(1);
 
         if (method == "remove_low_stress") {

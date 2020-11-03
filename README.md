@@ -17,6 +17,9 @@ DML-IDE has the following dependencies. Download and setup them up individually 
 * [glm](https://github.com/g-truc/glm)
 * [args](https://taywee.github.io/args/)
 * [pugixml](https://github.com/zeux/pugixml)
+* [Eigen](http://eigen.tuxfamily.org)
+* [Spectra](https://github.com/yixuan/spectra)
+
 
 Download DML-IDE from the GitHub source along with its submodules. Once downloaded, move into the repository:
 ````

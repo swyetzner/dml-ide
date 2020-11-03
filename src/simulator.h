@@ -56,6 +56,7 @@ public:
     SpringInserter *springInserter;
     MassDisplacer *massDisplacer;
     SpringRemover *springRemover;
+    MassMigratorFreq *freqMassDisplacer;
 
     Status simStatus;
     bool GRAPHICS;

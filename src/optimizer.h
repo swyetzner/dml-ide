@@ -289,9 +289,9 @@ public:
 
 private:
     void fillMassSpringMap();
-    void findPeaks(Vec ** modeShapes, int massNum, int bands);
+    std::set<int> findPeaks(Vec ** modeShapes, int massNum, int bands);
     Vec gradT(Vec * modeShapes, Mass* mass);
-    Vec calcT(Vec * modeShapes, Simulation *sim);
+    double calcT(Vec * modeShapes, Simulation *sim);
     Vec gradV(Vec * modeShapes, Mass* mass);
     void shiftMassPos(Simulation *sim, Vec *disp);
 };

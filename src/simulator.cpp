@@ -613,10 +613,13 @@ void Simulator::loadOptimizers() {
 
                 case OptimizationRule::FREQ_MASS_DISPLACE: {
                     // TODO: Choose the dx from the minimum of the units
-                    freqMassDisplacer = new MassMigratorFreq(sim, config->lattices[0]->unit[0], r.upperFrequency, r.lowerFrequency);
+                    freqMassDisplacer = new MassMigratorFreq(sim, config->lattices[0]->unit[0]/10, r.upperFrequency, r.lowerFrequency);
                     this->optimizer = freqMassDisplacer;
                     sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 50, 100);
                     qDebug() << "Created FrequencyMassDisplacer";
+                    qDebug() << "maxDisp" << config->lattices[0]->unit[0]/10;
+                    qDebug() << "upperFrequency" << r.upperFrequency;
+                    qDebug() << "lowerFrequency" << r.lowerFrequency;
                     break;
                 }
 

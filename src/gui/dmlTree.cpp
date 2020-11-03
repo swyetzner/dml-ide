@@ -623,7 +623,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             } else if (uF.endsWith(QString("MHz"))) {
                 r.upperFrequency = uF.remove(QString("MHz")).trimmed().toDouble();
             } else {
-                r.upperFrequency = uf.toDouble();
+                r.upperFrequency = uF.toDouble();
             }
         }
         if (lowerFrequency) {
@@ -636,7 +636,7 @@ void DMLTree::parseExpandElement(const QDomElement &element,
             } else if (lF.endsWith(QString("MHz"))) {
                 r.lowerFrequency = lF.remove(QString("MHz")).trimmed().toDouble();
             } else {
-                r.lowerFrequency = lf.toDouble();
+                r.lowerFrequency = lF.toDouble();
             }
         }
 
