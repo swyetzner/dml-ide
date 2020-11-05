@@ -36,6 +36,7 @@ void Loader::loadDesignModels(Design *design) {
  * Populates model_data in a given Volume
  * Note that model_data here will have only one mesh per volume
  */
+
 void Loader::loadVolumeModel(Volume *volume) {
 
     volume->model = new model_data();
@@ -917,6 +918,61 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
     }
 
+    for (Torque *torque : load->torques) {
+        Volume *torqueVol = torque->volume;
+        qDebug() << "Applying Torque: " << torque->magnitude[0] << torque->magnitude[1] << torque->magnitude[2];
+
+        torque->masses.clear(); // Clear mass ptr cache
+
+        int torqueMasses = 0;
+        for (Mass *mass : sim->masses) {
+            glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
+
+            // Check for force constraint
+            if (torqueVol->model != nullptr) {
+                if (torqueVol->model->isInside(massPos, 0)) {
+
+                    mass->extduration += torque->duration;
+
+                    if (mass->extduration < 0) {
+                        mass->extduration = DBL_MAX;
+                    }
+
+                    torque->masses.push_back(mass);
+                    torqueMasses++;
+                }
+
+            } else {
+                if (torqueVol->geometry->isInside(mass->pos)) {
+
+                    mass->extduration += torque->duration;
+
+                    if (mass->extduration < 0) {
+                        mass->extduration = DBL_MAX;
+                    }
+
+                    torque->masses.push_back(mass);
+                    torqueMasses++;
+                }
+            }
+        }
+        if (torqueMasses > 0) {
+            Vec torqueMag = torque->magnitude/torqueMasses;
+            for (Mass *m : torque->masses) {
+                Vec distance = Vec(torque->origin[0]-m->pos[0] , torque->origin[1]-m->pos[1] , torque->origin[2]-m->pos[2]);
+                Vec forceProjection = cross(torqueMag,distance)/distance.norm();
+                m->force += forceProjection;
+                m->extforce += forceProjection;
+            }
+
+
+            log(tr("Applied %3 N torque to %1 masses with volume '%2'").arg(torqueMasses).arg(torqueVol->id).arg(torqueMag.norm()));
+            cout << "Applied " << torqueMag.norm() << "N force to " << torqueMasses << " masses with volume " << torqueVol->id.toStdString() << ".\n";
+        } else
+            log(tr("Applied torque to %1 masses with volume '%2'").arg(torqueMasses).arg(torqueVol->id));
+    }
+
+    
     for (Actuation *actuation : load->actuations) {
         Volume *actVol = actuation->volume;
 

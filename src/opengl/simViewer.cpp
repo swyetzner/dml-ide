@@ -249,7 +249,7 @@ static const char *depthQuadFragSource =
 static const GLfloat defaultMassColor[] = { 0.2f, 5.0f, 0.0f, 1.0f };
 static const GLfloat fixedMassColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
 static const GLfloat forceMassColor[] = { 0.0f, 0.0f, 1.0f, 1.0f };
-static const GLfloat defaultSpringColor[] = { 0.5, 1.0, 0.0, 0.1 };
+static const GLfloat defaultSpringColor[] = { 0.6, 0.7, 0.7, 0.1 };
 static const GLfloat expandSpringColor[] = { 0.5, 1.0, 0.0, 1.0 };
 static const GLfloat contractSpringColor[] = { 0.7, 0.0, 1.0, 1.0 };
 static const GLfloat actuatedSpringColor[] = { 0.3, 1.0, 0.9, 1.0 };
@@ -278,6 +278,7 @@ void SimViewer::updatePairVertices() {
     for (int i = 0; i < n_springs; i++) {
         GLfloat *p = pairVertices + verticesCount;
         Spring *s = simulator->sim->getSpringByIndex(i);
+        if (s->_k == 0) continue;
 
         Mass *m = s->_left;
         assert(m != nullptr);
@@ -405,8 +406,8 @@ void SimViewer::addSpringColor(Spring *spring, double totalStress, double totalF
 
     if (spring->_k == 0) {
 
-        addColor(buffer, deletedSpringColor, count);
-        addColor(buffer, deletedSpringColor, count);
+        //addColor(buffer, deletedSpringColor, count);
+        //addColor(buffer, deletedSpringColor, count);
         return;
     }
 
