@@ -59,6 +59,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     // LOAD QUEUE
     currentLoad = 0;
     pastLoadTime = 0;
+    optimizeTime = 0;
     varyLoad = false;
     if (config->load != nullptr) {
         for (Force *f : config->load->forces) {
@@ -144,6 +145,7 @@ void Simulator::runStep() {
 }
 
 void Simulator::getSimMetrics(sim_metrics &metrics) {
+    metrics.clockTime = wallClockTime;
     metrics.time = sim->time();
     metrics.nbars = sim->springs.size();
     metrics.totalLength = totalLength;
@@ -162,6 +164,7 @@ void Simulator::dumpSpringData() {
     QString dumpFile = QString(dataDir + QDir::separator() +
                                "simDump_%1.txt").arg(optimized);
     writeSimDump(dumpFile);
+    write3MF(dumpFile);
 }
 
 void Simulator::loadSimDump(std::string sp) {
@@ -359,6 +362,7 @@ void Simulator::run() {
         int i = 0, n = 0;
         for (Spring *s: sim->springs) {
             if (s == nullptr) continue;
+
             if (s->_k == 0) continue;
             totalLength += s->_rest;
             if (maxForce < fabs(s->_curr_force)) {
@@ -466,14 +470,16 @@ void Simulator::run() {
 
                             qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
+                            double simTimeBeforeOpt = sim->time();
 
-                            if (calcDeflection() > deflection_start * 2) {
+                            if (calcDeflection() > deflection_start * 10) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
+
                                 springRemover->resetLastRemoval();
                             } else {
                                 optimizer->optimize();
+                                if (!springRemover->regeneration) optimized++;
                                 qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
-                                optimized++;
                                 n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
                             }
 
@@ -483,12 +489,20 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
-			    if (totalLength <= totalLength_start * 0.5) {
-			      springRemover->regenerateLattice(config);
-			      //springRemover->regenerateShift();
-			      n_masses = int(sim->masses.size());
-			      n_springs = int(sim->springs.size());
-			    }
+                                if (springRemover->regeneration && !optConfig->rules.empty()) {
+                                    if (totalLength <= totalLength_start * optConfig->rules.front().regenThreshold) {
+                                        springRemover->regenerateLattice(config);
+                                        optimized++;
+                                        //springRemover->regenerateShift();
+                                        n_masses = int(sim->masses.size());
+                                        n_springs = int(sim->springs.size());
+                                    }
+
+                                }
+                            // Account for time shift
+                            optimizeTime = sim->time() - simTimeBeforeOpt;
+                            qDebug() << "OPTIMIZE TIME" << optimizeTime;
+                            pastLoadTime += optimizeTime;
 
                         }
                     }
@@ -578,6 +592,10 @@ void Simulator::loadOptimizers() {
                     springRemover->massFactor = M_PI * (sim->springs.front()->_diam / 2) * (sim->springs.front()->_diam / 2) *
                                                 config->lattices[0]->material->density * ((config->lattices[0]->material->dUnits == "gcc")? 1000 : 1);
                     springRemover->stressMemory = r.memory;
+                    if (r.regenThreshold > 0) {
+                        springRemover->regeneration = true;
+                        springRemover->regenRate = r.regenRate;
+                    }
                     this->optimizer = springRemover;
                     qDebug() << "Created SpringRemover" << r.threshold;
                     break;
@@ -984,7 +1002,8 @@ void Simulator::applyLoad(Loadcase *load) {
             bool valid = false;
             for (Mass *m : sim->masses) {
                     if (m == fm) {
-                    m->extduration += f->duration;
+                    m->extduration = f->duration + pastLoadTime;
+                    qDebug() << "DURATION" << m->extduration;
                     if (m->extduration < 0) {
                         m->extduration = DBL_MAX;
                     }
@@ -1072,4 +1091,40 @@ void Simulator::varyLoadDirection() {
         }
         sim->setAll();
     }
+}
+
+void Simulator::write3MF(const QString &outputFile) {
+    QFileInfo info(outputFile);
+    QString output = info.path() + "/" + info.completeBaseName() + ".3mf";
+
+    Lib3MF::PWrapper wrapper = Lib3MF::CWrapper::loadLibrary();
+    
+    Lib3MF::PModel model = wrapper->CreateModel();
+    model->SetUnit(eModelUnit(5));
+    Lib3MF::PMeshObject meshObject = model->AddMeshObject();
+    meshObject->SetName("Beamlattice");
+
+    std::vector<sLib3MFPosition> vertices(sim->masses.size());
+    std::vector<sLib3MFBeam> beams;
+    std::vector<sLib3MFTriangle> triangles(0);
+
+    for (int m = 0; m < sim->masses.size(); m++) {
+        vertices[m] = fnCreateVertex(sim->masses[m]->origpos[0],sim->masses[m]->origpos[1],sim->masses[m]->origpos[2]);
+    }
+    for (int s = 0; s < sim->springs.size(); s++) {
+        if (sim->springs[s]->_k != 0) {
+            beams.push_back(fnCreateBeam(sim->springs[s]->_left->index,sim->springs[s]->_right->index,sim->springs[s]->_diam,sim->springs[s]->_diam,eBeamLatticeCapMode::Sphere,eBeamLatticeCapMode::Sphere));
+        }
+    } 
+   // Set beamlattice geometry and metadata
+    meshObject->SetGeometry(vertices, triangles);
+    
+    Lib3MF::PBeamLattice beamLattice = meshObject->BeamLattice();
+    beamLattice->SetBeams(beams);
+    beamLattice->SetMinLength(0.000001);
+
+    model->AddBuildItem(meshObject.get(), wrapper->GetIdentityTransform());
+
+    Lib3MF::PWriter writer = model->QueryWriter("3mf");
+    writer->WriteToFile(output.toStdString());
 }

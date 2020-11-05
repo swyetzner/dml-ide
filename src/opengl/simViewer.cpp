@@ -312,7 +312,7 @@ void SimViewer::updateOverlays() {
     for (int i = 0; i < n_masses; i++) {
         Mass *m = simulator->sim->getMassByIndex(i);
 
-        if (m->force.norm() > 1E-6) {
+        if (m->extforce.norm() > 1E-6) {
             extForces.push_back(m->pos);
 
             Vec av = m->force.normalized();
@@ -973,8 +973,8 @@ void SimViewer::drawVertexArray() {
     glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
 
     glPointSize(10.0f);
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
+    //glEnable(GL_DEPTH_TEST);
+    //glDisable(GL_BLEND);
     glDrawArrays(GL_POINTS, 0, GLsizei(extForces.size()));
 
     glDisableVertexAttribArray(6);
@@ -1243,12 +1243,14 @@ void SimViewer::updateTextPanel() {
     switch(metrics.optimize_rule.method) {
         case OptimizationRule::REMOVE_LOW_STRESS:
             upperPanel.sprintf("%s --- %s\n\n"
+                               "Clock Time: %.2lf s\n"
                                "Bars: %d\n"
-                               "Time: %.2lf s\n"
+                               "Sim Time: %.2lf s\n"
                                "Weight remaining: %.2lf%%\n"
                                "Deflection: %.4lf m\n"
                                "Optimization iterations: %d\n"
                                "Optimization threshold: %.1lf%% bars per iteration",
+                               metrics.clockTime,
                                simName.toUpper().toStdString().c_str(),
                                metrics.optimize_rule.methodName().replace(QChar('_'), QChar(' ')).toStdString().c_str(),
                                metrics.nbars, metrics.time,

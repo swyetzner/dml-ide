@@ -96,6 +96,9 @@ static inline QString constraintElement() { return QStringLiteral("constraint");
 static inline QString methodAttribute() { return QStringLiteral("method"); }
 static inline QString frequencyAttribute() { return QStringLiteral("frequency"); }
 static inline QString memoryAttribute() { return QStringLiteral("memory"); }
+static inline QString regenRateAttribute() { return QStringLiteral("regenRate"); }
+static inline QString regenThresholdAttribute() { return QStringLiteral("regenThreshold"); }
+
 
 // Repeat attributes
 static inline QString afterAttribute() { return QStringLiteral("after"); }
@@ -589,6 +592,8 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         auto *threshold = createAttributeItem(item, attrMap, thresholdAttribute());
         auto *frequency = createAttributeItem(item, attrMap, frequencyAttribute());
         auto *memory = createAttributeItem(item, attrMap, memoryAttribute());
+        auto *regenRate = createAttributeItem(item, attrMap, regenRateAttribute());
+        auto *regenThreshold = createAttributeItem(item, attrMap, regenThresholdAttribute());
 
         OptimizationRule r = OptimizationRule();
         if (method) {
@@ -613,6 +618,24 @@ void DMLTree::parseExpandElement(const QDomElement &element,
         } else { r.threshold = 0; }
         r.frequency = frequency ? frequency->text(1).toInt() : 0;
         r.memory = memory ? memory->text(1).toDouble() : 1;
+        if (regenRate) {
+            QString rr = regenRate->text(1);
+            qDebug() << "Regeneration Rate" << rr;
+            if (rr.endsWith(QChar('%'))) {
+                r.regenRate = rr.remove(QChar('%')).trimmed().toDouble() / 100;
+            } else {
+                r.regenRate = rr.toDouble();
+            }
+        }
+        if (regenThreshold) {
+            QString rt = regenThreshold->text(1);
+            qDebug() << "Regeneration Threshold" << rt;
+            if (rt.endsWith(QChar('%'))) {
+                r.regenThreshold = rt.remove(QChar('%')).trimmed().toDouble() / 100;
+            } else {
+                r.regenThreshold = rt.toDouble();
+            }
+        }
 
         if (design_ptr->optConfig != nullptr) {
             design_ptr->optConfig->rules.push_back(r);

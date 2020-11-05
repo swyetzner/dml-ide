@@ -503,6 +503,8 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     //double timestep = std::min(1/pow(10, to_string(int(maxK)).length()-2), 0.0001);
     sim->setAllDeltaTValues(1e-4);
 
+    suggestParams(sim, simConfig);
+
     qDebug() << "Loaded simulation configuration";
 }
 
@@ -726,6 +728,9 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
     output->bars = vector<Bar>();
 
     for (Spring *s : sim->springs) {
+
+        if (s->_k == 0) continue;
+
         springPos.push_back(s->_left->origpos);
         springPos.push_back(s->_right->origpos);
 
@@ -761,6 +766,8 @@ void Loader::loadBarsFromSim(Simulation *sim, bar_data *output, bool crossSectio
     }
 
     for (Spring *s : sim->springs) {
+
+        if (s->_k == 0) continue;
 
         if (bounds->isWithin(s->_left->origpos) && bounds->isWithin(s->_right->origpos)) {
 
@@ -829,11 +836,14 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
 
     for (Anchor *anchor : load->anchors) {
         Volume *anchorVol = anchor->volume;
-
         anchor->masses.clear(); // Clear mass ptr cache
 
         int fixedMasses = 0;
-        for (Mass *mass : sim->masses) {
+        int nToFix = sim->masses.size();
+        //if (anchor->type == "surface") { nToFix = surfacePoints; }
+        
+        for (int i = 0; i < nToFix; i++) {
+            Mass* mass = sim->masses[i];
             if (anchorVol->model != nullptr) {
                 glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
 
@@ -852,6 +862,8 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
                 }
             }
         }
+
+        
         log(tr("Anchored %1 masses with volume '%2'").arg(fixedMasses).arg(anchorVol->id));
         cout << "Anchored " << fixedMasses << " masses with volume " << anchorVol->id.toStdString() << ".\n";
     }
@@ -1186,10 +1198,10 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
     vector<glm::vec3> lattice = vector<glm::vec3>();
     vector<LatticeConfig *> pointOrigins = vector<LatticeConfig *>();
-
-
+    surfacePoints = 0;
+    
     if (includeHull) {
-
+		
         // Add hull vertices
         for (uint i = 0; i < arrays->vertices.size(); i++) {
             bool existsInLattice = false;
@@ -1203,7 +1215,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
             if (!existsInLattice) {
                 arrays->hull.push_back(lattice.size());
                 lattice.push_back(arrays->vertices[i]);
-
+				surfacePoints++;
                 for(LatticeConfig *latticeBox : latticeConfigs) {
                     if (latticeBox->volume->model->isInside(arrays->vertices[i], 0)) {
                         pointOrigins.push_back(latticeBox);
@@ -1219,6 +1231,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
     }
 
     for(auto&& latticeBox: latticeConfigs) {
+
 
         vector<glm::vec3> latticeTemp = vector<glm::vec3>();
         float cutoff = float(latticeBox->unit[0]);
@@ -1244,6 +1257,7 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
 
         glm::vec3 point = Utils::randPoint(startCorner, endCorner);
 
+
         if (includeHull) {
             while (arrays->isCloseToEdge(point, cutoff) || !arrays->isInside(point) || !latticeVol->isInside(point, 0)) {
 
@@ -1258,7 +1272,6 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                 point = Utils::randPoint(startCorner, endCorner);
             }
         }
-
         // Add point to lattice
         latticeTemp.push_back(point);
         pointOrigins.push_back(latticeBox);
@@ -1266,13 +1279,11 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
         int k;
         qDebug() << "First point" << point.x << point.y << point.z;
 
-        vector<glm::vec3> candidates = vector<glm::vec3>();
+        vector<glm::vec3> candidates =  vector<glm::vec3>(kNewPoints);
 
-    // Spawn k new points
-    int threads = 1;
-
-    for (int t = 0; t < threads; t++) {
-        for (k = 0; k < kNewPoints/threads; k++) {
+    	time_t tinit = time(0);
+		#pragma omp parallel for
+        for (k = 0; k < kNewPoints; k++) {
 
                 glm::vec3 newPoint = Utils::randPoint(startCorner, endCorner);
 
@@ -1290,66 +1301,140 @@ void Loader::createSpaceLattice(simulation_data *arrays, SimulationConfig *simCo
                         newPoint = Utils::randPoint(startCorner, endCorner);
                     }
                 }
-
-            candidates.push_back(newPoint);
+            candidates[k] = newPoint;
         }
-    }
 
         vector<float> sumDistsStore = vector<float>();
         for (auto c: candidates) {
             sumDistsStore.push_back(0.0f);
         }
-        while (maxLength >= cutoff && candidates.size() > 0) {
 
+
+        int latticePrintFrequency = 1000;
+        time_t tstart,tend;
+        tstart = time(0);
+
+        qDebug() << "maxL" << maxLength << " cutoff " << cutoff << " size " << candidates.size();
+        while (maxLength >= cutoff && candidates.size() > 0) {
             // Find point furthest from existing points
+        	// THIS IS THE ORIGINAL LOOP DONT DELETE IT
+        	/*
+        	  // Find point furthest from existing points
+        	            uint iFarthest = 0;
+        	            float maxDistFromPoints = 0.0f;
+
+
+        	            for (uint i = 0; i < candidates.size(); i++) {
+        	                bool reject = false;
+
+        	                float sumDists = 0.0f;
+        	                float distFromPoint;
+
+        	                vec3 l = latticeTemp.back();
+        	                distFromPoint = length(candidates[i] - l);
+
+        	                if (distFromPoint < cutoff) {
+        	                    candidates.erase(candidates.begin() + i);
+        	                    sumDistsStore.erase(sumDistsStore.begin() + i);
+        	                    i--;
+        	                    continue;
+        	                }
+        	                assert(sumDistsStore.size() == candidates.size());
+        	                sumDistsStore[i] += distFromPoint;
+
+        	                if (sumDistsStore[i] > maxDistFromPoints) {
+        	                    maxDistFromPoints = sumDistsStore[i];
+        	                    iFarthest = i;
+        	                }
+        	            }
+*/
+
             uint iFarthest = 0;
             float maxDistFromPoints = 0.0f;
+/*
+            vec3 l = latticeTemp.back();
+            float distFromPoint;
+            int nToRemove = 0;
+            int candidateSize = candidates.size();
+            qDebug() << "Candidates: " << candidateSize;
+            for (uint i = 0; i < candidateSize; i++) {
+                if (candidateSize-nToRemove > i) { /*do nothing}
+                else {
+                    distFromPoint = length(candidates[i] - l);
+                	if (distFromPoint < cutoff) {
+                		nToRemove++;
+                		candidates[i] = candidates[candidates.size()-nToRemove];
+                		sumDistsStore[i] = sumDistsStore[sumDistsStore.size()-nToRemove];
+						i--;
+                	}
+                	else {
+						sumDistsStore[i] += distFromPoint;
+						if (sumDistsStore[i] > maxDistFromPoints) {
+							maxDistFromPoints = sumDistsStore[i];
+							iFarthest = i;
+						}
+                	}
+                }
+            }
 
-
+            candidates.erase(candidates.end()-nToRemove,candidates.end());
+            sumDistsStore.erase(sumDistsStore.end()-nToRemove,sumDistsStore.end());
+            assert(sumDistsStore.size() == candidates.size());
+*/
+            vec3 l = latticeTemp.back();
             for (uint i = 0; i < candidates.size(); i++) {
-                bool reject = false;
-
-                float sumDists = 0.0f;
-                float distFromPoint;
-
-                vec3 l = latticeTemp.back();
-                distFromPoint = length(candidates[i] - l);
+                float distFromPoint = length(candidates[i] - l);
 
                 if (distFromPoint < cutoff) {
                     candidates.erase(candidates.begin() + i);
                     sumDistsStore.erase(sumDistsStore.begin() + i);
                     i--;
-                    continue;
                 }
-                assert(sumDistsStore.size() == candidates.size());
-                sumDistsStore[i] += distFromPoint;
+                else {
+                    assert(sumDistsStore.size() == candidates.size());
+                    sumDistsStore[i] += distFromPoint;
 
-                if (sumDistsStore[i] > maxDistFromPoints) {
-                    maxDistFromPoints = sumDistsStore[i];
-                    iFarthest = i;
-                }
+                    if (sumDistsStore[i] > maxDistFromPoints) {
+                            maxDistFromPoints = sumDistsStore[i];
+                            iFarthest = i;
+                    }
+
+                    }
             }
 
             if (candidates.size() > 0) {
                 maxLength = maxDistFromPoints;
                 // Update maxLength to minimum distance between
                 //   an existing point and the point chosen
-                for (vec3 l : latticeTemp)
-                    maxLength = std::min(maxLength, length(candidates[iFarthest] - l));
 
+				#pragma omp parallel for
+                for (int i = 0; i < latticeTemp.size(); i++) {
+                    maxLength = std::min(maxLength, length(candidates[iFarthest] - latticeTemp[i]));
+                }
+                assert(iFarthest <= candidates.size());
                 // Add point to lattice
                 latticeTemp.push_back(candidates[iFarthest]);
                 pointOrigins.push_back(latticeBox);
                 candidates.erase(candidates.begin() + iFarthest);
                 sumDistsStore.erase(sumDistsStore.begin() + iFarthest);
             }
-            qDebug() << "Added to lattice" << latticeTemp.size();
+
+            if (latticePrintFrequency == 0) {
+            	tend = time(0);
+                qDebug() << "Added to lattice" << latticeTemp.size() << " Time: " << difftime(tend, tstart) << " second(s)";
+                latticePrintFrequency = 1000;
+                tstart = time(0);
+            }
+            latticePrintFrequency--;
         }
-      
+
+        // PROBLEM HERE
         lattice.insert(lattice.end(), latticeTemp.begin(), latticeTemp.end());
         // Set lattice property
-        qDebug() << "Found all points in lattice" << latticeBox->volume->id;
+        qDebug() << "Found all points in lattice" << latticeBox->volume->id ;
+        qDebug() << "Total time: " << difftime(tend, tinit) << " second(s)";
     }
+
     arrays->lattice = lattice;
     arrays->pointOrigins = pointOrigins;
     qDebug() << "Set lattice";
@@ -1393,6 +1478,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             if (!existsInLattice) {
                 space.push_back(n.first);
             }
+            // save number of hull points 
         }
         // Interpolate edges based on cutoff
         while (geometryBound->isCloseToEdge(point, cutoff) || !geometryBound->isInside(point)) {
@@ -1424,6 +1510,7 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
     // Spawn k new points
     int threads = 64;
 
+
 #pragma omp parallel for
     for (int t = 0; t < threads; t++) {
         for (k = 0; k < kNewPoints/threads; k++) {
@@ -1445,36 +1532,40 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
                 }
             }
 
-#pragma omp critical
+    #pragma omp critical
             candidates.push_back(newPoint);
         }
 
         qDebug() << "Lattice Thread" << t << "done";
     }
 
+int latticePrintFrequency = 100; 
 
     while (maxLength >= cutoff && !candidates.empty()) {
 
         // Find point furthest from original point
         uint iFarthest = 0;
         float maxDistFromPoints = 0.0f;
-        vector<float> sumDistsStore = vector<float>();
-        for (auto c: candidates) {
-            sumDistsStore.push_back(0.0f);
+        vector<float> sumDistsStore(candidates.size());
+
+		#pragma omp parallel for
+        for (size_t i = 0; i < sumDistsStore.size(); ++i) {
+            sumDistsStore[i]= maxDistFromPoints;
         }
 
-        for (uint i = 0; i < candidates.size(); i++) {
-            bool reject = false;
+        vector<int> candidatesToErase();
+        Vec l_temp = space.back();
 
-            float sumDists = 0.0f;
-            float distFromPoint;
+		#pragma omp parallel for
+        for (uint i = 0; i < candidates.size(); i++) {
+        	// this is defined but never used?
 
             if (space.size() > 0) {
-                Vec l = space.back();
-                distFromPoint = (candidates[i] - l).norm();
+                float distFromPoint = (candidates[i] - l_temp).norm();
 
-                if (distFromPoint < cutoff) {
-                    candidates.erase(candidates.begin() + i);
+                if (distFromPoint < cutoff ) {
+					#pragma omp critical
+                   candidates.erase(candidates.begin() + i);
                     i--;
                     continue;
                 }
@@ -1491,18 +1582,194 @@ void Loader::createSpaceLattice(Polygon *geometryBound, LatticeConfig &lattice, 
             maxLength = maxDistFromPoints;
             // Update maxLength to minimum distance between
             //   an existing point and the point chosen
-            for (Vec l : space)
-                maxLength = std::min(maxLength, float((candidates[iFarthest] - l).norm()));
-
+			#pragma omp parallel for
+            for (size_t i = 0; i <space.size(); ++i) {
+                maxLength = std::min(maxLength, float((candidates[iFarthest] - space[i]).norm()));
+            }
             // Add point to lattice
             space.push_back(candidates[iFarthest]);
             candidates.erase(candidates.begin() + iFarthest);
         }
-        qDebug() << "Added to lattice" << space.size();
+        if (latticePrintFrequency == 0) {
+   	        qDebug() << "Added to lattice" << space.size();
+ 	       latticePrintFrequency = 100;
+        }
+        latticePrintFrequency--;
     }
 
     // Set lattice property
     qDebug() << "Found all points";
     lattice.vertices = space;
     qDebug() << "Set lattice";
+}
+
+ // Calculates the largest natural period (smallest natural frequency) of the lattice
+ double Loader::calculateNaturalPeriod(Simulation *sim) {
+
+
+     int n_masses = sim->masses.size();
+
+     int mass_ind[n_masses] = {};
+
+     vector<Eigen::Triplet<double>> m_vals;
+     m_vals.reserve(n_masses);
+
+     vector<int> forceIndices;
+     forceIndices.reserve(n_masses/50); // A rough guess that about 2% of masses will have a force applied
+
+     int n = 0;
+
+     for (int i = 0; i < n_masses; i++) {
+         Mass *m_temp = sim->getMassByIndex(i);
+
+         if (m_temp->constraints.fixed) {
+             mass_ind[i] = -1;
+         } else {
+             mass_ind[i] = n;
+
+             for (int j = 0; j < 3; j++)
+                m_vals.push_back(Eigen::Triplet<double>(3*n+j,3*n+j,m_temp->m));
+
+             Vec force = m_temp->extforce;
+             if (!(force == Vec(0,0,0))) {
+                 for (int j = 0; j < 3; j++) {
+                     if (force.data[j] != 0) {
+                         forceIndices.push_back(3 * n + j);
+                     }
+                 }
+             }
+             n++;
+         }
+     }
+
+     Eigen::SparseMatrix<double> m(3*n,3*n);
+     m.setFromTriplets(m_vals.begin(), m_vals.end());
+
+     Eigen::SparseVector<double> f = Eigen::SparseVector<double>(3*n);
+
+     for (int i : forceIndices) {
+         f.coeffRef(i) = 1.0;
+     }
+
+     vector<Eigen::Triplet<double>> k_vals;
+     k_vals.reserve(n_masses*4);
+
+     Vec dirs[] = {Vec(1,0,0), Vec(0,1,0), Vec(0,0,1)};
+
+     for (Spring * spring: sim->springs) {
+         double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
+         Vec springVec = (spring->_left->pos)-(spring->_right->pos);
+         springVec = springVec/springVec.norm();
+         int mass_i = mass_ind[spring->getLeft()];
+         int mass_j = mass_ind[spring->getRight()];
+
+         for (int c=0; c<3; c++) {
+             for (int v=0; v<3; v++) {
+                 if (mass_i >= 0) {
+
+                     k_vals.push_back(Eigen::Triplet<double>(mass_i * 3 + c, mass_i * 3 + v,
+                                                             temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                 }
+
+                 if (mass_j >= 0) {
+                     k_vals.push_back(Eigen::Triplet<double>(mass_j * 3 + c, mass_j * 3 + v,
+                                                             temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                 }
+
+                 // add the negative stiffness to the off diagonals connecting the two masses
+                 if (mass_i >= 0 && mass_j >= 0) {
+                     k_vals.push_back(Eigen::Triplet<double>(mass_i * 3 + c, mass_j * 3 + v,
+                             -temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                     k_vals.push_back(Eigen::Triplet<double>(mass_j * 3 + c, mass_i * 3 + v,
+                             -temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v])));
+                 }
+             }
+         }
+     }
+
+     Eigen::SparseMatrix<double> k(3*n,3*n);
+     k.setFromTriplets(k_vals.begin(), k_vals.end());
+
+     // Set up the generalized eigenvalue solver
+     Spectra::SparseSymMatProd<double> op(m);
+     Spectra::SparseCholesky<double> Bop(k);
+
+     /* Creates the eigenvalue solver object
+      * This is the class to use, since our m matrix is symmetric (obv. since it's diagonal)
+      * and our k matrix is positive definite (because of theories too complicated for me to understand)
+      *
+      * We are solving this problem backwards. Normally, to find the natural frequencies squared, we would solve
+      * Kx=hMx, with h being the eigenvalues. However, we want to find the smallest natural frequencies
+      * (i.e. the largest period oscillations), so we want the largest 1/h. Since the solver finds larger eigenvalues
+      * faster, this actually works in our favor. So we solve Mx=zKx, where z = 1/h. Taking the square root of the result
+      * gives us our natural periods.
+      */
+     int numEig = 3;
+     Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double>,
+             Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY>
+             geigs(&op, &Bop, numEig, numEig*5);
+
+     geigs.init();
+     int nconv = geigs.compute();
+
+     Eigen::VectorXd evalues;
+     Eigen::MatrixXd evecs;
+
+     if(geigs.info() == Spectra::SUCCESSFUL)
+     {
+         evalues = geigs.eigenvalues();
+         evecs = geigs.eigenvectors();
+     } else {
+         qDebug() << "Eigenvalues not found";
+         return 0;
+     }
+
+     qDebug() << "Max Natural Periods" << sqrt(evalues[0])*2*3.1416 << sqrt(evalues[1])*2*3.1416 << sqrt(evalues[2])*2*3.1416;
+
+     float epsilon = 0.1; // If next nat. period squared is 10x as excited as first, (nat. period is 100x), go to next
+     int principalEig = 0;
+     for (int i = 0; i < numEig-1; i++) {
+         float relModalForce = fabs(((evecs.col(i).transpose()*f)/(evecs.col(i+1).transpose()*f))(0,0));
+
+         qDebug() << "Modal Force" << i << ":" << (evecs.col(i).transpose()*f);
+         qDebug() << "Relative Modal Force" << relModalForce;
+
+         if (relModalForce < epsilon)
+             principalEig = i+1;
+         else
+             break;
+     }
+
+     qDebug() << "Generalized eigenvalues found";
+
+     return sqrt(evalues[principalEig])*2*3.1416;
+ }
+
+
+void Loader::suggestParams(Simulation *sim, SimulationConfig *simConfig) {
+    double natPer = calculateNaturalPeriod(sim);
+
+    glm::vec3 minCorner = simConfig->volume->model->bounds.minCorner;
+    glm::vec3 maxCorner = simConfig->volume->model->bounds.maxCorner;
+
+    // A very rough approximation of the longest path
+    glm::vec3 edges = maxCorner-minCorner;
+
+    double maxDist = 0;
+
+    for (int i=0; i<3; i++) {
+        maxDist += glm::abs(edges[i]);
+    }
+
+    float minSpringDist = std::numeric_limits<float>::max();
+
+    for (LatticeConfig *lattice : simConfig->lattices) {
+        if (lattice->unit[0] < minSpringDist)
+            minSpringDist = lattice->unit[0];
+    }
+
+    int maxPath = maxDist/minSpringDist;
+
+    log(tr("Render update time should be no less that %1 times GPU update time.\n"
+           "Lattice should be given %2 seconds to settle before changing forces.").arg(maxPath).arg(natPer));
 }

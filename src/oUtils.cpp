@@ -93,10 +93,6 @@ void oUtils::generateMassesPoisson(double minCut, map<Mass *, vector<Spring *> >
 void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> mToS, vector<Vec> &lattice, int n, model_data *bounding) {
 
     qDebug() << "Set probablities";
-
-    qDebug() << "Generating" << n << "points";
-
-
     qDebug() << "Generating" << n << "points with geometry bounding";
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
@@ -124,8 +120,8 @@ void oUtils::generateMassesBounded(double minCut, map<Mass *, vector<Spring *>> 
             model_data modelCopy = *bounding;
             meetBounding = modelCopy.isInside(point,0);
         }
-
-        #pragma omp critical
+      
         if (!tooClose && meetBounding) lattice.push_back(p);
+
     }
 }

@@ -9,7 +9,7 @@ The DML-IDE utilizes [Titan](https://github.com/swyetzner/Titan) as its underlyi
 * At least one CUDA-compataible GPU. See [here](https://developer.nvidia.com/cuda-gpus) for a list.
 
 ## Build
-DML-IDE has the following dependencies. Download and setup them up individually from the links below *OR* use a package manager (for everything but Qt); [vcpkg](https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=vs-2019) is highly recommended.
+DML-IDE has the following dependencies. Download and setup them up individually from the links below *OR* use a package manager (for everything but Qt and Lib3MF); [vcpkg](https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=vs-2019) is highly recommended.
 * [Qt](https://www.qt.io/download)
 * [CUDA](https://developer.nvidia.com/cuda-toolkit)
 * [GLEW](http://glew.sourceforge.net/)
@@ -17,6 +17,28 @@ DML-IDE has the following dependencies. Download and setup them up individually 
 * [glm](https://github.com/g-truc/glm)
 * [args](https://taywee.github.io/args/)
 * [pugixml](https://github.com/zeux/pugixml)
+* [Eigen](http://eigen.tuxfamily.org)
+* [Spectra](https://github.com/yixuan/spectra)
+* [Lib3MF](https://github.com/3MFConsortium/lib3mf)
+
+For installing Lib3MF first clone the repository from [Lib3MF](https://github.com/3MFConsortium/lib3mf). Download along with submodule and move into the repository.
+````
+$ git clone --recurse-submodules https://github.com/3MFConsortium/lib3mf
+$ cd lib3mf
+````
+Call GenerateMake.sh (Linux, Mac) or define other targets by specifying custom CMake generators (default is best unless you know what you're doing).
+A new folder “build” is created and contains projects for the IDE/build target you selected.
+For Linux/Mac:
+  * navigate to the “build”-folder
+  * Call “make” to build the projects
+  * Run/debug a project and install the library in the default location
+````
+$ cmake ..
+$ make
+$ make tests
+$ make install
+````
+Lib3MF should now be ready to go. 
 
 Download DML-IDE from the GitHub source along with its submodules. Once downloaded, move into the repository:
 ````
