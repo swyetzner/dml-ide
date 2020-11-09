@@ -7,7 +7,7 @@
 
 #include <QDebug>
 #include <unordered_map>
-
+#include "3MFutils.h"
 #include "utils.h"
 
 class Node;
@@ -71,6 +71,7 @@ public:
     void flipTriangleEdges(double eps);
     int fixNormals();
     void createPolygonFromFile(string path, float scale);
+    void createPolygonFrom3MF(string path);
     void createGraphicsData(float *vs, float *ns);
     void clearPolygon();
 

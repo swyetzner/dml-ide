@@ -475,7 +475,7 @@ void Simulator::run() {
                             if (calcDeflection() > deflection_start * 10) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
 
-                                springRemover->resetLastRemoval();
+                                //springRemover->resetHalfLastRemoval();
                             } else {
                                 optimizer->optimize();
                                 if (!springRemover->regeneration) optimized++;
@@ -1099,6 +1099,14 @@ void Simulator::write3MF(const QString &outputFile) {
 
     Lib3MF::PWrapper wrapper = Lib3MF::CWrapper::loadLibrary();
     
+    // adding material
+   /* Lib3MF::PBaseMaterialGroup materials = Lib3MF::CBaseMaterialGroup();
+    string name = "Titanium";
+    fRed = 1; fGreen = 1; fBlue = 1; fAlpha = 1;
+    Lib3MF::sColor color = FloatRGBAToColor(fRed,fGreen,fBlue,fAlpha)
+    materialsAddMaterial(name,color)
+*/
+
     Lib3MF::PModel model = wrapper->CreateModel();
     model->SetUnit(eModelUnit(5));
     Lib3MF::PMeshObject meshObject = model->AddMeshObject();

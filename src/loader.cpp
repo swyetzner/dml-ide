@@ -36,7 +36,6 @@ void Loader::loadDesignModels(Design *design) {
  * Populates model_data in a given Volume
  * Note that model_data here will have only one mesh per volume
  */
-
 void Loader::loadVolumeModel(Volume *volume) {
 
     volume->model = new model_data();
@@ -71,15 +70,17 @@ void Loader::loadVolumeModel(Volume *volume) {
 
             Utils::createModelFromFile(volume->url.path().toStdString(), scale, volume->model->vertices, volume->model->normals);
             cout << "Created model from" << volume->url.path().toStdString() << "\n";
-
-        } else {
-            log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");
-        }
+        } 
     } else if (volume->primitive == "cube") {
-
         Utils::createCube(vec3(0.0, 0.03, 0.0), 0.1f, volume->model->vertices, volume->model->normals);
-
+    } else if (volume->primitive == "3mf") {
+        loadGeometry3MF(volume->url.path().toStdString(), volume->model->vertices, volume->model->normals);
+        cout << "Created model from" << volume->url.path().toStdString() << "\n";
+    } else {
+            log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");
     }
+
+
 
     volume->model->n_vertices = int(volume->model->vertices.size());
     volume->model->n_normals = int(volume->model->normals.size());
@@ -125,6 +126,9 @@ void Loader::loadVolumeGeometry(Volume *volume){
             qDebug() << "\tFaces" << mesh->F.cols() << mesh->F.rows();
             volume->mesh = mesh;**/
 
+        } else if (volume->primitive == "3mf") {
+            volume->geometry->createPolygonFrom3MF(volume->url.path().toStdString());
+            cout << "Created polygon from" << volume->url.path().toStdString() << "\n";
         } else {
             log("Invalid URL: \'" + volume->url.url() + "\' for volume " + volume->id + ". cannot load model");
         }
@@ -503,7 +507,7 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
     //double timestep = std::min(1/pow(10, to_string(int(maxK)).length()-2), 0.0001);
     sim->setAllDeltaTValues(1e-4);
 
-    suggestParams(sim, simConfig);
+    //suggestParams(sim, simConfig);
 
     qDebug() << "Loaded simulation configuration";
 }
@@ -918,61 +922,6 @@ void Loader::applyLoadcase(Simulation *sim, Loadcase *load) {
             log(tr("Applied force to %1 masses with volume '%2'").arg(forceMasses).arg(forceVol->id));
     }
 
-    for (Torque *torque : load->torques) {
-        Volume *torqueVol = torque->volume;
-        qDebug() << "Applying Torque: " << torque->magnitude[0] << torque->magnitude[1] << torque->magnitude[2];
-
-        torque->masses.clear(); // Clear mass ptr cache
-
-        int torqueMasses = 0;
-        for (Mass *mass : sim->masses) {
-            glm::vec3 massPos = glm::vec3(mass->pos[0], mass->pos[1], mass->pos[2]);
-
-            // Check for force constraint
-            if (torqueVol->model != nullptr) {
-                if (torqueVol->model->isInside(massPos, 0)) {
-
-                    mass->extduration += torque->duration;
-
-                    if (mass->extduration < 0) {
-                        mass->extduration = DBL_MAX;
-                    }
-
-                    torque->masses.push_back(mass);
-                    torqueMasses++;
-                }
-
-            } else {
-                if (torqueVol->geometry->isInside(mass->pos)) {
-
-                    mass->extduration += torque->duration;
-
-                    if (mass->extduration < 0) {
-                        mass->extduration = DBL_MAX;
-                    }
-
-                    torque->masses.push_back(mass);
-                    torqueMasses++;
-                }
-            }
-        }
-        if (torqueMasses > 0) {
-            Vec torqueMag = torque->magnitude/torqueMasses;
-            for (Mass *m : torque->masses) {
-                Vec distance = Vec(torque->origin[0]-m->pos[0] , torque->origin[1]-m->pos[1] , torque->origin[2]-m->pos[2]);
-                Vec forceProjection = cross(torqueMag,distance)/distance.norm();
-                m->force += forceProjection;
-                m->extforce += forceProjection;
-            }
-
-
-            log(tr("Applied %3 N torque to %1 masses with volume '%2'").arg(torqueMasses).arg(torqueVol->id).arg(torqueMag.norm()));
-            cout << "Applied " << torqueMag.norm() << "N force to " << torqueMasses << " masses with volume " << torqueVol->id.toStdString() << ".\n";
-        } else
-            log(tr("Applied torque to %1 masses with volume '%2'").arg(torqueMasses).arg(torqueVol->id));
-    }
-
-    
     for (Actuation *actuation : load->actuations) {
         Volume *actVol = actuation->volume;
 
