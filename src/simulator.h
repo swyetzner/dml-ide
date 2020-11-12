@@ -72,6 +72,7 @@ public:
     void runStep();
     void getSimMetrics(sim_metrics &metrics);
     void loadSimDump(std::string sp);
+    void runExportCleanup();
     void exportSimulation();
     void dumpSpringData();
 

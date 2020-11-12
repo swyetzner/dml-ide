@@ -459,6 +459,8 @@ void Window::on_actionRecordSim_toggled(bool toggled)
 void Window::on_actionSaveSim_triggered()
 {
     arrays_bars = new bar_data();
+    log(tr("Running cleanup..."));
+
     loader->loadBarsFromSim(simulation, arrays_bars, false, false);
 
     for (output_data *o : design->outputs) {

@@ -2678,7 +2678,7 @@ MassMigratorFreq::MassMigratorFreq(Simulation *sim, double dxMax, double upperFr
 //---------------------------------------------------------------------------
 void MassMigratorFreq::optimize() {
 //---------------------------------------------------------------------------
-    Fourier *f = sim->fouriers[0];
+    Fourier *f = sim->fourier;
 
     sim->getAll();
     sim->getModeShapes(f);

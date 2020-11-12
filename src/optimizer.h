@@ -81,6 +81,7 @@ public:
     void resetHalfLastRemoval();
     void regenerateLattice(SimulationConfig *config);
     void regenerateShift();
+    void removeHangingSprings();
 
 protected:
     void optimize() override;
