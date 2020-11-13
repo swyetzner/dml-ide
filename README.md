@@ -33,7 +33,7 @@ For Linux/Mac:
   * Call “make” to build the projects
   * Run/debug a project and install the library in the default location
 ````
-$ cmake ..
+$ cmake .. -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX
 $ make
 $ make tests
 $ make install
