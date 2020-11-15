@@ -347,6 +347,7 @@ void Simulator::run() {
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
+        qDebug() << "Got all";
         totalLength_prev = totalLength;
         totalLength = 0;
         double maxForce = 0;
@@ -367,7 +368,6 @@ void Simulator::run() {
         if (maxForceSpring != nullptr) qDebug() << "MAX FORCE SPRING" << n << maxForce << maxForceSpring->_rest << (maxForceSpring->_left->pos - maxForceSpring->_right->pos).norm();
 
         bool stopReached = stopCriteriaMet();
-        qDebug() << "Removed springs" << springRemover->removedSprings.size();
 
         if (!optimized) {
             if (varyLoad) {
@@ -451,26 +451,27 @@ void Simulator::run() {
 
                     currentLoad = 0;
                 } else {
+                    qDebug() << "Optimization block";
                     for (OptimizationRule r : optConfig->rules) {
                         if ((loadQueueDone || config->repeat.afterExplicit) && optimizeAfter <= n_repeats &&
                             prevSteps >= r.frequency && !stopReached) {
+                            qDebug() << "OPTIMIZING";
 
                             if (!optimized && n_repeats == 0) {
                                 writeMetricHeader(metricFile);
                                 deflection_start = calcDeflection();
                             }
 
-                            qDebug() << "OPTIMIZING";
                             writeMetric(metricFile);
                             double simTimeBeforeOpt = sim->time();
 
                             if (calcDeflection() > deflection_start * 10) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
-                                springRemover->resetHalfLastRemoval();
+                                //springRemover->resetHalfLastRemoval();
                             } else {
-                                optimizer->optimize();
-                                if (!springRemover->regeneration) optimized++;
-                                qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
+                                //optimizer->optimize();
+                                //if (!springRemover->regeneration) optimized++;
+                                //qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
                                 n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
                             }
 
@@ -480,7 +481,7 @@ void Simulator::run() {
                             prevSteps = 0;
 
                             currentLoad = 0;
-                                if (springRemover->regeneration && !optConfig->rules.empty()) {
+                                /*if (springRemover->regeneration && !optConfig->rules.empty()) {
                                     if (totalLength <= totalLength_start * optConfig->rules.front().regenThreshold) {
                                         springRemover->regenerateLattice(config);
                                         optimized++;
@@ -489,7 +490,7 @@ void Simulator::run() {
                                         n_springs = int(sim->springs.size());
                                     }
 
-                                }
+                                }*/
                             // Account for time shift
                             optimizeTime = sim->time() - simTimeBeforeOpt;
                             qDebug() << "OPTIMIZE TIME" << optimizeTime;
@@ -523,6 +524,7 @@ void Simulator::run() {
     if (dumpCriteriaMet()) dumpSpringData();
 
     qDebug() << "WALL CLOCK TIME" << wallClockTime;
+    qDebug() << "Optimizer" << sim->fourier->n_count;
 }
 
 
