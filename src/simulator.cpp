@@ -1121,7 +1121,7 @@ void Simulator::write3MF(const QString &outputFile) {
     }
     for (int s = 0; s < sim->springs.size(); s++) {
         if (sim->springs[s]->_k != 0) {
-            beams.push_back(fnCreateBeam(sim->springs[s]->_left->index,sim->springs[s]->_right->index,sim->springs[s]->_diam,sim->springs[s]->_diam,eBeamLatticeCapMode::Sphere,eBeamLatticeCapMode::Sphere));
+            beams.push_back(fnCreateBeam(sim->springs[s]->_left->index,sim->springs[s]->_right->index,sim->springs[s]->_diam/2,sim->springs[s]->_diam/2,eBeamLatticeCapMode::Sphere,eBeamLatticeCapMode::Sphere));
         }
     } 
    // Set beamlattice geometry and metadata
