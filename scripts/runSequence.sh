@@ -45,8 +45,7 @@ for ((i=5; i<= $#; i++)); do
 
       # Check to make sure deflection is not NaN
       while IFS=, read -r -a defs; do
-          for d in ${defs[2]}; do
-	  echo "$d"
+        for d in ${defs[2]}; do
           if [ "$d" == "nan" ]; then
             success=0
           fi

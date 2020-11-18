@@ -346,15 +346,6 @@ void Simulator::run() {
         sim->step(renderTimeStep);
         qDebug() << "Stepped" << steps << "Repeats" << n_repeats;
         sim->getAll();
-
-        // NaN CHECKS
-        for (Spring *s : sim->springs) {
-            if (isnan(s->_curr_force)) {
-                qDebug() << "NaN found in spring forces. Exiting.";
-                exit(1);
-            }
-        }
-
         totalLength_prev = totalLength;
         totalLength = 0;
         double maxForce = 0;
@@ -474,8 +465,7 @@ void Simulator::run() {
 
                             if (calcDeflection() > deflection_start * 10) {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
-
-                                //springRemover->resetHalfLastRemoval();
+                                springRemover->resetHalfLastRemoval();
                             } else {
                                 optimizer->optimize();
                                 if (!springRemover->regeneration) optimized++;
@@ -775,10 +765,6 @@ double Simulator::calcDeflection() {
             deflection += fabs(newDist - origDist);
         }
     }
-    if (isnan(deflection)) {
-        qDebug() << "NaN found in deflection. Exiting.";
-        exit(1);
-    }
     return deflection;
 }
 
@@ -1020,36 +1006,6 @@ void Simulator::applyLoad(Loadcase *load) {
             for (Mass *fm : f->masses) {
                 fm->extforce += distributedForce;
                 fm->force += distributedForce;
-            }
-        }
-    }
-    for (Torque *t : load->torques) {
-        int torqueMasses = 0;
-
-        for (Mass *tm : t->masses) {
-            bool valid = false;
-            for (Mass *m : sim->masses) {
-                    if (m == tm) {
-                    m->extduration = t->duration + pastLoadTime;
-                    qDebug() << "DURATION" << m->extduration;
-                    if (m->extduration < 0) {
-                        m->extduration = DBL_MAX;
-                    }
-                    torqueMasses ++;
-                    valid = true;
-                }
-            }
-            if (!valid) {
-                t->masses.erase(remove(t->masses.begin(), t->masses.end(), tm), t->masses.end());
-            }
-        }
-        if (torqueMasses > 0) {
-            Vec torqueMag = t->magnitude / torqueMasses;
-            for (Mass *m : t->masses) {
-                Vec distance = Vec(t->origin[0]-m->pos[0] , t->origin[1]-m->pos[1] , t->origin[2]-m->pos[2]);
-                Vec forceProjection = cross(torqueMag,distance)/distance.norm();
-                m->force += forceProjection;
-                m->extforce += forceProjection;
             }
         }
     }

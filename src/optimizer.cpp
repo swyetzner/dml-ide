@@ -531,9 +531,7 @@ void SpringRemover::regenerateLattice(SimulationConfig *config) {
     fillMassSpringMap();
 
     deleteGhostSprings();
-    //oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * 0.1);
-    model_data *bounding = config->volume->model;
-    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * 0.1, bounding);
+    oUtils::generateMassesBounded(minCut, massToSpringMap, lattice, this->n_masses_start * this->regenRate);
     //oUtils::generateMassesPoisson(minCut, massToSpringMap, lattice);
 
     fillMassSpringMap();
