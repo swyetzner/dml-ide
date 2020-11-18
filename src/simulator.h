@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <fstream>
 #include <QMatrix4x4>
+#include <iostream>
 
 struct sim_metrics {
     sim_metrics() = default;

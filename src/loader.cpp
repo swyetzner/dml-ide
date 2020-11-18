@@ -403,6 +403,27 @@ void Loader::loadSimulation(Simulation *sim, SimulationConfig *simConfig) {
                 maxMassXVal = std::max(maxMassXVal, m->origpos[2]);
             }
             qDebug() << "Max X val" << maxMassXVal << minMassXVal;
+            ofstream KCompFile;
+            KCompFile.open("KComp.csv");
+
+            if (mat->eUnits != nullptr) {
+                KCompFile << simConfig->lattices[0]->barDiameter[1] << '\n';
+                double unit = 1;
+                if (mat->eUnits == "GPa") { unit *= 1000 * 1000 * 1000; }
+                if (mat->eUnits == "MPa") { unit *= 1000 * 1000; }
+                double E = mat->elasticity * unit;
+                KCompFile << E << '\n';
+
+                double d = mat->density;
+                unit = 1;
+                if (mat->dUnits == "gcc") { unit *= 1000; }
+
+                KCompFile << (d*unit) << '\n';
+            }
+
+
+            KCompFile.close();
+
             for (Spring *s : sim->springs) {
 
                 // ELASTICITY -- SPRING CONSTANT
@@ -1550,6 +1571,7 @@ int latticePrintFrequency = 100;
  // Calculates the largest natural period (smallest natural frequency) of the lattice
  double Loader::calculateNaturalPeriod(Simulation *sim) {
 
+    int prec = 10;
 
      int n_masses = sim->masses.size();
 
@@ -1563,42 +1585,82 @@ int latticePrintFrequency = 100;
 
      int n = 0;
 
+     ofstream AFile;
+     AFile.open("A.csv");
+
+     ofstream pos;
+     pos.open("pos.csv");
+     pos.precision(prec);
+
+     pos << "Time";
+
      for (int i = 0; i < n_masses; i++) {
          Mass *m_temp = sim->getMassByIndex(i);
 
          if (m_temp->constraints.fixed) {
-             mass_ind[i] = -1;
+             mass_ind[i] = -n-1; // This won't be nice and consecutive, but it gives a unique identifier for each anchor
+             AFile << i << '\n';
          } else {
              mass_ind[i] = n;
 
+             pos << ',' << n << "x," << n << "y," << n << "z";
+
              for (int j = 0; j < 3; j++)
-                m_vals.push_back(Eigen::Triplet<double>(3*n+j,3*n+j,m_temp->m));
+                 m_vals.push_back(Eigen::Triplet<double>(3*n+j,3*n+j,m_temp->m));
 
              Vec force = m_temp->extforce;
              if (!(force == Vec(0,0,0))) {
-                 for (int j = 0; j < 3; j++) {
-                     if (force.data[j] != 0) {
-                         forceIndices.push_back(3 * n + j);
-                     }
-                 }
+                 forceIndices.push_back(i);
              }
              n++;
          }
      }
+
+     AFile.close();
+     pos << '\n';
+     pos << '0';
+
+     for (int i = 0; i < n_masses; i++) {
+         Mass *m_temp = sim->getMassByIndex(i);
+
+         if (!m_temp->constraints.fixed) {
+             pos << ',' << m_temp->pos.data[0] << ',' << m_temp->pos.data[1] << ',' << m_temp->pos.data[2];
+         }
+     }
+
+     pos << '\n';
+     pos.close();
 
      Eigen::SparseMatrix<double> m(3*n,3*n);
      m.setFromTriplets(m_vals.begin(), m_vals.end());
 
      Eigen::SparseVector<double> f = Eigen::SparseVector<double>(3*n);
 
+     ofstream Ffile;
+     Ffile.open("F.csv");
+     Ffile.precision(prec);
+
      for (int i : forceIndices) {
-         f.coeffRef(i) = 1.0;
+         Vec force = sim->getMassByIndex(i)->extforce;
+         int ind = mass_ind[i];
+         for (int j = 0; j < 3; j++) {
+             if (force.data[j] != 0) {
+                 f.coeffRef(ind*3+j) = 1.0;
+             }
+         }
+         Ffile << mass_ind[i] << ',' << force.data[0] << ',' << force.data[1] << ',' << force.data[2] << '\n';
      }
+
+     Ffile.close();
 
      vector<Eigen::Triplet<double>> k_vals;
      k_vals.reserve(n_masses*4);
 
      Vec dirs[] = {Vec(1,0,0), Vec(0,1,0), Vec(0,0,1)};
+
+     ofstream KCompFile;
+     KCompFile.open("KComp.csv", ios::app);
+     KCompFile.precision(prec);
 
      for (Spring * spring: sim->springs) {
          double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
@@ -1606,6 +1668,8 @@ int latticePrintFrequency = 100;
          springVec = springVec/springVec.norm();
          int mass_i = mass_ind[spring->getLeft()];
          int mass_j = mass_ind[spring->getRight()];
+
+         KCompFile << mass_i << ',' << spring->_left->pos.data[0] << ',' << spring->_left->pos.data[1] << ',' << spring->_left->pos.data[2]  << ',' << mass_j << ',' << spring->_right->pos.data[0] << ',' << spring->_right->pos.data[1] << ',' << spring->_right->pos.data[2] << '\n';
 
          for (int c=0; c<3; c++) {
              for (int v=0; v<3; v++) {
@@ -1631,8 +1695,30 @@ int latticePrintFrequency = 100;
          }
      }
 
+     KCompFile.close();
+
      Eigen::SparseMatrix<double> k(3*n,3*n);
      k.setFromTriplets(k_vals.begin(), k_vals.end());
+
+     ofstream Kfile;
+     Kfile.open("K.csv");
+     Kfile.precision(prec);
+     for (int i=0; i<k.outerSize(); ++i) {
+         for (Eigen::SparseMatrix<double>::InnerIterator it(k, i); it; ++it) {
+             Kfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
+         }
+     }
+     Kfile.close();
+
+     ofstream Mfile;
+     Mfile.open("M.csv");
+     Mfile.precision(prec);
+     for (int i=0; i<m.outerSize(); ++i) {
+         for (Eigen::SparseMatrix<double>::InnerIterator it(m, i); it; ++it) {
+             Mfile << it.value() << ',' << it.row() << ',' << it.col() << '\n';
+         }
+     }
+     Mfile.close();
 
      // Set up the generalized eigenvalue solver
      Spectra::SparseSymMatProd<double> op(m);

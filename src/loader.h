@@ -9,6 +9,8 @@
 #include <Eigen/SparseCore>
 #include <Spectra/SymGEigsSolver.h>
 #include <Spectra/MatOp/SparseCholesky.h>
+#include <fstream>
+#include <iostream>
 #include "model.h"
 #include "utils.h"
 #include <ctime>
