@@ -1,0 +1,4 @@
+[Lib3MF_SDK]
+BuildNumber = 681
+GITBranch = release/2.0.0
+GITRevision = afb02a2967922382f1c5423c66b5f41efb3a674f

@@ -11,6 +11,7 @@
 #include <Spectra/MatOp/SparseCholesky.h>
 #include "model.h"
 #include "utils.h"
+#include "3MFutils.h"
 #include <ctime>
 
 

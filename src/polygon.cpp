@@ -389,6 +389,29 @@ void Polygon::createPolygonFromFile(string path, float scale) {
 
 }
 
+// Calls Util functions to read 3mf in vertex vectors
+// Converts vertex vectors into Polygon
+// ------------------------------------------------------------
+void Polygon::createPolygonFrom3MF(string path) {
+// ------------------------------------------------------------
+
+    // Check that this is an empty Polygon
+    assert(this->triangles->empty());
+    assert(this->nodeMap.empty());
+
+    // Vertex vectors
+    vector<Vec> vs = vector<Vec>(); // Every 3 vertices constitutes a triangle
+    vector<Vec> ns = vector<Vec>(); // Normals are copied to correspond to vertices
+
+    loadGeometry3MF(std::move(path), vs, ns);
+    assert(vs.size() == ns.size());
+
+    // Fill Polygon data structures
+    for (int i = 0; i < vs.size(); i+=3) {
+        addTriangle(vs[i], vs[i+1], vs[i+2], ns[i]);
+    }
+
+}
 
 // Convertes Polygon into float arrays with position and normal values
 // Arranged sequentially

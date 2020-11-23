@@ -164,6 +164,7 @@ void Simulator::dumpSpringData() {
     QString dumpFile = QString(dataDir + QDir::separator() +
                                "simDump_%1.txt").arg(optimized);
     writeSimDump(dumpFile);
+    write3MF(dumpFile);
 }
 
 void Simulator::loadSimDump(std::string sp) {
@@ -1046,4 +1047,48 @@ void Simulator::varyLoadDirection() {
         }
         sim->setAll();
     }
+}
+
+void Simulator::write3MF(const QString &outputFile) {
+    QFileInfo info(outputFile);
+    QString output = info.path() + "/" + info.completeBaseName() + ".3mf";
+
+    Lib3MF::PWrapper wrapper = Lib3MF::CWrapper::loadLibrary();
+    
+    // adding material
+   /* Lib3MF::PBaseMaterialGroup materials = Lib3MF::CBaseMaterialGroup();
+    string name = "Titanium";
+    fRed = 1; fGreen = 1; fBlue = 1; fAlpha = 1;
+    Lib3MF::sColor color = FloatRGBAToColor(fRed,fGreen,fBlue,fAlpha)
+    materialsAddMaterial(name,color)
+*/
+
+    Lib3MF::PModel model = wrapper->CreateModel();
+    model->SetUnit(eModelUnit(5));
+    Lib3MF::PMeshObject meshObject = model->AddMeshObject();
+    meshObject->SetName("Beamlattice");
+
+    std::vector<sLib3MFPosition> vertices(sim->masses.size());
+    std::vector<sLib3MFBeam> beams;
+    std::vector<sLib3MFTriangle> triangles(0);
+
+    for (int m = 0; m < sim->masses.size(); m++) {
+        vertices[m] = fnCreateVertex(sim->masses[m]->origpos[0],sim->masses[m]->origpos[1],sim->masses[m]->origpos[2]);
+    }
+    for (int s = 0; s < sim->springs.size(); s++) {
+        if (sim->springs[s]->_k != 0) {
+            beams.push_back(fnCreateBeam(sim->springs[s]->_left->index,sim->springs[s]->_right->index,sim->springs[s]->_diam/2,sim->springs[s]->_diam/2,eBeamLatticeCapMode::Sphere,eBeamLatticeCapMode::Sphere));
+        }
+    } 
+   // Set beamlattice geometry and metadata
+    meshObject->SetGeometry(vertices, triangles);
+    
+    Lib3MF::PBeamLattice beamLattice = meshObject->BeamLattice();
+    beamLattice->SetBeams(beams);
+    beamLattice->SetMinLength(0.000001);
+
+    model->AddBuildItem(meshObject.get(), wrapper->GetIdentityTransform());
+
+    Lib3MF::PWriter writer = model->QueryWriter("3mf");
+    writer->WriteToFile(output.toStdString());
 }
