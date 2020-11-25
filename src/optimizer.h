@@ -295,6 +295,8 @@ private:
     double calcT(Vec * modeShapes, Simulation *sim);
     Vec gradV(Vec * modeShapes, Mass* mass);
     void shiftMassPos(Simulation *sim, Vec *disp);
+
+    int numOpts = 0;
 };
 
 #endif //DMLIDE_OPTIMIZER_H
