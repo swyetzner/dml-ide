@@ -2681,12 +2681,39 @@ void MassMigratorFreq::optimize() {
     Fourier *f = sim->fourier;
 
     sim->getAll();
+
+    if (f->n_count < f->n)
+        return;
+
     sim->getModeShapes(f);
     // Get the results of the fourier transform as real Vecs instead of complex ones
 
     Vec** modeShapes = f->modeShapes;
 
     int numMasses = sim->masses.size();
+
+    std::string fileName = "fourier";
+    fileName += std::to_string(numOpts) + ".csv";
+    numOpts++;
+
+    ofstream fourierFile;
+    fourierFile.open(fileName);
+    fourierFile.precision(5);
+
+    for (int i=0; i < f->bands; i++) {
+         fourierFile << f->frequencies[i];
+         for (int j = 0; j < numMasses; j++) {
+             Mass *m_temp = sim->masses[i];
+             if (!m_temp->constraints.fixed) {
+                 for (int k = 0; k < 3; k++) {
+                     fourierFile << "," << f->massComplexArray[i][j][k].x << std::showpos << f->massComplexArray[i][j][k].y << "j";
+                 }
+             }
+         }
+         fourierFile << "\n";
+    }
+
+    fourierFile.close();
 
     // First, randomly check just 1% of the masses to determine which of the frequency bins
     // contain natural frequencies
@@ -2708,7 +2735,7 @@ void MassMigratorFreq::optimize() {
     for (int i : natFreqs) {
         double T = calcT(modeShapes[i], sim);
         for (int j = 0; j < numMasses; j++) {
-            Mass *m = sim->getMassByIndex(j);
+            Mass *m = sim->masses[j];
             Vec gT = gradT(modeShapes[i], m);
             Vec gV = gradV(modeShapes[i], m);
             double wSq = f->frequencies[i]*f->frequencies[i];
@@ -2730,6 +2757,7 @@ void MassMigratorFreq::optimize() {
     shiftMassPos(sim, displacements);
 
     sim->clearFourierTransforms(f);
+    sim->setAll();
 }
 
 std::set<int> MassMigratorFreq::findPeaks(Vec ** modeShapes, int massNum, int bands) {
