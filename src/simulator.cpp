@@ -452,7 +452,7 @@ void Simulator::run() {
 
                     currentLoad = 0;
                 } else {
-                    qDebug() << "Optimization block";
+                    //qDebug() << "Optimization block";
                     for (OptimizationRule r : optConfig->rules) {
                         if ((loadQueueDone || config->repeat.afterExplicit) && optimizeAfter <= n_repeats &&
                             prevSteps >= r.frequency && !stopReached) {
@@ -470,7 +470,7 @@ void Simulator::run() {
                                 qDebug() << "Deflection" << calcDeflection() << deflection_start;
                                 //springRemover->resetHalfLastRemoval();
                             } else {
-                                //optimizer->optimize();
+                                optimizer->optimize();
                                 //if (!springRemover->regeneration) optimized++;
                                 //qDebug() << "Removed spring post opt" << springRemover->removedSprings.size();
                                 n_repeats = optimizeAfter > 0 ? optimizeAfter - 1 : 0;
@@ -504,6 +504,7 @@ void Simulator::run() {
         }
 
         // Write all positions to file
+        /*
         ofstream posFile;
         posFile.open("pos.csv", ios::app);
         posFile.precision(15);
@@ -523,6 +524,7 @@ void Simulator::run() {
         posFile << '\n';
 
         posFile.close();
+         */
 
 
         steps += long(renderTimeStep / sim->masses.front()->dt);
@@ -546,7 +548,8 @@ void Simulator::run() {
     if (dumpCriteriaMet()) dumpSpringData();
 
     qDebug() << "WALL CLOCK TIME" << wallClockTime;
-    qDebug() << "Optimizer" << sim->fourier->n_count;
+    if (sim->fourier)
+        qDebug() << "Optimizer" << sim->fourier->n_count << "/" << sim->fourier->n;
 }
 
 
@@ -639,7 +642,7 @@ void Simulator::loadOptimizers() {
                     // TODO: Choose the dx from the minimum of the units
                     freqMassDisplacer = new MassMigratorFreq(sim, config->lattices[0]->unit[0]/10, r.upperFrequency, r.lowerFrequency);
                     this->optimizer = freqMassDisplacer;
-                    sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 50, 100);
+                    sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 20, 100);
                     qDebug() << "Created FrequencyMassDisplacer";
                     qDebug() << "maxDisp" << config->lattices[0]->unit[0]/10;
                     qDebug() << "upperFrequency" << r.upperFrequency;

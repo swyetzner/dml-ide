@@ -2736,6 +2736,7 @@ void MassMigratorFreq::optimize() {
 
     // Then, go through every mass and calculate grad w for each of those bands. Keep track of max magnitude
     for (int i : natFreqs) {
+        int dir = i<f->bands/2 ? -1 : 1;
         double T = calcT(modeShapes[i], sim);
         for (int j = 0; j < numMasses; j++) {
             Mass *m = sim->getMassByIndex(j);
@@ -2743,7 +2744,7 @@ void MassMigratorFreq::optimize() {
             Vec gV = gradV(modeShapes[i], m);
             double wSq = f->frequencies[i]*f->frequencies[i];
 
-            Vec disp = (gV + wSq*gT)/T;
+            Vec disp = dir*(gV - wSq*gT)/T;
             if (disp.norm() > maxDisp) {
                 maxDisp = disp.norm();
             }
