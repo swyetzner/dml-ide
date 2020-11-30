@@ -642,7 +642,7 @@ void Simulator::loadOptimizers() {
                     // TODO: Choose the dx from the minimum of the units
                     freqMassDisplacer = new MassMigratorFreq(sim, config->lattices[0]->unit[0]/10, r.upperFrequency, r.lowerFrequency);
                     this->optimizer = freqMassDisplacer;
-                    sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 20, 100);
+                    sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 15, 100);
                     qDebug() << "Created FrequencyMassDisplacer";
                     qDebug() << "maxDisp" << config->lattices[0]->unit[0]/10;
                     qDebug() << "upperFrequency" << r.upperFrequency;

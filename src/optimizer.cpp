@@ -2693,16 +2693,23 @@ void MassMigratorFreq::optimize() {
 
     int numMasses = sim->masses.size();
 
+    std::string fileNameMS = "modeShapes";
+    fileNameMS += std::to_string(numOpts) + ".csv";
+
     std::string fileName = "fourier";
     fileName += std::to_string(numOpts) + ".csv";
-    numOpts++;
 
     ofstream fourierFile;
     fourierFile.open(fileName);
     fourierFile.precision(5);
 
+    ofstream msFile;
+    msFile.open(fileNameMS);
+    msFile.precision(5);
+
     for (int i=0; i<f->bands; i++) {
         fourierFile << f->frequencies[i];
+        msFile << f->frequencies[i];
         for (int j = 0; j < numMasses; j++) {
             Mass *m_temp = sim->getMassByIndex(j);
             if (! m_temp->constraints.fixed) {
@@ -2713,10 +2720,74 @@ void MassMigratorFreq::optimize() {
             }
         }
         fourierFile << "\n";
+        msFile << "\n";
     }
 
     fourierFile.close();
+    msFile.close();
 
+    int n = 0;
+    int mass_ind[numMasses] = {};
+
+    std::string fileNameM = "M";
+    fileNameM += std::to_string(numOpts) + ".csv";
+    ofstream mFile;
+    mFile.open(fileNameM);
+    mFile.precision(5);
+
+    for (int i = 0; i < numMasses; i++) {
+        Mass *m_temp = sim->getMassByIndex(i);
+
+        if (m_temp->constraints.fixed) {
+            mass_ind[i] = -n-1; // This won't be nice and consecutive, but it gives a unique identifier for each anchor
+        } else {
+            mass_ind[i] = n;
+
+            for (int j = 0; j < 3; j++)
+                mFile << m_temp->m << "," << 3*n+j << "," << 3*n+j << "\n";
+            n++;
+        }
+    }
+
+    mFile.close();
+
+    Vec dirs[] = {Vec(1,0,0), Vec(0,1,0), Vec(0,0,1)};
+
+    std::string fileNameK = "K";
+    fileNameK += std::to_string(numOpts) + ".csv";
+    ofstream kFile;
+    kFile.open(fileNameK);
+    kFile.precision(5);
+
+    for (Spring * spring: sim->springs) {
+        double temp_k = spring->_k; // This is unfortunate, but I don't want to change the Titan library to add a get
+        Vec springVec = (spring->_left->pos)-(spring->_right->pos);
+        springVec = springVec/springVec.norm();
+        int mass_i = mass_ind[spring->getLeft()];
+        int mass_j = mass_ind[spring->getRight()];
+
+        for (int c=0; c<3; c++) {
+            for (int v=0; v<3; v++) {
+                if (mass_i >= 0) {
+                    kFile << temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v]) << "," << mass_i * 3 + c << "," << mass_i * 3 + v << "\n";
+                }
+
+                if (mass_j >= 0) {
+                    kFile << temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v]) << "," << mass_j * 3 + c << "," << mass_j * 3 + v << "\n";
+                }
+
+                // add the negative stiffness to the off diagonals connecting the two masses
+                if (mass_i >= 0 && mass_j >= 0) {
+                    kFile << -temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v]) << "," << mass_i * 3 + c << "," << mass_j * 3 + v << "\n";
+                    kFile << -temp_k * dot(springVec, dirs[c]) * dot(springVec, dirs[v]) << "," << mass_j * 3 + c << "," << mass_i * 3 + v << "\n";
+                }
+            }
+        }
+    }
+
+    kFile.close();
+
+    numOpts++;
 
     // First, randomly check just 1% of the masses to determine which of the frequency bins
     // contain natural frequencies
@@ -2733,9 +2804,13 @@ void MassMigratorFreq::optimize() {
     Vec displacements[numMasses];
 
     double maxDisp = 0;
+    double avgDisp = 0;
+
+    int numFreqs = 0;
 
     // Then, go through every mass and calculate grad w for each of those bands. Keep track of max magnitude
     for (int i : natFreqs) {
+        numFreqs++;
         int dir = i<f->bands/2 ? -1 : 1;
         double T = calcT(modeShapes[i], sim);
         for (int j = 0; j < numMasses; j++) {
@@ -2748,12 +2823,17 @@ void MassMigratorFreq::optimize() {
             if (disp.norm() > maxDisp) {
                 maxDisp = disp.norm();
             }
+            avgDisp += disp.norm();
             displacements[j] += disp;
         }
     }
 
+    avgDisp /= numFreqs*numMasses;
+
     for (int i = 0; i < numMasses; i++) {
-        displacements[i] = displacements[i]/maxDisp;
+        //displacements[i] = displacements[i]/maxDisp;
+        //displacements[i] = displacements[i]/avgDisp;
+        displacements[i] = displacements[i]/displacements[i].norm();
         displacements[i] = displacements[i]*dxMax;
     }
 
