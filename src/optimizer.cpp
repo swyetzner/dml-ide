@@ -153,9 +153,9 @@ SpringRemover::SpringRemover(Simulation *sim, double removeRatio, double stopRat
 }
 
 //---------------------------------------------------------------------------
-void SpringRemover::fillMassSpringMap() {
+void Optimizer::fillMassSpringMap() {
 //---------------------------------------------------------------------------
-        massToSpringMap = map<Mass *, vector<Spring *>>();
+    massToSpringMap = map<Mass *, vector<Spring *>>();
     validSprings = vector<Spring *>();
     assert(massToSpringMap.empty());
     for (Spring *s : sim->springs) {
@@ -171,7 +171,7 @@ void SpringRemover::fillMassSpringMap() {
 }
 
 //---------------------------------------------------------------------------
-void SpringRemover::removeSpringFromMap(Spring *d) {
+void Optimizer::removeSpringFromMap(Spring *d) {
 //---------------------------------------------------------------------------
 
     auto &m1 = massToSpringMap[d->_left];
@@ -183,7 +183,7 @@ void SpringRemover::removeSpringFromMap(Spring *d) {
 }
 
 //---------------------------------------------------------------------------
-void SpringRemover::invalidateSpring(Spring *i) {
+void Optimizer::invalidateSpring(Spring *i) {
 //---------------------------------------------------------------------------
 
     double d = 0.5 * (i->_left->density + i->_right->density);
@@ -200,7 +200,7 @@ void SpringRemover::invalidateSpring(Spring *i) {
 }
 
 //---------------------------------------------------------------------------
-void SpringRemover::removeMassFromMap(Mass *d) {
+void Optimizer::removeMassFromMap(Mass *d) {
 //---------------------------------------------------------------------------
 
     massToSpringMap.erase(d);
@@ -208,7 +208,7 @@ void SpringRemover::removeMassFromMap(Mass *d) {
 }
 
 //---------------------------------------------------------------------------
-void SpringRemover::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
+void Optimizer::removeHangingSprings(map<Spring *, bool> &hangingCandidates,
                                          map<Spring *, bool> &springsToDelete) {
 //---------------------------------------------------------------------------
 
@@ -2902,4 +2902,110 @@ void MassMigratorFreq::shiftMassPos(Simulation *sim, Vec *disp) {
         }
     }
     sim->setAll();
+}
+
+//---------------------------------------------------------------------------
+// FREQUENCY BAR REMOVER
+//---------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------
+BarRemoverFreq::BarRemoverFreq(Simulation *sim, double upperFreq, double lowerFreq)
+        : Optimizer(sim) {
+//---------------------------------------------------------------------------
+
+
+}
+
+void BarRemoverFreq::optimize() {
+    sim->getAll();
+
+    fillMassSpringMap();
+    n_springs = validSprings.size();
+    n_masses = massToSpringMap.size();
+
+    map<Spring *, bool> springsToDelete = map<Spring *, bool>();
+    map<Mass *, bool> massesToDelete = map<Mass *, bool>();
+    map<Spring *, bool> hangingCandidates = map<Spring *, bool>();
+
+    if (sim->fourier->n_count < sim->fourier->n)
+        return;
+
+    sim->getModeShapes(sim->fourier);
+    // Get the results of the fourier transform as real Vecs instead of complex ones
+    Vec** modeShapes = sim->fourier->modeShapes;
+
+    srand(time(NULL));
+    std::set<int> natFreqs = {};
+    for(int i=0; i < n_masses/100; i++) {
+        int n = rand() % n_masses;
+
+        Mass *m = sim->getMassByIndex(n);
+        std::set<int> tempFreqs = findPeaks(modeShapes, n, sim->fourier->bands);
+        natFreqs.insert(tempFreqs.begin(), tempFreqs.end()); // Find the bands with active natural frequencies
+    }
+
+    for (Spring * s: validSprings) {
+        springsToDelete[s] = springContributing(s, natFreqs);
+        removeSpringFromMap(s);
+        for (Spring *c : massToSpringMap[s->_left]) {
+            hangingCandidates[c] = true;
+        }
+        for (Spring *c : massToSpringMap[s->_right]) {
+            hangingCandidates[c] = true;
+        }
+    }
+
+    // Remove hanging springs (attached to masses with only one attached spring
+    removeHangingSprings(hangingCandidates, springsToDelete);
+
+    // Remove springs
+    uint i = 0;
+
+    while (i < validSprings.size()) {
+        if (validSprings[i] != nullptr && springsToDelete[validSprings[i]]) {
+            invalidateSpring(validSprings[i]);
+            i--;
+        }
+        i++;
+    }
+    qDebug() << "Deleted springs" << validSprings.size();
+
+    for (auto ms : massToSpringMap) {
+        ms.second.erase(remove(ms.second.begin(), ms.second.end(), nullptr), ms.second.end());
+    }
+    qDebug() << "Culled map";
+
+    // Remove masses
+    for (Mass *m : sim->masses) {
+        if (massToSpringMap.count(m) && massToSpringMap[m].empty()) {
+            removeMassFromMap(m);
+        }
+    }
+    qDebug() << "Deleted masses";
+    for (i = 0; i < sim->masses.size(); i++) {
+        sim->masses[i]->index = i;
+    }
+    qDebug() << "Reindexed masses";
+
+    sim->setAll(); // Set spring stresses and mass value updates on GPU
+
+    n_springs = int(validSprings.size());
+    qDebug() << "Springs" << n_springs << "Percent springs left" << 100 * n_springs / n_springs_start;
+
+    }
+
+bool BarRemoverFreq::springContributing(Spring *, std::set<int> peaks) {
+    return true;
+}
+
+std::set<int> BarRemoverFreq::findPeaks(Vec ** modeShapes, int massNum, int bands) {
+    std::set<int> freqs = {};
+    for (int i = 1; i < bands-1; i++) {
+        if ( ((modeShapes[i-1][massNum][0]*1.1 < modeShapes[i][massNum][0]) && (modeShapes[i][massNum][0] > modeShapes[i+1][massNum][0]))
+             ||  ((modeShapes[i-1][massNum][1]*1.1 < modeShapes[i][massNum][1]) && (modeShapes[i][massNum][1] > modeShapes[i+1][massNum][1]))
+             ||  ((modeShapes[i-1][massNum][2]*1.1 < modeShapes[i][massNum][2]) && (modeShapes[i][massNum][2] > modeShapes[i+1][massNum][2]))) {
+            freqs.insert(i);
+        }
+    }
+    return freqs;
 }

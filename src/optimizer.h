@@ -44,6 +44,16 @@ public:
     void sortMasses_stress(vector<uint> &output_indices);
     int settleSim(double eps, bool use_cap=false, double cap=0);
 
+    void removeHangingSprings();
+    void fillMassSpringMap();
+    void removeSpringFromMap(Spring *d);
+    void removeMassFromMap(Mass *d);
+    void invalidateSpring(Spring *i);
+    void removeHangingSprings(map<Spring *, bool> &hangingCandidates, map<Spring *, bool> &springsToDelete);
+
+    vector<Spring *> validSprings;
+    map<Mass *, vector<Spring *>> massToSpringMap;
+
     struct VolumeConstraint {
         double minX, minY, minZ;
         double maxX, maxY, maxZ;
@@ -81,17 +91,11 @@ public:
     void resetHalfLastRemoval();
     void regenerateLattice(SimulationConfig *config);
     void regenerateShift();
-    void removeHangingSprings();
 
 protected:
     void optimize() override;
 
 private:
-    void fillMassSpringMap();
-    void removeSpringFromMap(Spring *d);
-    void removeMassFromMap(Mass *d);
-    void invalidateSpring(Spring *i);
-    void removeHangingSprings(map<Spring *, bool> &hangingCandidates, map<Spring *, bool> &springsToDelete);
     void deleteSpring(Spring *d);
     void splitSprings();
 };
@@ -296,6 +300,17 @@ private:
     Vec gradV(Vec * modeShapes, Mass* mass);
     void shiftMassPos(Simulation *sim, Vec *disp);
     int numOpts = 0;
+};
+
+class BarRemoverFreq : public Optimizer {
+public:
+    BarRemoverFreq(Simulation *sim, double upperFreq, double lowerFreq);
+
+    void optimize() override;
+
+private:
+    bool springContributing(Spring *, std::set<int> peaks);
+    std::set<int> findPeaks(Vec ** modeShapes, int massNum, int bands);
 };
 
 #endif //DMLIDE_OPTIMIZER_H

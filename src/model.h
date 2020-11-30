@@ -1022,7 +1022,7 @@ public:
     }
     ~OptimizationRule() = default;
 
-    enum Method { REMOVE_LOW_STRESS, MASS_DISPLACE, FREQ_MASS_DISPLACE, NONE };
+    enum Method { REMOVE_LOW_STRESS, MASS_DISPLACE, FREQ_MASS_DISPLACE, FREQ_REMOVE_SPRING, NONE };
 
     Method method;
     double threshold;
@@ -1042,6 +1042,8 @@ public:
                 return "MASS_DISPLACE";
             case FREQ_MASS_DISPLACE:
                 return "FREQ_MASS_DISPLACE";
+            case FREQ_REMOVE_SPRING:
+                return "FREQ_REMOVE_SPRING";
             case NONE:
                 return "NONE";
         }

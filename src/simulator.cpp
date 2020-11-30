@@ -26,6 +26,7 @@ Simulator::Simulator(Simulation *sim, Loader *loader, SimulationConfig *config, 
     springRemover = nullptr;
     massDisplacer = nullptr;
     freqMassDisplacer = nullptr;
+    freqSpringRemover = nullptr;
     OPTIMIZER = optConfig != nullptr;
 
     double pi = atan(1.0)*4;
@@ -103,6 +104,7 @@ Simulator::~Simulator() {
     delete springRemover;
     delete massDisplacer;
     delete freqMassDisplacer;
+    delete freqSpringRemover;
 }
 
 // --------------------------------------------------------------------
@@ -622,6 +624,14 @@ void Simulator::loadOptimizers() {
                     qDebug() << "maxDisp" << config->lattices[0]->unit[0]/10;
                     qDebug() << "upperFrequency" << r.upperFrequency;
                     qDebug() << "lowerFrequency" << r.lowerFrequency;
+                    break;
+                }
+
+                case OptimizationRule::FREQ_REMOVE_SPRING: {
+                    freqSpringRemover = new BarRemoverFreq(sim, r.upperFrequency, r.lowerFrequency);
+                    this->optimizer = freqSpringRemover;
+                    sim->createDiscreteFourier(r.upperFrequency, r.lowerFrequency, 50, 100);
+                    qDebug() << "Created FrequencySpringRemover" << r.upperFrequency, r.lowerFrequency;
                     break;
                 }
 

@@ -57,6 +57,7 @@ public:
     MassDisplacer *massDisplacer;
     SpringRemover *springRemover;
     MassMigratorFreq *freqMassDisplacer;
+    BarRemoverFreq *freqSpringRemover;
 
     Status simStatus;
     bool GRAPHICS;
