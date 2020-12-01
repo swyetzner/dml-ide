@@ -115,6 +115,13 @@ void Simulator::setSyncTimestep(double st) {
 
 void Simulator::setSimTimestep(double dt) {
     sim->setAllDeltaTValues(dt);
+    if (sim->fourier) {
+        double upperFreq = sim->fourier->upperFreq;
+        double lowerFreq = sim->fourier->lowerFreq;
+        int bands = sim->fourier->bands;
+        delete sim->fourier;
+        sim->createDiscreteFourier(upperFreq, lowerFreq, bands, 1);
+    }
 }
 
 void Simulator::setDataDir(std::string dp) {
