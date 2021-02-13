@@ -4,6 +4,7 @@
 #include "optimizer.h"
 #include "loader.h"
 #include "io/exportThread.h"
+#include "3MFutils.h"
 
 #undef GRAPHICS
 #include <Titan/sim.h>
@@ -16,6 +17,7 @@
 
 struct sim_metrics {
     sim_metrics() = default;
+    double clockTime;
     int nbars;
     double time;
     double totalLength;
@@ -129,6 +131,7 @@ private:
 
     int currentLoad;
     float pastLoadTime;
+    float optimizeTime;
     bool varyLoad;
     void clearLoads();
     void applyLoad(Loadcase * load);
@@ -151,6 +154,7 @@ private:
     void writeMetric(const QString &outputFile);
     void writeCustomMetric(const QString &outputFile);
     void writeSimDump(const QString &outputFile);
+    void write3MF(const QString &outputFile);
 
     // --------------------------------------------------------------------
 };

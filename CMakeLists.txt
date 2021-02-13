@@ -15,13 +15,26 @@ message(STATUS "GLM included at ${GLM_INCLUDE_DIRS}")
 include_directories(${GLM_INCLUDE_DIRS})
 find_package(GLEW CONFIG)
 find_package(pugixml CONFIG REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
+find_package(Spectra CONFIG REQUIRED)
 
 set(OpenGL_GL_PREFERENCE "GLVND")
 
 add_subdirectory(lib/Titan)
-include_directories(lib/Titan/include)
+include_directories(
+        lib/Titan/include
+        ${Eigen_INCLUDE_DIRS}
+        ${Spectra_INCLUDE_DIRS}
+        )
 
 remove_definitions(Titan PUBLIC GRAPHICS)
+
+set(LSUFFIX "dylib")
+set(LSUFFIXOUT ".2.dylib")
+include_directories(/usr/local/include/Bindings/Cpp)
+link_directories(/usr/local/lib/)
+link_libraries(3mf)
+link_directories(${CMAKE_CURRENT_BINARY_DIR})	
 
 message(WARNING ${COMPILE_DEFINITIONS})
 
@@ -32,10 +45,12 @@ set(SOURCES
 		src/optimizer.h
 		src/oUtils.h
 		src/utils.h
+		src/3MFutils.h
 		src/parser.h
 		src/polygon.h
 		src/polygonizer.h
 		src/loader.cpp
+		src/3MFutils.cpp
 		src/simulator.cpp
 		src/optimizer.cpp
 		src/oUtils.cpp
@@ -113,8 +128,9 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Widgets
     PRIVATE Qt5::Gui
     PRIVATE Qt5::Xml
+    PRIVATE Eigen3::Eigen
+    PRIVATE Spectra::Spectra
+    PRIVATE ${glm_LIBRARIES}
     PRIVATE Titan
-    PRIVATE glm
-    PRIVATE ${GLEW_LIBRARIES}
     PRIVATE pugixml
 )

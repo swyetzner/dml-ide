@@ -141,6 +141,17 @@ void PropertiesTable::displayLoadcase(QString id) {
         createPropertyItem(++rowCount, 1, "vary");
         createVecValueItem(rowCount++, 2, f->vary);
     }
+    for (const Torque *t : load->torques) {
+        createNodeItem(rowCount, 0, "torque");
+        createPropertyItem(++rowCount, 1, "volume");
+        createValueItem(rowCount, 2, t->volume->id);
+        createPropertyItem(++rowCount, 1, "magnitude");
+        createVecValueItem(rowCount, 2, t->magnitude);
+        createPropertyItem(++rowCount, 1, "duration");
+        createValueItem(rowCount, 2, t->duration > 0 ? QString::number(t->duration) : "");
+        createPropertyItem(++rowCount, 1, "vary");
+        createVecValueItem(rowCount++, 2, t->vary);
+    }
     for (Actuation *a : load->actuations) {
         createNodeItem(rowCount, 0, "actuation");
         createPropertyItem(++rowCount, 1, "volume");
@@ -291,6 +302,10 @@ void PropertiesTable::displayOptimization() {
         createValueItem(rowCount, 2, QString::number(r.frequency));
         createPropertyItem(++rowCount, 1, "memory");
         createValueItem(rowCount, 2, QString::number(r.memory));
+        createPropertyItem(++rowCount, 1, "regeneration rate");
+        createValueItem(rowCount, 2, QString::number(r.regenRate));
+        createPropertyItem(++rowCount, 1, "regeneration threshold");
+        createValueItem(rowCount, 2, QString::number(r.regenThreshold));
     }
 
     for (OptimizationStop s : optConfig->stopCriteria) {
@@ -479,6 +494,26 @@ void PropertiesTable::updateProp(int row, int col) {
                         }
                     }
                     optConfig->rules.at(index).memory = item->text().toDouble();
+                }
+                if (property->text() == "regeneration rate") {
+                    int index = 0;
+                    int j = parentProperty->column();
+                    for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                        if (this->item(i,j) != nullptr && this->item(i, j)->text() == "rule") {
+                            index++;
+                        }
+                    }
+                    optConfig->rules.at(index).regenRate = item->text().toDouble();
+                }
+                if (property->text() == "regeneration threshold") {
+                    int index = 0;
+                    int j = parentProperty->column();
+                    for (int i = parentProperty->row() - 1; i >= 0; i--) {
+                        if (this->item(i,j) != nullptr && this->item(i, j)->text() == "rule") {
+                            index++;
+                        }
+                    }
+                    optConfig->rules.at(index).regenThreshold = item->text().toDouble();
                 }
                 if (property->text() == "metric")  {
                     int index = 0;

@@ -147,7 +147,9 @@ void Parser::parseLoadcase(pugi::xml_node dml_load, Loadcase *loadcase, Design *
         Anchor *anchor = new Anchor();
         QString volume = anc.attribute("volume").value();
         anchor->volume = design->volumeMap[volume];
-
+        // THIS TYPE FOR SURFACE FIX -> NOT IMPLEMENTED STILL WIP
+        anchor->type = anc.attribute("type").value();
+        
         if (!(anchor->volume)) {
             cerr << "Volume '" << volume.toStdString() << "' not found.";
             exit(EXIT_FAILURE);
@@ -178,6 +180,30 @@ void Parser::parseLoadcase(pugi::xml_node dml_load, Loadcase *loadcase, Design *
         std::cout << "\tForce '" << volume.toStdString() << "' PARSED\n";
     }
 
+    for (pugi::xml_node frc : dml_load.children("torque")) {
+        Torque *torque = new Torque();
+        QString volume = frc.attribute("volume").value();
+        Vec magnitude = parseVec(frc.attribute("magnitude").value());
+        double duration = frc.attribute("duration").as_double(-1);
+        Vec vary = parseVec(frc.attribute("vary").value());
+        Vec origin = parseVec(frc.attribute("origin").value());
+
+
+        torque->volume = design->volumeMap[volume];
+        if (!(torque->volume)) {
+            cerr << "Volume '" << volume.toStdString() << "' not found.";
+            exit(EXIT_FAILURE);
+        }
+        torque->magnitude = magnitude;
+        torque->duration = duration;
+        torque->vary = vary;
+        torque->origin = origin;
+
+        loadcase->torques.push_back(torque);
+        loadcase->torqueMap[volume] = torque;
+        std::cout << "\tTorque '" << volume.toStdString() << "' PARSED\n";
+    }
+    
     loadcase->id = id;
     loadcase->totalDuration = 0;
 }
@@ -332,7 +358,8 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         QString method = dml_rul.attribute("method").value();
         QString threshold = dml_rul.attribute("threshold").value();
         int frequency = dml_rul.attribute("frequency").as_int(0);
-        QString regeneration = dml_rul.attribute("regeneration").value();
+        QString regenRate = dml_rul.attribute("regenRate").value();
+        QString regenThreshold = dml_rul.attribute("regenThreshold").value();
         double memory = dml_rul.attribute("memory").as_double(1);
 
         if (method == "remove_low_stress") {
@@ -347,11 +374,18 @@ void Parser::parseOptimization(pugi::xml_node dml_opt, OptimizationConfig *optCo
         } else {
             rule.threshold = threshold.toDouble();
         }
-        if (!regeneration.isEmpty()) {
-            if (regeneration.endsWith('%')) {
-                rule.regeneration = regeneration.split('%')[0].trimmed().toDouble() / 100;
+        if (!regenRate.isEmpty()) {
+            if (regenRate.endsWith('%')) {
+                rule.regenRate = regenRate.split('%')[0].trimmed().toDouble() / 100;
             } else {
-                rule.regeneration = regeneration.toDouble();
+                rule.regenRate = regenRate.toDouble();
+            }
+        }
+        if (!regenThreshold.isEmpty()) {
+            if (regenThreshold.endsWith('%')) {
+                rule.regenThreshold = regenThreshold.split('%')[0].trimmed().toDouble() / 100;
+            } else {
+                rule.regenThreshold = regenThreshold.toDouble();
             }
         }
         rule.frequency = frequency;
