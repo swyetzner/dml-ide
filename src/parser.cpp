@@ -102,6 +102,7 @@ void Parser::parseVolume(pugi::xml_node dml_vol, Volume *volume) {
     QString id = dml_vol.attribute("id").value();
     QString primitive = dml_vol.attribute("primitive").value();
     QString url = dml_vol.attribute("url").value();
+    qDebug() << "TEST2: " << url;
     QString units = dml_vol.attribute("units").value();
     double alpha = dml_vol.attribute("alpha").as_double(1.0);
     std::string colorstr = dml_vol.attribute("color").value();
@@ -111,7 +112,7 @@ void Parser::parseVolume(pugi::xml_node dml_vol, Volume *volume) {
     volume->primitive = primitive;
     QString dirpath = QString::fromStdString(filepath);
     dirpath.truncate(dirpath.lastIndexOf("/"));
-    volume->url = QUrl(dirpath + "/" + url);
+    volume->url = QUrl(dirpath + url);
     volume->units = units;
     volume->color = QVector4D(color[0], color[1], color[2], alpha);
 }
