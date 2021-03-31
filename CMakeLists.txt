@@ -23,9 +23,11 @@ set(OpenGL_GL_PREFERENCE "GLVND")
 add_subdirectory(lib/Titan)
 include_directories(
         lib/Titan/include
-        ${Eigen_INCLUDE_DIRS}
-        ${Spectra_INCLUDE_DIRS}
+        $ENV{Eigen_INCLUDE_DIRS}
+        $ENV{Spectra_INCLUDE_DIRS}
         )
+message(STATUS "Eigen included at $ENV{Eigen_INCLUDE_DIRS}")
+message(STATUS "Spectra included at $ENV{Spectra_INCLUDE_DIRS}")
 
 remove_definitions(Titan PUBLIC GRAPHICS)
 
@@ -119,8 +121,8 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt5::Widgets
     PRIVATE Qt5::Gui
     PRIVATE Qt5::Xml
-    PRIVATE Eigen3::Eigen
-    PRIVATE Spectra::Spectra
+#    PRIVATE Eigen3::Eigen
+#    PRIVATE Spectra::Spectra
     PRIVATE ${glm_LIBRARIES}
     PRIVATE Titan
     PRIVATE pugixml
