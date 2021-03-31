@@ -23,8 +23,8 @@ set(OpenGL_GL_PREFERENCE "GLVND")
 add_subdirectory(lib/Titan)
 include_directories(
         lib/Titan/include
-        ${Eigen_INCLUDE_DIRS}
-        ${Spectra_INCLUDE_DIRS}
+        $ENV{Eigen_INCLUDE_DIRS}
+        $ENV{Spectra_INCLUDE_DIRS}
         )
 
 remove_definitions(Titan PUBLIC GRAPHICS)

@@ -2847,9 +2847,10 @@ void MassMigratorFreq::optimize() {
 std::set<int> MassMigratorFreq::findPeaks(Vec ** modeShapes, int massNum, int bands) {
     std::set<int> freqs = {};
     for (int i = 1; i < bands-1; i++) {
-        if ( ((modeShapes[i-1][massNum][0]*1.1 < modeShapes[i][massNum][0]) && (modeShapes[i][massNum][0] > modeShapes[i+1][massNum][0]))
-             ||  ((modeShapes[i-1][massNum][1]*1.1 < modeShapes[i][massNum][1]) && (modeShapes[i][massNum][1] > modeShapes[i+1][massNum][1]))
-             ||  ((modeShapes[i-1][massNum][2]*1.1 < modeShapes[i][massNum][2]) && (modeShapes[i][massNum][2] > modeShapes[i+1][massNum][2]))) {
+        double prev = modeShapes[i-1][massNum].norm();
+        double cur = modeShapes[i][massNum].norm();
+        double next = modeShapes[i+1][massNum].norm();
+        if ( ((cur > prev*1.1) && (cur > next)) || ((cur > prev) && (cur > next*1.1))) {
             freqs.insert(i);
         }
     }
