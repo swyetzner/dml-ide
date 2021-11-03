@@ -62,4 +62,4 @@ $ ./DMLIDE
 ````
 
 ### License
-This software was written by Sofia Wyetzner as part of a project led by Professor Hod Lipson at the Creative Machines Lab at Columbia University. You are welcome to use and modify the software as desired, but we ask that you give credit to the original source.
+© 2020 The Trustees of Columbia University in the City of New York. This work may be reproduced and distributed for academic non-commercial purposes only without further authorization, but rightsholder otherwise reserves all rights and all reproductions of this work must include an express acknowledgment of Sofia Wyetzner and Professor Hod Lipson of the Creative Machines Lab at Columbia University as the source. No changes or modifications to this work may be made without prior written permission from Sofia Wyetnzer and Professor Hod Lipson.
